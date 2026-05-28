@@ -1,0 +1,2621 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Структура Setl</title>
+  <style>
+
+/* ============================================================
+   ШРИФТЫ
+   При встраивании в Битрикс: поменять пути на абсолютные
+============================================================ */
+@font-face {
+  font-family: 'TT Commons Pro';
+  src: url('Fonts/TT_Commons_Pro_Regular.otf') format('opentype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'TT Commons Pro';
+  src: url('Fonts/TT_Commons_Pro_Bold.otf') format('opentype');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'TT Commons Pro Expanded';
+  src: url('Fonts/TT_Commons_Pro_Expanded_Regular.otf') format('opentype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'TT Commons Pro Expanded';
+  src: url('Fonts/TT_Commons_Pro_Expanded_DemiBold.otf') format('opentype');
+  font-weight: 600;
+}
+@font-face {
+  font-family: 'TT Commons Pro Expanded';
+  src: url('Fonts/TT_Commons_Pro_Expanded_Bold.otf') format('opentype');
+  font-weight: 700;
+}
+
+/* ============================================================
+   ТОКЕНЫ
+============================================================ */
+:root {
+  --red:     #ED1C24;
+  --black:   #000000;
+  --gray:    #41484A;
+  --surface: #F6F6F6;
+  --white:   #FFFFFF;
+  --border:  rgba(0,0,0,0.08);
+  --r-sm:    6px;
+  --r-lg:    12px;
+  --f-body:  'TT Commons Pro', sans-serif;
+  --f-exp:   'TT Commons Pro Expanded', sans-serif;
+  --lh:      1.2;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--f-body);
+  color: var(--black);
+  background: var(--white);
+  line-height: var(--lh);
+  -webkit-font-smoothing: antialiased;
+  moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   ДЕМО-МАКЕТ
+   При встраивании в Битрикс: убрать .demo-layout и .sidebar-stub
+============================================================ */
+.demo-layout {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar-stub {
+  width: 331px;
+  min-height: 100vh;
+  background: #F9F9F9;
+  border-right: 1px solid rgba(0,0,0,0.06);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+  gap: 5px;
+}
+.stub-logo {
+  width: 68px;
+  height: 26px;
+  background: var(--red);
+  border-radius: 4px;
+  margin-bottom: 28px;
+}
+.stub-nav-item {
+  height: 29px;
+  border-radius: var(--r-sm);
+  background: rgba(0,0,0,0.045);
+}
+.stub-nav-item.active {
+  background: rgba(237,28,36,0.09);
+  position: relative;
+}
+.stub-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--red);
+}
+.stub-nav-group {
+  margin-top: 18px;
+  margin-bottom: 4px;
+  height: 11px;
+  width: 50%;
+  background: rgba(0,0,0,0.04);
+  border-radius: 3px;
+}
+
+.org-content {
+  width: 1568px;
+  padding: 0 40px;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ============================================================
+   ВЬЮХИ
+============================================================ */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ============================================================
+   ХЛЕБНЫЕ КРОШКИ
+============================================================ */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 18px 0 0;
+  font-size: 13px;
+  color: rgba(0,0,0,0.38);
+}
+.bc-item {
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+.bc-item:hover { color: var(--black); background: var(--surface); }
+.bc-item.current { color: var(--black); cursor: default; font-weight: 600; padding: 0; }
+.bc-sep { color: rgba(0,0,0,0.18); font-size: 10px; padding: 0 2px; }
+
+/* ============================================================
+   ЗАГОЛОВОК СТРАНИЦЫ (только лендинг)
+============================================================ */
+.page-title {
+  font-family: var(--f-exp);
+  font-weight: 700;
+  font-size: 48px;
+  color: var(--black);
+  padding: 22px 0 44px;
+  text-align: center;
+  justify-content: center;
+}
+
+/* ============================================================
+   БЭК-ОФИС: STICKY ПОЛОСКА
+============================================================ */
+.backoffice-strip {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.bo-strip-label {
+  font-family: var(--f-exp);
+  font-weight: 600;
+  font-size: 10px;
+  color: rgba(0,0,0,0.3);
+  letter-spacing: 0.9px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.bo-strip-items { display: flex; gap: 4px; flex-wrap: wrap; }
+.bo-strip-item {
+  padding: 4px 13px;
+  background: var(--surface);
+  border-radius: 100px;
+  font-size: 12px;
+  color: var(--gray);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.bo-strip-item:hover { background: var(--black); color: var(--white); }
+
+/* ============================================================
+   ЛЕНДИНГ: ДИРЕКТОРА
+============================================================ */
+.directors-block { padding: 0; }
+.section-label {
+  font-family: var(--f-exp);
+  font-weight: 400;
+  font-size: 11px;
+  color: rgba(0,0,0,0.35);
+  letter-spacing: 1.3px;
+  text-align: center;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+.directors-row {
+  display: flex;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 0 -40px;
+}
+.dir-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 44px 40px 40px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  gap: 0;
+}
+.dir-card:last-child { border-right: none; }
+.dir-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--white);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--gray);
+  font-weight: 600;
+  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.dir-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.dir-role {
+  font-size: 14px;
+  color: var(--gray);
+  line-height: 1.45;
+  margin-top: 18px;
+  margin-bottom: 10px;
+  min-height: 42px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.dir-name {
+  font-family: var(--f-exp);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--black);
+  line-height: 1.45;
+}
+
+/* ============================================================
+   ЛЕНДИНГ: КОМПАНИИ
+============================================================ */
+.h-divider { height: 1px; background: var(--border); }
+.companies-row { display: flex; }
+.company-tile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 68px 32px 60px;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.company-tile:last-child { border-right: none; }
+.company-tile::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--red);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.company-tile:hover { background: var(--surface); }
+.company-tile:hover::after { transform: scaleX(1); }
+.company-tile img { max-width: 210px; max-height: 68px; object-fit: contain; }
+.company-tile-name {
+  font-family: var(--f-exp);
+  font-weight: 700;
+  font-size: 20px;
+  text-align: center;
+  line-height: 1.3;
+}
+.company-tile-arrow {
+  position: absolute;
+  bottom: 20px;
+  right: 24px;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.25s;
+  color: var(--red);
+  transform: translateX(-6px);
+}
+.company-tile:hover .company-tile-arrow { opacity: 1; transform: translateX(0); }
+
+/* ============================================================
+   ЛЕНДИНГ: БЭК-ОФИС (полный)
+============================================================ */
+.backoffice-full { padding: 48px 0 72px; }
+.bo-full-grid {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bo-full-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 20px 14px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  color: var(--gray);
+  min-width: 104px;
+  text-align: center;
+}
+.bo-full-item:hover { background: var(--black); color: var(--white); }
+.bo-full-item:hover .bo-icon { color: var(--white); }
+.bo-icon { color: rgba(0,0,0,0.4); transition: color 0.15s; line-height: 0; }
+.bo-full-name { font-family: var(--f-exp); font-weight: 600; font-size: 13px; }
+
+/* ============================================================
+   COMPANY VIEW
+============================================================ */
+.cv-header {
+  padding: 32px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cv-logo-area { display: flex; align-items: center; gap: 18px; }
+.cv-logo-area img { max-height: 48px; object-fit: contain; }
+.cv-logo-name { font-family: var(--f-exp); font-weight: 700; font-size: 24px; }
+.cv-red-line { width: 1px; height: 36px; background: #C8C8C8; }
+.btn-legal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--surface);
+  border: none;
+  border-radius: 100px;
+  font-family: var(--f-exp);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--black);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-legal:hover { background: var(--black); color: var(--white); }
+.btn-legal:hover svg line,
+.btn-legal:hover svg rect { stroke: var(--white); }
+
+.blocks-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 32px;
+  padding-bottom: 60px;
+}
+.block-tile {
+  padding: 32px 24px 28px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  transition: box-shadow 0.25s, border-color 0.25s, transform 0.25s;
+  position: relative;
+  overflow: hidden;
+  min-height: 160px;
+}
+.block-tile::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--red);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.block-tile:hover {
+  box-shadow: 0 8px 36px rgba(0,0,0,0.09);
+  border-color: transparent;
+  transform: translateY(-3px);
+}
+.block-tile:hover::before { transform: scaleX(1); }
+.block-name {
+  font-family: var(--f-exp);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--black);
+  line-height: 1.35;
+}
+.block-arrow {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray);
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.block-tile:hover .block-arrow { background: var(--red); color: var(--white); }
+
+/* ============================================================
+   TREE VIEW
+============================================================ */
+.tv-header {
+  padding: 32px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tv-title-area { display: flex; align-items: center; gap: 16px; }
+.tv-title {
+  font-family: var(--f-exp);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--black);
+}
+.tv-controls { display: flex; align-items: center; gap: 6px; }
+
+.search-wrap { position: relative; }
+.search-input {
+  width: 240px;
+  height: 38px;
+  padding: 0 14px 0 38px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-family: var(--f-body);
+  font-size: 14px;
+  outline: none;
+  background: var(--surface);
+  transition: border-color 0.15s, background 0.15s;
+}
+.search-input:focus { border-color: var(--red); background: var(--white); }
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(0,0,0,0.32);
+  pointer-events: none;
+}
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 320px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  z-index: 200;
+  max-height: 320px;
+  overflow-y: auto;
+  display: none;
+}
+.search-dropdown.open { display: block; }
+.sd-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.sd-item:hover { background: var(--surface); }
+.sd-item:last-child { border-bottom: none; }
+.sd-name { font-weight: 600; font-size: 13px; }
+.sd-role { font-size: 11px; color: rgba(0,0,0,0.42); margin-top: 2px; }
+
+.zoom-btn {
+  width: 38px;
+  height: 38px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-sm);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--black);
+  transition: background 0.15s;
+  line-height: 1;
+}
+.zoom-btn:hover { background: rgba(0,0,0,0.1); }
+
+.canvas-wrapper {
+  margin-top: 16px;
+  height: calc(100vh - 216px);
+  background-color: #F4F5F7;
+  background-image: radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px);
+  background-size: 24px 24px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+  user-select: none;
+}
+.canvas-wrapper.panning { cursor: grabbing; }
+.canvas-inner {
+  position: absolute;
+  transform-origin: 0 0;
+}
+.tree-svg {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* ============================================================
+   КАРТОЧКИ ДЕРЕВА
+============================================================ */
+.tree-node { position: absolute; }
+
+/* Группа топ-руководителей */
+.group-heads-box {
+  display: flex;
+  gap: 28px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+/* Подложка — включается когда руководителей > 1 */
+.group-heads-box--plate {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  padding: 12px;
+}
+
+/* Карточка топ-руководителя */
+.card-head {
+  background: var(--white);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--r-lg);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  width: 148px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+.card-head:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: #C8C8C8; }
+.card-head-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--surface);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gray);
+  flex-shrink: 0;
+}
+.card-head-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.card-head-role { font-size: 10px; color: rgba(0,0,0,0.42); line-height: 1.4; }
+.card-head-name { font-family: var(--f-exp); font-weight: 700; font-size: 11px; color: var(--black); }
+
+/* Карточка менеджера */
+.card-person {
+  background: var(--white);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--r-lg);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  width: 148px;
+  height: 148px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.card-person:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: #C8C8C8; }
+.card-person.hl { border-color: var(--red); box-shadow: 0 0 0 3px rgba(237,28,36,0.12); }
+.card-div.hl    { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(237,28,36,0.12) !important; }
+.card-head.hl   { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(237,28,36,0.12) !important; }
+.card-person-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--surface);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gray);
+}
+.card-person-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.card-person-role { font-size: 10px; color: rgba(0,0,0,0.42); line-height: 1.4; }
+.card-person-name { font-family: var(--f-exp); font-weight: 700; font-size: 10px; color: var(--black); }
+
+/* Карточка помощника */
+.card-assistant {
+  position: absolute;
+  background: var(--white);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--r-lg);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+  width: 108px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+.card-assistant:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: #C8C8C8; }
+.card-assistant-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray);
+}
+.card-assistant-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.card-assistant-role { font-size: 9px; color: rgba(0,0,0,0.38); line-height: 1.3; }
+.card-assistant-name { font-family: var(--f-exp); font-weight: 600; font-size: 9px; color: var(--black); }
+
+/* Плашка подразделения (уровни 3–4) */
+.card-div {
+  background: var(--white);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--r-lg);
+  padding: 12px;
+  width: 148px;
+  height: 148px;  /* = DH constant */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: default;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.card-div:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: #C8C8C8; }
+.card-div--exp { height: 111px; width: 185px; }
+.cdiv-title {
+  flex: 1;
+  font-family: var(--f-exp);
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--black);
+  line-height: 1.35;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+.cdiv-bottom { display: flex; flex-direction: column; gap: 5px; }
+.cdiv-manager-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-width: 0;
+}
+.cdiv-manager-chip:hover { background: #E0E0E0; }
+.cdiv-manager-avatar {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #ddd;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 7px; font-weight: 600; color: rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+.cdiv-manager-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cdiv-manager-name {
+  font-family: var(--f-exp); font-weight: 600; font-size: 9.5px;
+  color: var(--black); line-height: 1.25;
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cdiv-emp-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cdiv-emp-chip:hover { background: #E0E0E0; }
+.cdiv-emp-left {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--f-exp); font-weight: 600; font-size: 10px;
+  color: var(--black);
+}
+.cdiv-emp-arrow { color: rgba(0,0,0,0.35); flex-shrink: 0; }
+
+/* Плашка подразделения-ссылки */
+.card-div-link {
+  background: rgba(237,28,36,0.05);
+  border: 1.5px solid rgba(237,28,36,0.28);
+  border-radius: var(--r-lg);
+  padding: 10px 14px;
+  text-align: center;
+  width: 148px;
+  height: 148px;
+  box-sizing: border-box;
+  font-family: var(--f-exp);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--red);
+  line-height: 1.4;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.card-div-link:hover {
+  background: rgba(237,28,36,0.1);
+  border-color: var(--red);
+  box-shadow: 0 4px 16px rgba(237,28,36,0.12);
+}
+
+/* ============================================================
+   КАРТОЧКА СОТРУДНИКА НА КАНВАСЕ (expanded-режим)
+============================================================ */
+.card-emp-node {
+  background: var(--white);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  width: 140px;
+  height: 56px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.card-emp-node:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); border-color: #C8C8C8; }
+.card-emp-node.hl    { border-color: var(--red); box-shadow: 0 0 0 3px rgba(237,28,36,0.12); }
+.card-emp-node-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--surface);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 600; color: var(--gray);
+  overflow: hidden;
+}
+.card-emp-node-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.card-emp-node-info { min-width: 0; flex: 1; }
+.card-emp-node-name {
+  font-family: var(--f-exp); font-weight: 700; font-size: 9.5px;
+  color: var(--black); line-height: 1.25;
+  overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.card-emp-node-role {
+  font-size: 8.5px; color: var(--gray); margin-top: 2px; line-height: 1.25;
+  overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+
+/* ============================================================
+   БОКОВАЯ ПАНЕЛЬ: СОТРУДНИКИ КОМАНДЫ
+============================================================ */
+.emp-team-header {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.emp-team-manager { font-size: 13px; color: var(--gray); }
+.emp-team-count   { font-family: var(--f-exp); font-weight: 600; font-size: 13px; color: var(--black); }
+.emp-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 16px 20px;
+  margin-bottom: 10px;
+}
+.emp-name { font-family: var(--f-exp); font-weight: 700; font-size: 13px; color: var(--black); margin-bottom: 10px; }
+.emp-row  { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray); margin-bottom: 6px; }
+.emp-row:last-child { margin-bottom: 0; }
+.emp-row svg { flex-shrink: 0; color: rgba(0,0,0,0.32); }
+.emp-card-clickable { cursor: pointer; transition: background 0.15s; }
+.emp-card-clickable:hover { background: #EFEFEF; }
+
+/* ============================================================
+   КАРТОЧКА СОТРУДНИКА (боковая панель)
+============================================================ */
+.pc-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.pc-avatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: var(--surface);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: var(--gray);
+}
+.pc-avatar.has-photo { cursor: zoom-in; }
+.pc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pc-info { min-width: 0; }
+.pc-name { font-family: var(--f-exp); font-weight: 700; font-size: 16px; color: var(--black); line-height: 1.3; margin-bottom: 5px; }
+.pc-role { font-size: 13px; color: var(--gray); line-height: 1.4; }
+.pc-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.pc-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 14px; }
+.pc-field:last-child { margin-bottom: 0; }
+.pc-label { font-size: 11px; color: var(--gray); }
+.pc-value { font-size: 14px; color: var(--black); font-weight: 500; line-height: 1.4; }
+.pc-value-dash { font-size: 14px; color: rgba(0,0,0,0.28); }
+.pc-value-link { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: var(--black); font-weight: 500; }
+.pc-value-link svg { color: rgba(80,80,200,0.7); flex-shrink: 0; }
+.pc-divider { height: 1px; background: var(--border); margin: 4px 0 18px; }
+
+/* Кнопка «Назад» в боковой панели */
+.sp-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0 0 18px;
+  font-size: 13px;
+  color: var(--gray);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.sp-back-btn:hover { color: var(--black); }
+.sp-back-btn svg { flex-shrink: 0; }
+
+/* Дерево подразделения в карточке сотрудника */
+.pc-section-label { font-family: var(--f-exp); font-weight: 600; font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(0,0,0,0.35); margin-bottom: 10px; }
+.pc-org-tree  { display: flex; flex-direction: column; }
+.pc-org-row   { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; }
+.pc-org-icon  { width: 24px; height: 24px; border-radius: 6px; background: var(--surface); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--gray); }
+.pc-org-body  { min-width: 0; padding-top: 3px; }
+.pc-org-name  { font-family: var(--f-exp); font-weight: 600; font-size: 12px; color: var(--black); line-height: 1.3; }
+.pc-org-mgr   { font-size: 11px; color: var(--gray); margin-top: 2px; }
+
+/* Список сотрудников в группе */
+.emp-list { margin-top: 4px; }
+.emp-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.emp-list-item:hover { background: var(--surface); }
+.emp-list-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: #ddd;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.5);
+}
+.emp-list-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.emp-list-name { font-family: var(--f-exp); font-weight: 700; font-size: 13px; color: var(--black); }
+.emp-list-role { font-size: 12px; color: var(--gray); margin-top: 1px; }
+.emp-list-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.emp-badge-manager {
+  display: inline-flex;
+  align-items: center;
+  background: var(--red);
+  color: var(--white);
+  font-family: var(--f-exp);
+  font-weight: 700;
+  font-size: 9px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+.emp-list-chevron { color: rgba(0,0,0,0.28); flex-shrink: 0; margin-left: auto; }
+.emp-list-group-icon {
+  width: 36px; height: 36px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--gray);
+}
+
+/* Лайтбокс увеличения фото */
+.photo-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(10px);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.photo-overlay.vis { display: flex; }
+.photo-overlay-img {
+  max-width: 360px;
+  max-height: 72vh;
+  width: auto;
+  height: auto;
+  border-radius: 16px;
+  object-fit: contain;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+/* ============================================================
+   TOOLTIP НА ПОДРАЗДЕЛЕНИЯХ
+============================================================ */
+.div-tooltip {
+  position: fixed;
+  background: rgba(0,0,0,0.88);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  z-index: 600;
+  max-width: 220px;
+  pointer-events: none;
+  display: none;
+  backdrop-filter: blur(4px);
+}
+.div-tooltip.vis { display: block; }
+.tt-title { font-family: var(--f-exp); font-weight: 600; font-size: 12px; margin-bottom: 4px; color: var(--white); }
+.tt-desc { font-size: 11px; color: rgba(255,255,255,0.6); line-height: 1.45; }
+.tt-assistant {
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 6px;
+  margin-top: 6px;
+}
+.tt-assistant b { color: rgba(255,255,255,0.85); }
+
+/* ============================================================
+   БОКОВАЯ ПАНЕЛЬ (юридические лица)
+============================================================ */
+.side-panel {
+  position: fixed;
+  top: 0;
+  right: -520px;
+  width: 500px;
+  height: 100vh;
+  background: var(--white);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 56px rgba(0,0,0,0.1);
+  z-index: 1000;
+  transition: right 0.35s cubic-bezier(0.4,0,0.2,1);
+  display: flex;
+  flex-direction: column;
+}
+.side-panel.open { right: 0; }
+.sp-header {
+  padding: 28px 32px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.sp-title { font-family: var(--f-exp); font-weight: 700; font-size: 20px; }
+.sp-close {
+  width: 30px;
+  height: 30px;
+  background: var(--surface);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: rgba(0,0,0,0.45);
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+.sp-close:hover { background: rgba(0,0,0,0.1); color: var(--black); }
+.sp-body { flex: 1; overflow-y: auto; padding: 24px 32px; }
+.le-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 20px 24px;
+  margin-bottom: 12px;
+}
+.le-name { font-family: var(--f-exp); font-weight: 700; font-size: 14px; margin-bottom: 14px; }
+.le-row { display: flex; gap: 8px; margin-bottom: 5px; font-size: 13px; }
+.le-label { color: rgba(0,0,0,0.38); min-width: 80px; }
+.le-val { color: var(--black); }
+.le-btn {
+  margin-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: var(--black);
+  color: var(--white);
+  border: none;
+  border-radius: 100px;
+  font-family: var(--f-body);
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.le-btn:hover { opacity: 0.72; }
+
+  </style>
+</head>
+<body>
+<div class="demo-layout">
+
+  <!-- При встраивании в Битрикс — убрать этот блок -->
+  <div class="sidebar-stub">
+    <div class="stub-logo"></div>
+    <div class="stub-nav-item"></div>
+    <div class="stub-nav-group"></div>
+    <div class="stub-nav-item"></div>
+    <div class="stub-nav-item"></div>
+    <div class="stub-nav-item"></div>
+    <div class="stub-nav-group"></div>
+    <div class="stub-nav-item"></div>
+    <div class="stub-nav-item"></div>
+    <div class="stub-nav-group"></div>
+    <div class="stub-nav-item active"></div>
+    <div class="stub-nav-item"></div>
+    <div class="stub-nav-item"></div>
+  </div>
+
+  <div class="org-content">
+
+    <div class="breadcrumb" id="breadcrumb"></div>
+
+    <!-- ================================================
+         ВЬЮХА 1: РАЗДАТОЧНАЯ
+    ================================================ -->
+    <div class="view active" id="view-landing">
+      <div class="page-title">Структура</div>
+
+      <div class="directors-block">
+        <div class="section-label">Совет директоров — управление холдингом</div>
+        <div class="directors-row" id="directors-row"></div>
+      </div>
+
+      <div class="h-divider"></div>
+      <div class="companies-row" id="companies-row"></div>
+      <div class="h-divider"></div>
+
+      <div class="backoffice-full">
+        <div class="section-label">Бэк-офис — единые службы, обеспечивающие работу компании</div>
+        <div class="bo-full-grid" id="bo-landing"></div>
+      </div>
+    </div>
+
+    <!-- ================================================
+         ВЬЮХА 2: СТРАНИЦА КОМПАНИИ
+    ================================================ -->
+    <div class="view" id="view-company">
+      <div class="cv-header">
+        <div class="cv-logo-area">
+          <img id="cv-logo-img" src="" alt="" style="display:none">
+          <span id="cv-logo-text" class="cv-logo-name"></span>
+          <div class="cv-red-line"></div>
+        </div>
+        <button class="btn-legal" id="btn-legal-open">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <rect x="1.5" y="1.5" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.4"/>
+            <line x1="4" y1="5.5" x2="12" y2="5.5" stroke="currentColor" stroke-width="1.3"/>
+            <line x1="4" y1="8.5" x2="12" y2="8.5" stroke="currentColor" stroke-width="1.3"/>
+            <line x1="4" y1="11.5" x2="9" y2="11.5" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+          Список юридических лиц
+        </button>
+      </div>
+
+      <div class="backoffice-strip" style="margin-top:24px;">
+        <span class="bo-strip-label">Бэк-офис</span>
+        <div class="bo-strip-items" id="bo-strip-cv"></div>
+      </div>
+
+      <div class="blocks-row" id="blocks-row"></div>
+    </div>
+
+    <!-- ================================================
+         ВЬЮХА 3: ДЕРЕВО (infinite canvas)
+    ================================================ -->
+    <div class="view" id="view-tree">
+      <div class="tv-header">
+        <div class="tv-title-area">
+          <span class="tv-title" id="tv-title"></span>
+          <div class="cv-red-line"></div>
+        </div>
+        <div class="tv-controls">
+          <div class="search-wrap">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="9.5" y1="9.5" x2="13.5" y2="13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <input type="text" class="search-input" id="search-input" placeholder="Поиск сотрудника…"
+              oninput="onSearch(this.value)" onblur="setTimeout(closeSearch,200)">
+            <div class="search-dropdown" id="search-dd"></div>
+          </div>
+          <button class="zoom-btn" onclick="zoom(1.2)" title="Приблизить">+</button>
+          <button class="zoom-btn" onclick="zoom(1/1.2)" title="Отдалить">−</button>
+          <button class="zoom-btn" onclick="resetView()" title="Вернуть в начало"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3.5"/><line x1="8" y1="1" x2="8" y2="4.5"/><line x1="8" y1="11.5" x2="8" y2="15"/><line x1="1" y1="8" x2="4.5" y2="8"/><line x1="11.5" y1="8" x2="15" y2="8"/></svg></button>
+        </div>
+      </div>
+
+      <div class="backoffice-strip">
+        <span class="bo-strip-label">Бэк-офис</span>
+        <div class="bo-strip-items" id="bo-strip-tree"></div>
+      </div>
+
+      <div class="canvas-wrapper" id="canvas-wrapper">
+        <div class="canvas-inner" id="canvas-inner">
+          <svg class="tree-svg" id="tree-svg"></svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Тултип -->
+<div class="div-tooltip" id="div-tooltip">
+  <div class="tt-title" id="tt-title"></div>
+  <div class="tt-desc" id="tt-desc"></div>
+  <div class="tt-assistant" id="tt-assistant"></div>
+</div>
+
+<!-- Лайтбокс фото -->
+<div class="photo-overlay" id="photo-overlay" onclick="hidePhotoZoom()">
+  <img class="photo-overlay-img" id="photo-overlay-img" src="" alt="">
+</div>
+
+<!-- Боковая панель -->
+<div class="side-panel" id="side-panel">
+  <div class="sp-header">
+    <div class="sp-title" id="sp-title">Юридические лица</div>
+    <button class="sp-close" onclick="closePanel()">×</button>
+  </div>
+  <div class="sp-body" id="sp-body"></div>
+</div>
+
+<script>
+/* ====================================================================
+   DATA HOOK
+   Замените этот объект на ответ API 1С.
+   Пример endpoint: GET /api/org/structure
+==================================================================== */
+const ORG_DATA = {
+
+  directors: [
+    { id: 'd1', name: 'ШУБАРЕВ\nМАКСИМ ВАЛЕРЬЕВИЧ',  role: 'Председатель совета директоров',    photo: null },
+    { id: 'd2', name: 'ИЗАК\nЯН ЛЕОНИДОВИЧ',          role: 'Член совета директоров',             photo: null },
+    { id: 'd3', name: 'ЕРЕМЕНКО\nИЛЬЯ АНАТОЛЬЕВИЧ',  role: 'Член совета директоров',             photo: null },
+    { id: 'd4', name: 'ЛУГОВСКАЯ\nНАТАЛЬЯ ЮРЬЕВНА',  role: 'Заместитель председателя правления', photo: null },
+  ],
+
+  companies: [
+    { id: 'setlgroup', name: 'SetlGroup',               logo: 'Логотипы/SetlGroup-logo.svg', type: 'tree' },
+    { id: 'pn',        name: 'Петербургская\nНедвижимость', logo: null,                      type: 'external', href: '#' },
+    { id: 'setltech',  name: 'SetlTech',                logo: 'Логотипы/SetlTech-logo.svg',  type: 'tree' },
+  ],
+
+  backoffice: [
+    { id: 'hr',      name: 'HR',       desc: 'Управление персоналом и кадровое администрирование' },
+    { id: 'lawyers', name: 'Юристы',   desc: 'Правовое сопровождение деятельности холдинга'       },
+    { id: 'dvk',     name: 'ДВК',      desc: 'Документационное и визовое сопровождение'           },
+    { id: 'finance', name: 'Финансы',  desc: 'Финансовое планирование и отчётность'               },
+    { id: 'it',      name: 'IT',       desc: 'Информационные технологии и инфраструктура'          },
+    { id: 'aho',     name: 'АХО',      desc: 'Административно-хозяйственное обеспечение'           },
+    { id: 'pr',      name: 'PR',       desc: 'Связи с общественностью и коммуникации'             },
+  ],
+
+  setlgroup: {
+    blocks: [
+      { id: 'construction', name: 'Строительный блок'        },
+      { id: 'arch',         name: 'Архитектурное бюро'       },
+      { id: 'kaliningrad',  name: 'Группа компаний\nКалининград' },
+      { id: 'realestate',   name: 'Управление\nнедвижимостью' },
+    ],
+    legalEntities: [
+      { name: 'ООО СетлСтрой',         director: 'Влащенко И.С.',   inn: '7814000001', phone: '+7 (812) 320-00-01', href: '#' },
+      { name: 'ООО Архитектурное Бюро', director: 'Петров А.В.',     inn: '7814000002', phone: '+7 (812) 320-00-02', href: '#' },
+      { name: 'ООО УК Недвижимость',   director: 'Козлова М.А.',    inn: '7814000003', phone: '+7 (812) 320-00-03', href: '#' },
+    ],
+  },
+
+  setltech: {
+    blocks: [
+      { id: 'tech-dev',   name: 'Разработка'        },
+      { id: 'tech-infra', name: 'Инфраструктура'     },
+      { id: 'tech-data',  name: 'Данные и аналитика' },
+    ],
+    legalEntities: [
+      { name: 'ООО СетлТех', director: 'Сидоров К.Н.', inn: '7814000010', phone: '+7 (812) 320-00-10', href: '#' },
+    ],
+  },
+
+  /* ====================================================================
+     ДЕРЕВЬЯ СТРУКТУРЫ
+     type: 'head' | 'person' | 'division' | 'division-link'
+     showPhoto: true/false
+     assistant: { name, role, photo }
+     skipLevel: true — стрелка через пустоту
+     tooltip: { desc, assistant }
+  ==================================================================== */
+  trees: {
+
+    construction: {
+      heads: [
+        { id: 'vlash', name: 'ВЛАЩЕНКО И.С.',  role: 'Генеральный директор /\nИсполнительный директор', photo: null, showPhoto: true },
+        { id: 'erem',  name: 'ЕРЕМЕНКО И.А.',  role: 'Член совета директоров /\nГенеральный директор',  photo: null, showPhoto: true },
+      ],
+      persons: [
+        {
+          id: 'pokr', name: 'ПОКРОВСКАЯ С.Б.', role: 'Директор\nдепартамента развития', photo: 'https://i.pravatar.cc/160?img=47', showPhoto: true, phone: '+7 (812) 320-00-21', email: 'pokrovskaya@setl.ru',
+          assistant: { name: 'ПЕШЕХОДЬКО Ю.С.', role: 'Административный помощник', photo: null },
+          divisions: [
+            {
+              id: 'div-razvitie',
+              type: 'division',
+              name: 'Департамент развития',
+              manager: { name: 'ИВАНОВА И.И.', photo: null },
+              count: 16,
+              children: [
+                {
+                  id: 'team-obuchenie',
+                  type: 'division',
+                  name: 'Отдел обучения',
+                  manager: { name: 'ПЕТРОВА А.В.', photo: null },
+                  count: 8,
+                  employees: [
+                    { name: 'СИДОРОВА М.А.',  role: 'Ведущий методолог',         phone: '+7 (812) 320-01-01', email: 'm.sidorova@setl.ru',  office: 'К. 312', photo: 'https://i.pravatar.cc/160?img=12' },
+                    { name: 'КУЗЬМИН П.О.',   role: 'Специалист по обучению',    phone: '+7 (812) 320-01-02', email: 'p.kuzmin@setl.ru',    office: 'К. 313' },
+                    { name: 'ФЁДОРОВА Т.С.',  role: 'Старший методолог',         phone: '+7 (812) 320-01-03', email: 't.fedorova@setl.ru',  office: 'К. 312' },
+                    { name: 'ВОРОНОВ Д.И.',   role: 'Младший специалист',        phone: '+7 (812) 320-01-04', email: 'd.voronov@setl.ru',   office: 'К. 314' },
+                  ],
+                },
+                {
+                  id: 'team-podderzhka',
+                  type: 'division',
+                  name: 'Отдел поддержки',
+                  manager: { name: 'КОЗЛОВ Н.Р.', photo: null },
+                  count: 5,
+                  employees: [
+                    { name: 'ОРЛОВА Е.К.',    role: 'Специалист поддержки',      phone: '+7 (812) 320-02-01', email: 'e.orlova@setl.ru',    office: 'К. 401' },
+                    { name: 'РОМАНОВ А.Д.',   role: 'Ведущий аналитик',          phone: '+7 (812) 320-02-02', email: 'a.romanov@setl.ru',   office: 'К. 402' },
+                    { name: 'ЛЕБЕДЕВА С.В.',  role: 'Аналитик данных',           phone: '+7 (812) 320-02-03', email: 's.lebedeva@setl.ru',  office: 'К. 401' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'tikh', name: 'ТИХАНОВ И.Ю.', role: 'Директор департамента\nподготовки проектов', photo: null, showPhoto: true,
+          assistant: null,
+          divisions: [
+            { id: 'div-podg', type: 'division', name: 'Департамент подготовки\nпроектов',
+              manager: { name: 'ТИХАНОВ И.Ю.', photo: null }, count: 12,
+              tooltip: { desc: 'Подготовка проектной документации', assistant: null } },
+          ],
+        },
+        {
+          id: 'ship', name: 'ШИПУНОВ В.В.', role: 'Руководитель дирекции\nспециальных проектов', photo: null, showPhoto: true,
+          assistant: null,
+          divisions: [
+            { id: 'div-special', type: 'division', name: 'Дирекция специальных\nпроектов',
+              manager: { name: 'ШИПУНОВ В.В.', photo: null }, count: 8,
+              tooltip: { desc: 'Управление специальными проектами', assistant: null } },
+          ],
+        },
+        {
+          id: 'ershov', name: 'ЕРШОВ В.В.', role: 'Заместитель\nгенерального директора', photo: null, showPhoto: true,
+          assistant: null,
+          skipLevel: true,
+          divisions: [
+            { id: 'div-stroy', type: 'division-link', name: 'Департамент\nстроительства',
+              href: '#construction-objects',
+              tooltip: { desc: 'Управление строительными объектами', assistant: 'СМИРНОВА О.П.' } },
+            { id: 'div-pkd', type: 'division', name: 'Производственно-\nкоммерческий департамент',
+              manager: { name: 'ЕРШОВ В.В.', photo: null }, count: 25,
+              tooltip: { desc: 'Коммерческое и производственное управление', assistant: null } },
+          ],
+        },
+        {
+          id: 'kreml', name: 'КРЕМЛЁВА Е.С.', role: 'Заместитель\nгенерального директора', photo: null, showPhoto: true,
+          assistant: null,
+          divisions: [
+            { id: 'div-quality', type: 'division', name: 'Дирекция\nпо качеству',
+              manager: { name: 'КРЕМЛЁВА Е.С.', photo: null }, count: 10,
+              tooltip: { desc: 'Контроль качества строительства', assistant: null } },
+            { id: 'div-adm', type: 'division', name: 'Административный\nдепартамент',
+              manager: { name: 'БЕЛОВА Т.А.', photo: null }, count: 15,
+              tooltip: { desc: 'Административное обеспечение', assistant: null } },
+          ],
+        },
+      ],
+    },
+
+    arch: {
+      heads: [
+        { id: 'arch-h', name: 'ИВАНОВ А.А.', role: 'Руководитель\nархитектурного бюро', photo: null, showPhoto: true },
+      ],
+      persons: [
+        {
+          id: 'arch-p1', name: 'ПЕТРОВА И.В.', role: 'Главный архитектор', photo: null, showPhoto: true,
+          assistant: null,
+          divisions: [
+            { id: 'arch-d1', type: 'division', name: 'Отдел\nпроектирования',
+              manager: { name: 'ПЕТРОВА И.В.', photo: null }, count: 6,
+              tooltip: { desc: '', assistant: null } },
+          ],
+        },
+      ],
+    },
+
+    kaliningrad: {
+      heads: [
+        { id: 'kal-h', name: 'СИДОРОВ К.Н.', role: 'Генеральный директор\nГК Калининград', photo: null, showPhoto: true },
+      ],
+      persons: [],
+    },
+
+    realestate: {
+      expanded: true,
+      heads: [
+        { id: 're-h', name: 'КОЗЛОВА М.А.', role: 'Директор по управлению\nнедвижимостью', photo: null, showPhoto: true },
+      ],
+      persons: [
+        {
+          id: 're-p1', name: 'ГРОМОВА Е.В.', role: 'Директор\nдепартамента аренды', photo: null, showPhoto: true,
+          assistant: null,
+          divisions: [
+            {
+              id: 're-d1', type: 'division', name: 'Департамент\nаренды',
+              manager: { name: 'ГРОМОВА Е.В.', photo: null },
+              children: [
+                {
+                  id: 're-c1', type: 'division', name: 'Отдел\nжилой аренды',
+                  manager: { name: 'СОКОЛОВА Т.И.', photo: null },
+                  employees: [
+                    { name: 'НИКИТИНА В.С.', role: 'Специалист по аренде', phone: '+7 (812) 320-11-01', email: 'v.nikitina@setl.ru', office: 'К. 201' },
+                    { name: 'РЫБАКОВА М.Е.', role: 'Менеджер по аренде', phone: '+7 (812) 320-11-02', email: 'm.rybakova@setl.ru', office: 'К. 201' },
+                  ],
+                },
+                {
+                  id: 're-c2', type: 'division', name: 'Отдел коммерческой\nаренды',
+                  manager: { name: 'ЗАЙЦЕВ Д.А.', photo: null },
+                  employees: [
+                    { name: 'МОРОЗОВА А.С.', role: 'Специалист по коммерции', phone: '+7 (812) 320-11-03', email: 'a.morozova@setl.ru', office: 'К. 202' },
+                    { name: 'КРЫЛОВ П.Н.', role: 'Менеджер коммерческой аренды', phone: '+7 (812) 320-11-04', email: 'p.krylov@setl.ru', office: 'К. 202' },
+                    { name: 'СЕРГЕЕВА О.А.', role: 'Специалист по аренде', phone: '+7 (812) 320-11-05', email: 'o.sergeeva@setl.ru', office: 'К. 203' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 're-p2', name: 'БЕЛОВ И.Н.', role: 'Директор по управлению\nобъектами', photo: null, showPhoto: true,
+          assistant: null,
+          divisions: [
+            {
+              id: 're-d2', type: 'division', name: 'Департамент управления\nобъектами',
+              manager: { name: 'БЕЛОВ И.Н.', photo: null },
+              children: [
+                {
+                  id: 're-c3', type: 'division', name: 'Отдел технической\nэксплуатации',
+                  manager: { name: 'ДАНИЛОВ А.В.', photo: null },
+                  employees: [
+                    { name: 'ТИМОФЕЕВ В.С.', role: 'Инженер-эксплуатационник', phone: '+7 (812) 320-12-01', email: 'v.timofeev@setl.ru', office: 'К. 105' },
+                    { name: 'КАЗАКОВ М.И.', role: 'Технический специалист', phone: '+7 (812) 320-12-02', email: 'm.kazakov@setl.ru', office: 'К. 105' },
+                    { name: 'ЛАРИНА Е.В.', role: 'Инженер', phone: '+7 (812) 320-12-03', email: 'e.larina@setl.ru', office: 'К. 106' },
+                  ],
+                },
+                {
+                  id: 're-c4', type: 'division', name: 'Отдел\nклиентского сервиса',
+                  manager: { name: 'ПОПОВА И.Г.', photo: null },
+                  employees: [
+                    { name: 'АНТОНОВА С.В.', role: 'Менеджер по работе с клиентами', phone: '+7 (812) 320-12-04', email: 's.antonova@setl.ru', office: 'К. 107' },
+                    { name: 'ВОЛКОВ Р.Д.', role: 'Специалист поддержки', phone: '+7 (812) 320-12-05', email: 'r.volkov@setl.ru', office: 'К. 107' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 're-p3', name: 'ЗАХАРОВ С.О.', role: 'Руководитель\nотдела продаж', photo: null, showPhoto: true,
+          assistant: null,
+          divisions: [
+            {
+              id: 're-d3', type: 'division', name: 'Отдел\nпродаж',
+              manager: { name: 'ЗАХАРОВ С.О.', photo: null },
+              employees: [
+                { name: 'ГУСЕВА Т.Р.', role: 'Менеджер по продажам', phone: '+7 (812) 320-13-01', email: 't.guseva@setl.ru', office: 'К. 310' },
+                { name: 'НОВИКОВ Д.В.', role: 'Специалист по продажам', phone: '+7 (812) 320-13-02', email: 'd.novikov@setl.ru', office: 'К. 310' },
+                { name: 'БАРАНОВА К.О.', role: 'Старший менеджер', phone: '+7 (812) 320-13-03', email: 'k.baranova@setl.ru', office: 'К. 311' },
+              ],
+            },
+          ],
+        },
+        {
+          id: 're-p4', name: 'ФОМИНА А.И.', role: 'Финансовый директор', photo: null, showPhoto: true,
+          assistant: null,
+          divisions: [
+            {
+              id: 're-d4', type: 'division', name: 'Финансово-\nэкономический отдел',
+              manager: { name: 'ФОМИНА А.И.', photo: null },
+              employees: [
+                { name: 'ЩЕРБАКОВ В.П.', role: 'Главный бухгалтер', phone: '+7 (812) 320-14-01', email: 'v.shcherbakov@setl.ru', office: 'К. 215' },
+                { name: 'КОМАРОВА Н.С.', role: 'Финансовый аналитик', phone: '+7 (812) 320-14-02', email: 'n.komarova@setl.ru', office: 'К. 215' },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  },
+};
+
+/* ====================================================================
+   СОСТОЯНИЕ
+==================================================================== */
+let state = { view: 'landing', companyId: null, blockId: null, blockName: '' };
+let DEPT_REGISTRY = {};
+let SEARCH_INDEX  = [];
+let _searchResults = [];
+let panelBack = null;
+let canvas = { scale: 1, x: 60, y: 40 };
+let panning = false;
+let panOrigin = { x: 0, y: 0 };
+
+/* ====================================================================
+   НАВИГАЦИЯ
+==================================================================== */
+function goTo(view, companyId, blockId, blockName) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  state = { view, companyId, blockId, blockName };
+  renderBreadcrumb();
+  window.scrollTo(0, 0);
+}
+
+function renderBreadcrumb() {
+  const el = document.getElementById('breadcrumb');
+  const crumbs = [{ label: 'Компания', fn: () => goTo('landing') }];
+  if (state.companyId) {
+    const c = ORG_DATA.companies.find(c => c.id === state.companyId);
+    crumbs.push({ label: c.name.replace(/\n/g, ' '), fn: () => { goTo('company', state.companyId); renderCompany(state.companyId); } });
+  }
+  if (state.blockName) crumbs.push({ label: state.blockName, fn: null });
+  el.innerHTML = '';
+  crumbs.forEach((c, i) => {
+    if (i > 0) { const sep = document.createElement('span'); sep.className = 'bc-sep'; sep.textContent = '›'; el.appendChild(sep); }
+    const span = document.createElement('span');
+    span.className = 'bc-item' + (i === crumbs.length - 1 ? ' current' : '');
+    span.textContent = c.label;
+    if (c.fn && i < crumbs.length - 1) span.onclick = c.fn;
+    el.appendChild(span);
+  });
+}
+
+/* ====================================================================
+   LANDING
+==================================================================== */
+function renderLanding() {
+  document.getElementById('directors-row').innerHTML =
+    ORG_DATA.directors.map(d => `
+      <div class="dir-card">
+        <div class="dir-avatar">${d.photo ? `<img src="${d.photo}">` : initials(d.name)}</div>
+        <div class="dir-role">${d.role}</div>
+        <div class="dir-name">${d.name.replace(/\n/g,'<br>')}</div>
+      </div>`).join('');
+
+  const row = document.getElementById('companies-row');
+  row.innerHTML = '';
+  ORG_DATA.companies.forEach(c => {
+    const tile = document.createElement('div');
+    tile.className = 'company-tile';
+    tile.innerHTML = c.logo
+      ? `<img src="${c.logo}" alt="${c.name.replace(/\n/g,' ')}">`
+      : `<div class="company-tile-name">${c.name.replace(/\n/g,'<br>')}</div>`;
+    tile.innerHTML += `<svg class="company-tile-arrow" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9h12M9 3l6 6-6 6" stroke="#ED1C24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    tile.onclick = () => clickCompany(c.id);
+    row.appendChild(tile);
+  });
+
+  document.getElementById('bo-landing').innerHTML =
+    ORG_DATA.backoffice.map(b => `
+      <div class="bo-full-item" onmouseenter="showTt(event,'${b.name}','${b.desc}','')" onmouseleave="hideTt()" onmousemove="moveTt(event)">
+        <div class="bo-icon">${BO_ICONS[b.id] || ''}</div>
+        <div class="bo-full-name">${b.name}</div>
+      </div>`).join('');
+
+  renderBreadcrumb();
+}
+
+function clickCompany(id) {
+  const c = ORG_DATA.companies.find(c => c.id === id);
+  if (c.type === 'external') { window.open(c.href, '_blank'); return; }
+  goTo('company', id);
+  renderCompany(id);
+}
+
+/* ====================================================================
+   COMPANY VIEW
+==================================================================== */
+function renderCompany(id) {
+  const co   = ORG_DATA.companies.find(c => c.id === id);
+  const data = ORG_DATA[id];
+
+  const img  = document.getElementById('cv-logo-img');
+  const txt  = document.getElementById('cv-logo-text');
+  if (co.logo) {
+    img.src = co.logo; img.style.display = ''; txt.style.display = 'none';
+  } else {
+    txt.textContent = co.name.replace(/\n/g,' '); txt.style.display = ''; img.style.display = 'none';
+  }
+
+  renderBoStrip('bo-strip-cv');
+
+  const row = document.getElementById('blocks-row');
+  row.innerHTML = '';
+  (data?.blocks || []).forEach(b => {
+    const tile = document.createElement('div');
+    tile.className = 'block-tile';
+    tile.innerHTML = `
+      <div class="block-name">${b.name.replace(/\n/g,'<br>')}</div>
+      <div class="block-arrow">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <path d="M2 6.5h9M6.5 2l4.5 4.5L6.5 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>`;
+    tile.onclick = () => openTree(id, b.id, b.name.replace(/\n/g,' '));
+    row.appendChild(tile);
+  });
+
+  document.getElementById('sp-body').innerHTML = (data?.legalEntities || []).map(e => `
+    <div class="le-card">
+      <div class="le-name">${e.name}</div>
+      <div class="le-row"><span class="le-label">Директор</span><span class="le-val">${e.director}</span></div>
+      <div class="le-row"><span class="le-label">ИНН</span><span class="le-val">${e.inn}</span></div>
+      <div class="le-row"><span class="le-label">Телефон</span><span class="le-val">${e.phone}</span></div>
+      <button class="le-btn" onclick="window.open('${e.href}','_blank')">Перейти →</button>
+    </div>`).join('');
+
+  document.getElementById('btn-legal-open').onclick = openPanel;
+}
+
+function renderBoStrip(containerId) {
+  document.getElementById(containerId).innerHTML =
+    ORG_DATA.backoffice.map(b =>
+      `<div class="bo-strip-item" onmouseenter="showTt(event,'${b.name}','${b.desc}','')" onmouseleave="hideTt()" onmousemove="moveTt(event)">${b.name}</div>`
+    ).join('');
+}
+
+/* ====================================================================
+   TREE VIEW
+==================================================================== */
+const NW  = 148;   // person card width
+const NH  = 148;   // person card height
+const NHH = 177;   // heads group box height (24px padding×2 + card content)
+const AW  = 108;   // assistant card width
+const AG  =  20;   // gap between person card and assistant card
+const DW  = 148;
+const DH  = 148;
+const HG  =  72;
+const HGH =  28;   // gap between head cards (compact box, separate from HG)
+const VG1 =  80;   // heads → persons gap
+const VG2 =  80;   // between every level
+const EW  = 140;   // employee canvas card width (expanded mode)
+const EH  =  56;   // employee canvas card height
+const EGH =  12;   // horizontal gap between employee cards in a row
+const DHE = 111;   // division card height in expanded mode (DH * 0.75)
+const DWE = 185;   // division card width in expanded mode (DW * 1.25)
+
+function divCardW(d) {
+  if (d.children && d.children.length > 0) {
+    const n = d.children.length;
+    return Math.max(DW, n * DW + (n - 1) * HG);
+  }
+  return DW;
+}
+
+function buildSearchIndex(data) {
+  const expanded = !!data.expanded;
+  SEARCH_INDEX = [];
+  (data.heads || []).forEach(h => {
+    SEARCH_INDEX.push({ name: h.name, role: (h.role || '').replace(/\n/g,' '), key: 'person-' + h.id, nodeId: h.id, isHead: true, context: null, path: null });
+  });
+  (data.persons || []).forEach(p => {
+    const l2 = { level: 2, name: p.name, role: (p.role || '').replace(/\n/g,' ') };
+    SEARCH_INDEX.push({ name: p.name, role: (p.role || '').replace(/\n/g,' '), key: 'person-' + p.id, nodeId: p.id, context: null, path: null });
+    if (p.assistant) {
+      SEARCH_INDEX.push({ name: p.assistant.name, role: p.assistant.role || '', key: 'person-ast-' + p.id, nodeId: p.id, context: null, path: [l2] });
+    }
+    (p.divisions || []).forEach(d => {
+      if (d.type === 'division-link') return;
+      const mgrName = typeof d.manager === 'string' ? d.manager : (d.manager?.name || '');
+      const dName = d.name.replace(/\n/g,' ');
+      const l3 = { level: 3, name: dName, manager: mgrName, id: d.id };
+      if (mgrName) SEARCH_INDEX.push({ name: mgrName, role: 'Руководитель', key: 'mgr-' + d.id, nodeId: d.id, context: dName, path: [l2, l3] });
+      if (d.children && d.children.length) {
+        d.children.forEach(child => {
+          const childMgr = typeof child.manager === 'string' ? child.manager : (child.manager?.name || '');
+          const cName = child.name.replace(/\n/g,' ');
+          const l4 = { level: 4, name: cName, manager: childMgr, id: child.id };
+          if (childMgr) SEARCH_INDEX.push({ name: childMgr, role: 'Руководитель', key: 'mgr-' + child.id, nodeId: child.id, context: cName, path: [l2, l3, l4] });
+          (child.employees || []).forEach((e, i) => {
+            const empKey = 'emp-' + child.id + '-' + i;
+            SEARCH_INDEX.push({ name: e.name, role: e.role || '', key: empKey, nodeId: expanded ? empKey : child.id, context: cName, path: [l2, l3, l4] });
+          });
+        });
+      } else {
+        (d.employees || []).forEach((e, i) => {
+          const empKey = 'emp-' + d.id + '-' + i;
+          SEARCH_INDEX.push({ name: e.name, role: e.role || '', key: empKey, nodeId: expanded ? empKey : d.id, context: dName, path: [l2, l3] });
+        });
+      }
+    });
+  });
+}
+
+function personSlotInfo(person) {
+  const divs = person.divisions || [];
+  const divsW = divs.length ? divs.reduce((s, d) => s + divCardW(d), 0) + (divs.length - 1) * HG : 0;
+  const hasAst = !!person.assistant;
+  // How far the combined block extends left/right of the person-card centre
+  const leftExt  = Math.max(NW / 2, divsW / 2);
+  const rightExt = Math.max(hasAst ? NW / 2 + AG + AW : NW / 2, divsW / 2);
+  return { sw: leftExt + rightExt, personCxOffset: leftExt };
+}
+
+/* Ширина слота деления в expanded-режиме.
+   Сотрудники складываются вертикально, не влияют на горизонтальную ширину. */
+function divCardWExp(d) {
+  if (d.children && d.children.length > 0) {
+    const n = d.children.length;
+    return Math.max(DWE, d.children.reduce((s, c) => s + divCardWExp(c), 0) + (n - 1) * HG);
+  }
+  return DWE;
+}
+
+function personSlotInfoExp(person) {
+  const divs = person.divisions || [];
+  const divsW = divs.length ? divs.reduce((s, d) => s + divCardWExp(d), 0) + (divs.length - 1) * HG : 0;
+  const hasAst = !!person.assistant;
+  const leftExt  = Math.max(NW / 2, divsW / 2);
+  const rightExt = Math.max(hasAst ? NW / 2 + AG + AW : NW / 2, divsW / 2);
+  return { sw: leftExt + rightExt, personCxOffset: leftExt };
+}
+
+function openTree(companyId, blockId, blockName) {
+  const treeData = ORG_DATA.trees?.[blockId];
+  if (!treeData) { alert('Данные дерева пока не загружены'); return; }
+  goTo('tree', companyId, blockId, blockName);
+  document.getElementById('tv-title').textContent = blockName;
+  renderBoStrip('bo-strip-tree');
+  canvas = { scale: 1, x: 0, y: 0 };
+  if (treeData.expanded) buildTreeExpanded(treeData);
+  else buildTree(treeData);
+  centerView(true);
+  setupCanvas();
+}
+
+function buildTree(data) {
+  DEPT_REGISTRY = {};
+  buildSearchIndex(data);
+  const inner = document.getElementById('canvas-inner');
+  const svg   = document.getElementById('tree-svg');
+  inner.innerHTML = '';
+  inner.appendChild(svg);
+  svg.innerHTML   = '';
+
+  const heads   = data.heads   || [];
+  const persons = data.persons || [];
+
+  const headsW = heads.length * NW + (heads.length - 1) * HGH;
+  const personsW = persons.reduce((s, p) => s + personSlotInfo(p).sw, 0) + Math.max(0, persons.length - 1) * HG;
+  const totalW = Math.max(headsW, personsW);
+  const startX = 60;
+  const centerX = startX + totalW / 2;
+
+  const headsY = 40;
+  const headStartX = centerX - headsW / 2;
+
+  const headsBox = document.createElement('div');
+  headsBox.className = 'tree-node';
+  /* При подложке сдвигаем влево на padding (12px), чтобы блок оставался центрирован */
+  headsBox.style.left = (heads.length > 1 ? headStartX - 12 : headStartX) + 'px';
+  headsBox.style.top  = headsY + 'px';
+  const headsInner = document.createElement('div');
+  headsInner.className = 'group-heads-box' + (heads.length > 1 ? ' group-heads-box--plate' : '');
+  heads.forEach(h => {
+    DEPT_REGISTRY['person-' + h.id] = h;
+    const card = document.createElement('div');
+    card.className = 'card-head';
+    card.dataset.nodeId = h.id;
+    card.innerHTML = `
+      <div class="card-head-avatar">${h.photo ? `<img src="${h.photo}">` : initials(h.name)}</div>
+      <div class="card-head-role">${h.role.replace(/\n/g,'<br>')}</div>
+      <div class="card-head-name">${h.name}</div>`;
+    card.onclick = () => openPersonPanel('person-' + h.id);
+    headsInner.appendChild(card);
+  });
+  headsBox.appendChild(headsInner);
+  inner.appendChild(headsBox);
+
+  if (!persons.length) { applyTransform(); return; }
+
+  const measuredNHH = headsBox.offsetHeight || NHH;
+  const personsY = headsY + measuredNHH + VG1;
+  const divsY3 = personsY + NH + VG2;          // level 3: direct divisions
+  const divsY4 = divsY3  + DH + VG2;           // level 4: skipLevel divisions
+  let px = centerX - personsW / 2;
+  const personPositions = [];
+
+  persons.forEach(p => {
+    const { sw, personCxOffset } = personSlotInfo(p);
+    const cx = px + personCxOffset;
+    personPositions.push({ person: p, cx, x: cx - NW / 2, y: personsY, sw });
+    px += sw + HG;
+  });
+
+  const headsBottomY = headsY + measuredNHH;
+  const headsBranchY = personsY - Math.round(VG1 / 2);
+  personPositions.forEach(pp => addConnector(svg, centerX, headsBottomY, pp.cx, personsY, headsBranchY));
+
+  personPositions.forEach(pp => {
+    const { person: p, x, y, cx } = pp;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tree-node';
+    wrapper.dataset.nodeId = p.id;
+    wrapper.style.left = x + 'px';
+    wrapper.style.top  = y + 'px';
+
+    DEPT_REGISTRY['person-' + p.id] = p;
+    const pCard = document.createElement('div');
+    pCard.className = 'card-person';
+    pCard.style.cursor = 'pointer';
+    pCard.innerHTML = `
+      <div class="card-person-avatar">${p.photo ? `<img src="${p.photo}">` : initials(p.name)}</div>
+      <div class="card-person-role">${p.role.replace(/\n/g,'<br>')}</div>
+      <div class="card-person-name">${p.name}</div>`;
+    pCard.onclick = () => openPersonPanel('person-' + p.id);
+    wrapper.appendChild(pCard);
+
+    if (p.assistant) {
+      const astKey = 'person-ast-' + p.id;
+      DEPT_REGISTRY[astKey] = { ...p.assistant };
+      const ast = document.createElement('div');
+      ast.className = 'card-assistant';
+      ast.style.left = (NW + AG) + 'px';
+      ast.style.top  = Math.round(NH / 2 - 48) + 'px';
+      ast.innerHTML  = `
+        <div class="card-assistant-avatar">${p.assistant.photo ? `<img src="${p.assistant.photo}">` : initials(p.assistant.name)}</div>
+        <div class="card-assistant-role">${p.assistant.role}</div>
+        <div class="card-assistant-name">${p.assistant.name}</div>`;
+      ast.onclick = () => openPersonPanel(astKey);
+      wrapper.appendChild(ast);
+      addLine(svg, x + NW, y + NH / 2, x + NW + AG, y + NH / 2);
+    }
+    inner.appendChild(wrapper);
+
+    const divs = p.divisions || [];
+    if (!divs.length) return;
+
+    const divsY  = p.skipLevel ? divsY4 : divsY3;
+    const divsW  = divs.reduce((s, d) => s + divCardW(d), 0) + (divs.length - 1) * HG;
+    let dx = cx - divsW / 2;
+
+    const personBottomY = y + NH;
+    const divsBranchY = divsY - Math.round(VG2 / 2);
+
+    divs.forEach(d => {
+      const dW     = divCardW(d);
+      const divCx  = dx + dW / 2;
+      const cardLeft = dx + Math.round((dW - DW) / 2);
+
+      const dNode = document.createElement('div');
+      dNode.className = 'tree-node';
+      dNode.dataset.nodeId = d.id;
+      dNode.style.left = cardLeft + 'px';
+      dNode.style.top  = divsY + 'px';
+
+      const dCard = document.createElement('div');
+      if (d.type === 'division-link') {
+        dCard.className = 'card-div-link';
+        dCard.innerHTML = `${d.name.replace(/\n/g,'<br>')} <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 6h8M6 2l4 4-4 4"/></svg>`;
+        dCard.onclick = () => alert(`Переход: ${d.name.replace(/\n/g,' ')}\n(подключите ссылку в ORG_DATA)`);
+      } else {
+        dCard.className = 'card-div';
+        dCard.innerHTML = buildDivCardHTML(d);
+        if (d.employees || (d.children && d.children.length)) {
+          dCard.style.cursor = 'pointer';
+          dCard.onclick = e => {
+            if (e.target.closest('.cdiv-manager-chip') || e.target.closest('.cdiv-emp-chip')) return;
+            if (d.children && d.children.length) openDivisionPanel(d.id);
+            else openTeamPanel(d.id);
+          };
+        }
+      }
+      if (d.tooltip) {
+        dCard.addEventListener('mouseenter', e => showTt(e, d.name.replace(/\n/g,' '), d.tooltip.desc, d.tooltip.assistant));
+        dCard.addEventListener('mousemove',  e => moveTt(e));
+        dCard.addEventListener('mouseleave', hideTt);
+      }
+      dNode.appendChild(dCard);
+      inner.appendChild(dNode);
+
+      addConnector(svg, cx, personBottomY, divCx, divsY, divsBranchY);
+
+      if (d.children && d.children.length) {
+        const childrenY    = divsY + DH + VG2;
+        const childrenW    = d.children.length * DW + (d.children.length - 1) * HG;
+        let   childX       = divCx - childrenW / 2;
+        const divBottomY   = divsY + DH;
+        const childBranchY = childrenY - Math.round(VG2 / 2);
+
+        d.children.forEach(child => {
+          const childCx = childX + DW / 2;
+          const cNode = document.createElement('div');
+          cNode.className = 'tree-node';
+          cNode.dataset.nodeId = child.id;
+          cNode.style.left = childX + 'px';
+          cNode.style.top  = childrenY + 'px';
+
+          const cCard = document.createElement('div');
+          cCard.className = 'card-div';
+          cCard.innerHTML = buildDivCardHTML(child);
+          if (child.employees || (child.children && child.children.length)) {
+            cCard.style.cursor = 'pointer';
+            cCard.onclick = e => {
+              if (e.target.closest('.cdiv-manager-chip') || e.target.closest('.cdiv-emp-chip')) return;
+              if (child.children && child.children.length) openDivisionPanel(child.id);
+              else openTeamPanel(child.id);
+            };
+          }
+          cNode.appendChild(cCard);
+          inner.appendChild(cNode);
+
+          addConnector(svg, divCx, divBottomY, childCx, childrenY, childBranchY);
+          childX += DW + HG;
+        });
+      }
+
+      dx += dW + HG;
+    });
+  });
+
+  let maxX = 0, maxY = 0;
+  inner.querySelectorAll('.tree-node').forEach(n => {
+    maxX = Math.max(maxX, parseInt(n.style.left) + 300);
+    maxY = Math.max(maxY, parseInt(n.style.top)  + 200);
+  });
+  svg.setAttribute('width',  maxX);
+  svg.setAttribute('height', maxY);
+  inner.style.width  = maxX + 'px';
+  inner.style.height = maxY + 'px';
+
+  applyTransform();
+}
+
+/* ====================================================================
+   EXPANDED TREE (Управление недвижимостью): сотрудники — карточки на канвасе
+==================================================================== */
+function buildTreeExpanded(data) {
+  DEPT_REGISTRY = {};
+  buildSearchIndex(data);
+  const inner = document.getElementById('canvas-inner');
+  const svg   = document.getElementById('tree-svg');
+  inner.innerHTML = '';
+  inner.appendChild(svg);
+  svg.innerHTML   = '';
+
+  const heads   = data.heads   || [];
+  const persons = data.persons || [];
+
+  const headsW   = heads.length * NW + (heads.length - 1) * HGH;
+  const personsW = persons.reduce((s, p) => s + personSlotInfoExp(p).sw, 0) + Math.max(0, persons.length - 1) * HG;
+  const totalW   = Math.max(headsW, personsW);
+  const startX   = 60;
+  const centerX  = startX + totalW / 2;
+
+  const headsY      = 40;
+  const headStartX  = centerX - headsW / 2;
+
+  const headsBox   = document.createElement('div');
+  headsBox.className = 'tree-node';
+  headsBox.style.left = (heads.length > 1 ? headStartX - 12 : headStartX) + 'px';
+  headsBox.style.top  = headsY + 'px';
+  const headsInner = document.createElement('div');
+  headsInner.className = 'group-heads-box' + (heads.length > 1 ? ' group-heads-box--plate' : '');
+  heads.forEach(h => {
+    DEPT_REGISTRY['person-' + h.id] = h;
+    const card = document.createElement('div');
+    card.className = 'card-head';
+    card.dataset.nodeId = h.id;
+    card.innerHTML = `
+      <div class="card-head-avatar">${h.photo ? `<img src="${h.photo}">` : initials(h.name)}</div>
+      <div class="card-head-role">${h.role.replace(/\n/g,'<br>')}</div>
+      <div class="card-head-name">${h.name}</div>`;
+    card.onclick = () => openPersonPanel('person-' + h.id);
+    headsInner.appendChild(card);
+  });
+  headsBox.appendChild(headsInner);
+  inner.appendChild(headsBox);
+
+  if (!persons.length) { applyTransform(); return; }
+
+  const measuredNHH = headsBox.offsetHeight || NHH;
+  const personsY    = headsY + measuredNHH + VG1;
+  const divsY3      = personsY + NH + VG2;
+  let   px          = centerX - personsW / 2;
+  const personPositions = [];
+
+  persons.forEach(p => {
+    const { sw, personCxOffset } = personSlotInfoExp(p);
+    const cx = px + personCxOffset;
+    personPositions.push({ person: p, cx, x: cx - NW / 2, y: personsY, sw });
+    px += sw + HG;
+  });
+
+  const headsBottomY = headsY + measuredNHH;
+  const headsBranchY = personsY - Math.round(VG1 / 2);
+  personPositions.forEach(pp => addConnector(svg, centerX, headsBottomY, pp.cx, personsY, headsBranchY));
+
+  personPositions.forEach(pp => {
+    const { person: p, x, y, cx } = pp;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tree-node';
+    wrapper.dataset.nodeId = p.id;
+    wrapper.style.left = x + 'px';
+    wrapper.style.top  = y + 'px';
+
+    DEPT_REGISTRY['person-' + p.id] = p;
+    const pCard = document.createElement('div');
+    pCard.className = 'card-person';
+    pCard.style.cursor = 'pointer';
+    pCard.innerHTML = `
+      <div class="card-person-avatar">${p.photo ? `<img src="${p.photo}">` : initials(p.name)}</div>
+      <div class="card-person-role">${p.role.replace(/\n/g,'<br>')}</div>
+      <div class="card-person-name">${p.name}</div>`;
+    pCard.onclick = () => openPersonPanel('person-' + p.id);
+    wrapper.appendChild(pCard);
+    inner.appendChild(wrapper);
+
+    const divs = p.divisions || [];
+    if (!divs.length) return;
+
+    const divsW      = divs.reduce((s, d) => s + divCardWExp(d), 0) + (divs.length - 1) * HG;
+    let   dx         = cx - divsW / 2;
+    const personBotY = y + NH;
+    const divBranchY = divsY3 - Math.round(VG2 / 2);
+
+    divs.forEach(d => {
+      const dW      = divCardWExp(d);
+      const divCx   = dx + dW / 2;
+      const cardL   = dx + Math.round((dW - DWE) / 2);
+
+      const dNode = document.createElement('div');
+      dNode.className = 'tree-node';
+      dNode.dataset.nodeId = d.id;
+      dNode.style.left = cardL + 'px';
+      dNode.style.top  = divsY3 + 'px';
+
+      const dCard = document.createElement('div');
+      dCard.className = 'card-div card-div--exp';
+      dCard.innerHTML = buildDivCardHTMLExp(d);
+      dNode.appendChild(dCard);
+      inner.appendChild(dNode);
+
+      addConnector(svg, cx, personBotY, divCx, divsY3, divBranchY);
+
+      if (d.children && d.children.length) {
+        const childrenY  = divsY3 + DHE + VG2;
+        const childrenW  = d.children.reduce((s, c) => s + divCardWExp(c), 0) + (d.children.length - 1) * HG;
+        let   childX     = divCx - childrenW / 2;
+        const divBotY    = divsY3 + DHE;
+        const cBranchY   = childrenY - Math.round(VG2 / 2);
+
+        d.children.forEach(child => {
+          const cW      = divCardWExp(child);
+          const childCx = childX + cW / 2;
+          const cCardL  = childX + Math.round((cW - DWE) / 2);
+
+          const cNode = document.createElement('div');
+          cNode.className = 'tree-node';
+          cNode.dataset.nodeId = child.id;
+          cNode.style.left = cCardL + 'px';
+          cNode.style.top  = childrenY + 'px';
+
+          const cCard = document.createElement('div');
+          cCard.className = 'card-div card-div--exp';
+          cCard.innerHTML = buildDivCardHTMLExp(child);
+          cNode.appendChild(cCard);
+          inner.appendChild(cNode);
+
+          addConnector(svg, divCx, divBotY, childCx, childrenY, cBranchY);
+
+          if (child.employees && child.employees.length) {
+            renderEmpRow(inner, svg, child, childCx, childrenY + DHE);
+          }
+          childX += cW + HG;
+        });
+      } else if (d.employees && d.employees.length) {
+        renderEmpRow(inner, svg, d, divCx, divsY3 + DHE);
+      }
+
+      dx += dW + HG;
+    });
+  });
+
+  let maxX = 0, maxY = 0;
+  inner.querySelectorAll('.tree-node').forEach(n => {
+    maxX = Math.max(maxX, parseInt(n.style.left) + 300);
+    maxY = Math.max(maxY, parseInt(n.style.top)  + 200);
+  });
+  svg.setAttribute('width',  maxX);
+  svg.setAttribute('height', maxY);
+  inner.style.width  = maxX + 'px';
+  inner.style.height = maxY + 'px';
+
+  applyTransform();
+}
+
+function addLine(svg, x1, y1, x2, y2) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  el.setAttribute('x1', x1); el.setAttribute('y1', y1);
+  el.setAttribute('x2', x2); el.setAttribute('y2', y2);
+  el.setAttribute('stroke', '#C8C8C8');
+  el.setAttribute('stroke-width', '1.5');
+  el.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(el);
+}
+
+
+function addConnector(svg, px, py, cx, cy, branchY) {
+  const midY = branchY !== undefined ? branchY : Math.round((py + cy) / 2);
+  const dx   = cx - px;
+  const el   = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  el.setAttribute('stroke', '#C8C8C8');
+  el.setAttribute('stroke-width', '1.5');
+  el.setAttribute('fill', 'none');
+  el.setAttribute('stroke-linecap', 'round');
+  if (Math.abs(dx) < 1) {
+    el.setAttribute('d', `M ${px} ${py} V ${cy}`);
+  } else {
+    const r = Math.min(10, Math.abs(dx) / 2, (midY - py) / 2, (cy - midY) / 2);
+    const s = dx > 0 ? 1 : -1;
+    el.setAttribute('d',
+      `M ${px} ${py} V ${midY - r} Q ${px} ${midY} ${px + s*r} ${midY} H ${cx - s*r} Q ${cx} ${midY} ${cx} ${midY + r} V ${cy}`
+    );
+  }
+  svg.appendChild(el);
+}
+
+/* ====================================================================
+   PAN & ZOOM
+==================================================================== */
+function applyTransform() {
+  document.getElementById('canvas-inner').style.transform =
+    `translate(${canvas.x}px,${canvas.y}px) scale(${canvas.scale})`;
+}
+function zoom(factor) {
+  canvas.scale = Math.max(0.25, Math.min(3, canvas.scale * factor));
+  applyTransform();
+}
+function centerView(fitContent) {
+  const wrapper = document.getElementById('canvas-wrapper');
+  const inner   = document.getElementById('canvas-inner');
+  const contentW = parseFloat(inner.style.width)  || 0;
+  const contentH = parseFloat(inner.style.height) || 0;
+  const wRect   = wrapper.getBoundingClientRect();
+  if (fitContent && contentW && contentH) {
+    const scaleX = (wRect.width  - 80) / contentW;
+    const scaleY = (wRect.height - 80) / contentH;
+    canvas.scale = Math.round(Math.max(0.35, Math.min(1, scaleX, scaleY)) * 100) / 100;
+  }
+  canvas.x = Math.round((wRect.width  - contentW * canvas.scale) / 2);
+  canvas.y = Math.round((wRect.height - contentH * canvas.scale) / 4);
+  applyTransform();
+}
+function resetView() { centerView(true); clearHighlight(); }
+
+function setupCanvas() {
+  const wrapper = document.getElementById('canvas-wrapper');
+  let _clickStart = null;
+  wrapper.onmousedown = e => {
+    panning = true;
+    _clickStart = { x: e.clientX, y: e.clientY };
+    panOrigin = { x: e.clientX - canvas.x, y: e.clientY - canvas.y };
+    wrapper.classList.add('panning');
+    e.preventDefault();
+  };
+  document.onmousemove = e => {
+    if (!panning) return;
+    canvas.x = e.clientX - panOrigin.x;
+    canvas.y = e.clientY - panOrigin.y;
+    applyTransform();
+  };
+  document.onmouseup = e => {
+    if (panning && _clickStart) {
+      const dx = Math.abs(e.clientX - _clickStart.x);
+      const dy = Math.abs(e.clientY - _clickStart.y);
+      if (dx < 5 && dy < 5) clearHighlight();   /* клик без перетаскивания */
+    }
+    panning = false;
+    _clickStart = null;
+    document.getElementById('canvas-wrapper')?.classList.remove('panning');
+  };
+  wrapper.onwheel = e => {
+    e.preventDefault();
+    zoom(e.deltaY < 0 ? 1.1 : 1 / 1.1);
+  };
+}
+
+/* ====================================================================
+   ПОИСК
+==================================================================== */
+function onSearch(val) {
+  const dd = document.getElementById('search-dd');
+  if (!val.trim()) { dd.classList.remove('open'); return; }
+  const q = val.toLowerCase();
+  _searchResults = SEARCH_INDEX.filter(e =>
+    e.name.toLowerCase().includes(q) || (e.role && e.role.toLowerCase().includes(q))
+  ).slice(0, 14);
+  if (!_searchResults.length) { dd.classList.remove('open'); return; }
+  dd.innerHTML = _searchResults.map((e, i) => `
+    <div class="sd-item" onmousedown="selectSearchResult(${i})">
+      <div class="sd-name">${e.name}</div>
+      <div class="sd-role">${e.role}${e.context ? ` <span style="opacity:.4">·</span> ${e.context}` : ''}</div>
+    </div>`).join('');
+  dd.classList.add('open');
+}
+function closeSearch() { document.getElementById('search-dd').classList.remove('open'); }
+
+function selectSearchResult(i) {
+  const entry = _searchResults[i];
+  if (entry) jumpToEmployee(entry);
+}
+
+function clearHighlight() {
+  document.querySelectorAll('.card-person.hl, .card-head.hl, .card-div.hl, .card-emp-node.hl').forEach(el => el.classList.remove('hl'));
+}
+
+function jumpToEmployee(entry) {
+  clearHighlight();
+  const nodeEl = document.querySelector(`[data-node-id="${entry.nodeId}"]`);
+  if (nodeEl) {
+    const card = (nodeEl.classList.contains('card-head') || nodeEl.classList.contains('card-person') || nodeEl.classList.contains('card-div') || nodeEl.classList.contains('card-emp-node'))
+      ? nodeEl
+      : (nodeEl.querySelector('.card-emp-node') || nodeEl.querySelector('.card-div') || nodeEl.querySelector('.card-person') || nodeEl.querySelector('.card-head'));
+    if (card) card.classList.add('hl');
+    /* для head-карточек style.left не задан — поднимаемся к .tree-node */
+    const posEl = nodeEl.style.left ? nodeEl : (nodeEl.closest('.tree-node') || nodeEl);
+    const nx = parseInt(posEl.style.left) || 0;
+    const ny = parseInt(posEl.style.top)  || 0;
+    const wrapper = document.getElementById('canvas-wrapper');
+    const wRect = wrapper.getBoundingClientRect();
+    canvas.x = Math.round(wRect.width  / 2 - (nx + DW / 2) * canvas.scale);
+    canvas.y = Math.round(wRect.height / 2 - (ny + DH / 2) * canvas.scale);
+    applyTransform();
+  }
+  openPersonPanel(entry.key, null, entry.path);
+  document.getElementById('search-input').value = '';
+  closeSearch();
+}
+
+/* ====================================================================
+   TOOLTIP
+==================================================================== */
+function showTt(e, title, desc, assistant) {
+  const el = document.getElementById('div-tooltip');
+  document.getElementById('tt-title').textContent = title;
+  document.getElementById('tt-desc').textContent = desc || '';
+  const astEl = document.getElementById('tt-assistant');
+  if (assistant) {
+    astEl.style.display = '';
+    astEl.innerHTML = `Административный помощник: <b>${assistant}</b>`;
+  } else {
+    astEl.style.display = 'none';
+  }
+  el.classList.add('vis');
+  moveTt(e);
+}
+function moveTt(e) {
+  const el = document.getElementById('div-tooltip');
+  el.style.left = (e.clientX + 14) + 'px';
+  el.style.top  = (e.clientY - 10) + 'px';
+}
+function hideTt() { document.getElementById('div-tooltip').classList.remove('vis'); }
+
+/* ====================================================================
+   БОКОВАЯ ПАНЕЛЬ
+==================================================================== */
+function openPanel()  { document.getElementById('side-panel').classList.add('open'); }
+function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
+
+/* ====================================================================
+   УТИЛИТЫ
+==================================================================== */
+function initials(name) {
+  const parts = name.replace(/\n/g,' ').trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return parts[0][0].toUpperCase();
+}
+
+/* ====================================================================
+   ИКОНКИ БЭК-ОФИСА
+==================================================================== */
+const BO_ICONS = {
+  hr: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="8" cy="7" r="4"/>
+    <path d="M1 21c0-5 3-7.5 7-7.5"/>
+    <circle cx="16.5" cy="9" r="3"/>
+    <path d="M13 21c0-3.5 2-5.5 6-6.5"/>
+  </svg>`,
+  lawyers: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="3" x2="12" y2="21"/>
+    <line x1="5" y1="21" x2="19" y2="21"/>
+    <path d="M7.5 10L5 15.5h5L7.5 10z"/>
+    <path d="M16.5 10L14 15.5h5L16.5 10z"/>
+    <line x1="7.5" y1="10" x2="12" y2="4"/>
+    <line x1="16.5" y1="10" x2="12" y2="4"/>
+  </svg>`,
+  dvk: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5" y="2" width="14" height="20" rx="2"/>
+    <circle cx="12" cy="9" r="3"/>
+    <line x1="8" y1="17" x2="16" y2="17"/>
+    <line x1="8" y1="20" x2="13" y2="20"/>
+  </svg>`,
+  finance: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="4" y1="20" x2="4" y2="14"/>
+    <line x1="9" y1="20" x2="9" y2="8"/>
+    <line x1="14" y1="20" x2="14" y2="4"/>
+    <line x1="19" y1="20" x2="19" y2="11"/>
+    <line x1="2" y1="20" x2="21" y2="20"/>
+  </svg>`,
+  it: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="3" width="20" height="14" rx="2"/>
+    <line x1="2" y1="17" x2="22" y2="17"/>
+    <line x1="8" y1="21" x2="16" y2="21"/>
+    <line x1="12" y1="17" x2="12" y2="21"/>
+    <path d="M9 9l-2 2 2 2"/>
+    <path d="M15 9l2 2-2 2"/>
+  </svg>`,
+  aho: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+  </svg>`,
+  pr: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+    <path d="M19.07 4.93a10 10 0 010 14.14"/>
+    <path d="M15.54 8.46a5 5 0 010 7.07"/>
+  </svg>`,
+};
+
+/* ====================================================================
+   КАРТОЧКА ДЕПАРТАМЕНТА И КОМАНДЫ
+==================================================================== */
+const IC_PERSON = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.5 2.7-5 6-5s6 1.5 6 5"/></svg>`;
+const IC_GROUP  = `<svg width="13" height="13" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="4" r="2.5"/><path d="M1 13c0-2.5 1.8-4 4-4s4 1.5 4 4"/><circle cx="13" cy="4" r="2.5"/><path d="M17 13c0-2.5-1.8-4-4-4"/><line x1="10" y1="13" x2="8" y2="13"/></svg>`;
+const IC_PHONE  = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2h3l1.5 3.5-1.5 1a9 9 0 0 0 3.5 3.5l1-1.5L14 10v3a1 1 0 0 1-1 1A12 12 0 0 1 2 3a1 1 0 0 1 1-1z"/></svg>`;
+const IC_EMAIL  = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M1 4l7 5 7-5"/></svg>`;
+const IC_OFFICE = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="14" height="12" rx="1"/><path d="M5 14V8h6v6"/><line x1="5" y1="5" x2="5.01" y2="5"/><line x1="8" y1="5" x2="8.01" y2="5"/><line x1="11" y1="5" x2="11.01" y2="5"/></svg>`;
+
+function buildDivCardHTML(d) {
+  DEPT_REGISTRY[d.id] = d;
+  (d.employees || []).forEach((e, i) => { DEPT_REGISTRY['emp-' + d.id + '-' + i] = e; });
+  const mgr = d.manager || {};
+  const mgrName  = typeof mgr === 'string' ? mgr : (mgr.name  || '');
+  const mgrPhoto = typeof mgr === 'object' && mgr ? mgr.photo : null;
+  const mgrKey   = 'mgr-' + d.id;
+  if (mgrName) {
+    DEPT_REGISTRY[mgrKey] = { name: mgrName, photo: mgrPhoto, role: 'Руководитель', division: d.name };
+  }
+
+  const avatar = mgrPhoto
+    ? `<img src="${mgrPhoto}">`
+    : initials(mgrName);
+
+  const mgrChip = mgrName ? `
+    <div class="cdiv-manager-chip" onclick="event.stopPropagation(); openPersonPanel('${mgrKey}')">
+      <div class="cdiv-manager-avatar">${avatar}</div>
+      <div class="cdiv-manager-name">${mgrName}</div>
+    </div>` : '';
+
+  const empCount = d.count != null ? d.count : (d.employees ? d.employees.length : null);
+  const openFn   = (d.children && d.children.length) ? `openDivisionPanel('${d.id}')` : `openTeamPanel('${d.id}')`;
+  const empChip  = empCount != null ? `
+    <div class="cdiv-emp-chip" onclick="event.stopPropagation(); ${openFn}">
+      <div class="cdiv-emp-left"><svg width="13" height="13" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="4" r="2.5"/><path d="M1 13c0-2.5 1.8-4 4-4s4 1.5 4 4"/><circle cx="13" cy="4" r="2.5"/><path d="M17 13c0-2.5-1.8-4-4-4"/><line x1="10" y1="13" x2="8" y2="13"/></svg> ${empCount}</div>
+      <svg class="cdiv-emp-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 6h8M6 2l4 4-4 4"/></svg>
+    </div>` : '';
+
+  return `
+    <div class="cdiv-title">${d.name.replace(/\n/g,'<br>')}</div>
+    <div class="cdiv-bottom">${mgrChip}${empChip}</div>`;
+}
+
+/* Карточка отдела в expanded-режиме: без чипа сотрудников, нет клика на карточку */
+function buildDivCardHTMLExp(d) {
+  DEPT_REGISTRY[d.id] = d;
+  (d.employees || []).forEach((e, i) => { DEPT_REGISTRY['emp-' + d.id + '-' + i] = e; });
+  const mgr = d.manager || {};
+  const mgrName  = typeof mgr === 'string' ? mgr : (mgr.name  || '');
+  const mgrPhoto = typeof mgr === 'object' && mgr ? mgr.photo : null;
+  const mgrKey   = 'mgr-' + d.id;
+  if (mgrName) {
+    DEPT_REGISTRY[mgrKey] = { name: mgrName, photo: mgrPhoto, role: 'Руководитель', division: d.name.replace(/\n/g,' ') };
+  }
+  const avatar  = mgrPhoto ? `<img src="${mgrPhoto}">` : initials(mgrName);
+  const mgrChip = mgrName ? `
+    <div class="cdiv-manager-chip" onclick="event.stopPropagation(); openPersonPanel('${mgrKey}')">
+      <div class="cdiv-manager-avatar">${avatar}</div>
+      <div class="cdiv-manager-name">${mgrName}</div>
+    </div>` : '';
+  return `
+    <div class="cdiv-title">${d.name.replace(/\n/g,'<br>')}</div>
+    <div class="cdiv-bottom">${mgrChip}</div>`;
+}
+
+/* Рисует вертикальный стек карточек сотрудников ниже родительского отдела */
+function renderEmpRow(inner, svg, division, parentCx, parentBottomY) {
+  const emps = division.employees || [];
+  if (!emps.length) return;
+  const GAP_TOP  = 16;  // от нижней границы отдела до первого сотрудника
+  const GAP_ITEM =  6;  // между карточками сотрудников
+  const ex = parentCx - EW / 2;
+  let   ey = parentBottomY + GAP_TOP;
+
+  addLine(svg, parentCx, parentBottomY, parentCx, ey);
+
+  emps.forEach((e, i) => {
+    const key = 'emp-' + division.id + '-' + i;
+    DEPT_REGISTRY[key] = e;
+
+    const eNode = document.createElement('div');
+    eNode.className = 'tree-node';
+    eNode.dataset.nodeId = key;
+    eNode.style.left = ex + 'px';
+    eNode.style.top  = ey + 'px';
+
+    const eCard = document.createElement('div');
+    eCard.className = 'card-emp-node';
+    eCard.innerHTML = `
+      <div class="card-emp-node-avatar">${e.photo ? `<img src="${e.photo}">` : initials(e.name)}</div>
+      <div class="card-emp-node-info">
+        <div class="card-emp-node-name">${e.name}</div>
+        ${e.role ? `<div class="card-emp-node-role">${e.role}</div>` : ''}
+      </div>`;
+    eCard.onclick = () => openPersonPanel(key);
+    eNode.appendChild(eCard);
+    inner.appendChild(eNode);
+
+    ey += EH + GAP_ITEM;
+  });
+}
+
+function renderOrgPath(path) {
+  if (!path || !path.length) return '';
+  const IC_P = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5"/></svg>`;
+  const IC_G = `<svg width="12" height="11" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="4" r="2.5"/><path d="M1 13c0-2.5 1.8-4 4-4s4 1.5 4 4"/><circle cx="13" cy="4" r="2.5"/><path d="M17 13c0-2.5-1.8-4-4-4"/><line x1="10" y1="13" x2="8" y2="13"/></svg>`;
+  const rows = path.map((node, i) => {
+    const icon = node.level === 2 ? IC_P : IC_G;
+    const mgr  = node.manager ? `<div class="pc-org-mgr">${node.manager}</div>` : '';
+    return `<div class="pc-org-row" style="padding-left:${i * 16}px"><div class="pc-org-icon">${icon}</div><div class="pc-org-body"><div class="pc-org-name">${node.name}</div>${mgr}</div></div>`;
+  }).join('');
+  return `<div class="pc-divider"></div><div class="pc-section-label">В структуре</div><div class="pc-org-tree">${rows}</div>`;
+}
+
+function openPersonPanel(key, backFn, pathInfo) {
+  panelBack = backFn || null;
+  const p = DEPT_REGISTRY[key];
+  if (!p) return;
+  if (pathInfo === undefined) {
+    const entry = SEARCH_INDEX.find(e => e.key === key);
+    pathInfo = entry ? entry.path : null;
+  }
+  document.getElementById('sp-title').textContent = 'Карточка сотрудника';
+
+  const hasPhoto = !!p.photo;
+  const avatarContent = hasPhoto ? `<img src="${p.photo}" alt="">` : initials(p.name);
+  const avatarClick   = hasPhoto ? `onclick="showPhotoZoom('${p.photo}')"` : '';
+
+  const f2 = (lbl, val) => `
+    <div class="pc-field">
+      <span class="pc-label">${lbl}</span>
+      ${val ? `<span class="pc-value">${val}</span>` : `<span class="pc-value-dash">—</span>`}
+    </div>`;
+
+  const hasContacts = p.phone || p.mobile || p.email || p.birthday;
+
+  const backBtn = panelBack ? `
+    <button class="sp-back-btn" onclick="goBack()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M9 2L4 7l5 5"/></svg>
+      Назад к списку
+    </button>` : '';
+
+  document.getElementById('sp-body').innerHTML = `
+    ${backBtn}
+    <div class="pc-hero">
+      <div class="pc-avatar${hasPhoto ? ' has-photo' : ''}" ${avatarClick}>${avatarContent}</div>
+      <div class="pc-info">
+        <div class="pc-name">${p.name}</div>
+        ${p.role ? `<div class="pc-role">${p.role.replace(/\n/g,'<br>')}</div>` : ''}
+        ${p.division ? `<div class="pc-role" style="margin-top:3px;font-size:12px">${p.division}</div>` : ''}
+      </div>
+    </div>
+    ${hasContacts ? `
+    <div class="pc-row2">
+      ${f2('Рабочий телефон', p.phone)}
+      ${f2('Мобильный телефон', p.mobile)}
+    </div>
+    <div class="pc-row2">
+      ${f2('День рождения', p.birthday)}
+      ${f2('Email', p.email)}
+    </div>
+    <div class="pc-divider"></div>
+    ` : ''}
+    ${p.org        ? `<div class="pc-field" style="margin-bottom:14px"><span class="pc-label">Организация</span><span class="pc-value-link">${p.org}<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 10L10 2M10 2H5M10 2v5"/></svg></span></div>` : ''}
+    ${p.department ? `<div class="pc-field" style="margin-bottom:14px"><span class="pc-label">Департамент</span><span class="pc-value-link">${p.department}<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 10L10 2M10 2H5M10 2v5"/></svg></span></div>` : ''}
+    ${p.office     ? `<div class="pc-field"><span class="pc-label">Офис</span><span class="pc-value">${p.office}</span></div>` : ''}
+    ${!hasContacts && !p.org && !p.department && !p.office ? `<p style="font-size:13px;color:var(--gray)">Контактные данные не указаны</p>` : ''}
+    ${renderOrgPath(pathInfo)}`;
+  openPanel();
+}
+
+function goBack() { if (panelBack) panelBack(); }
+
+function openPersonPanelWithBack(empKey, teamId) {
+  openPersonPanel(empKey, () => openTeamPanel(teamId));
+}
+
+function showPhotoZoom(src) {
+  document.getElementById('photo-overlay-img').src = src;
+  document.getElementById('photo-overlay').classList.add('vis');
+}
+function hidePhotoZoom() {
+  document.getElementById('photo-overlay').classList.remove('vis');
+}
+
+function _backBtn() {
+  return panelBack ? `<button class="sp-back-btn" onclick="goBack()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M9 2L4 7l5 5"/></svg> Назад к списку</button>` : '';
+}
+
+function _mgrListItem(mgrKey, backType, backId) {
+  const mgr = DEPT_REGISTRY[mgrKey];
+  if (!mgr) return '';
+  const av = mgr.photo ? `<img src="${mgr.photo}" alt="">` : initials(mgr.name);
+  const clickFn = backType === 'div' ? `openPersonPanelFromDiv('${mgrKey}','${backId}')` : `openPersonPanelWithBack('${mgrKey}','${backId}')`;
+  return `
+    <div class="emp-list-item" onclick="${clickFn}">
+      <div class="emp-list-avatar">${av}</div>
+      <div>
+        <div class="emp-list-name-row">
+          <span class="emp-list-name">${mgr.name}</span>
+          <span class="emp-badge-manager">Руководитель</span>
+        </div>
+        ${mgr.division ? `<div class="emp-list-role">${mgr.division}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+function openTeamPanel(id, backFn) {
+  panelBack = backFn || null;
+  const team = DEPT_REGISTRY[id];
+  if (!team) return;
+  document.getElementById('sp-title').textContent = team.name.replace(/\n/g,' ');
+  const totalCount = team.count || (team.employees || []).length;
+  const emps = (team.employees || []).map((e, i) => {
+    const empKey = 'emp-' + id + '-' + i;
+    const av = e.photo ? `<img src="${e.photo}" alt="">` : initials(e.name);
+    return `
+    <div class="emp-list-item" onclick="openPersonPanelWithBack('${empKey}','${id}')">
+      <div class="emp-list-avatar">${av}</div>
+      <div>
+        <div class="emp-list-name">${e.name}</div>
+        ${e.role ? `<div class="emp-list-role">${e.role}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('sp-body').innerHTML = `
+    ${_backBtn()}
+    ${totalCount ? `<div style="font-size:13px;color:var(--gray);margin-bottom:14px">${totalCount}&nbsp;сотрудников</div>` : ''}
+    <div class="emp-list">
+      ${_mgrListItem('mgr-' + id, 'team', id)}
+      ${emps}
+    </div>`;
+  openPanel();
+}
+
+function openDivisionPanel(id, backFn) {
+  panelBack = backFn || null;
+  const div = DEPT_REGISTRY[id];
+  if (!div) return;
+  document.getElementById('sp-title').textContent = div.name.replace(/\n/g,' ');
+  const totalCount = div.count || 0;
+  const children = div.children || [];
+  const childItems = children.map(child => {
+    const childCount = child.count || (child.employees || []).length || 0;
+    return `
+    <div class="emp-list-item" onclick="openTeamPanelFrom('${child.id}','${id}')">
+      <div class="emp-list-group-icon"><svg width="16" height="13" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="4" r="2.5"/><path d="M1 13c0-2.5 1.8-4 4-4s4 1.5 4 4"/><circle cx="13" cy="4" r="2.5"/><path d="M17 13c0-2.5-1.8-4-4-4"/><line x1="10" y1="13" x2="8" y2="13"/></svg></div>
+      <div style="flex:1">
+        <div class="emp-list-name">${child.name.replace(/\n/g,' ')}</div>
+        ${childCount ? `<div class="emp-list-role">${childCount}&nbsp;сотрудников</div>` : ''}
+      </div>
+      <svg class="emp-list-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 2l5 5-5 5"/></svg>
+    </div>`;
+  }).join('');
+  document.getElementById('sp-body').innerHTML = `
+    ${_backBtn()}
+    ${totalCount ? `<div style="font-size:13px;color:var(--gray);margin-bottom:14px">${totalCount}&nbsp;сотрудников</div>` : ''}
+    <div class="emp-list">
+      ${_mgrListItem('mgr-' + id, 'div', id)}
+      ${childItems}
+    </div>`;
+  openPanel();
+}
+
+function openTeamPanelFrom(teamId, divId) {
+  openTeamPanel(teamId, () => openDivisionPanel(divId));
+}
+
+function openPersonPanelFromDiv(personKey, divId) {
+  openPersonPanel(personKey, () => openDivisionPanel(divId));
+}
+
+/* ====================================================================
+   ИНИЦИАЛИЗАЦИЯ
+==================================================================== */
+renderLanding();
+</script>
+</body>
+</html>
