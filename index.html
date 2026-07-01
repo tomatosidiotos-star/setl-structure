@@ -381,7 +381,7 @@ body {
 
 .blocks-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
   margin-top: 32px;
   padding-bottom: 60px;
@@ -853,6 +853,143 @@ body {
 .emp-card-clickable:hover { background: #EFEFEF; }
 
 /* ============================================================
+   V2 КАРТОЧКИ (новый дизайн для демо)
+============================================================ */
+.card-v2 {
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: 0 0 30px rgba(82,42,34,0.1);
+  width: 196px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.card-v2__body {
+  padding: 14px 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.card-v2__photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0dede;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-v2__photo img { width: 100%; height: 100%; object-fit: cover; }
+.card-v2__photo-initials { font-family: var(--f-exp); font-weight: 600; font-size: 11px; color: #888; }
+.card-v2__text { display: flex; flex-direction: column; gap: 3px; }
+.card-v2__name { font-family: var(--f-exp); font-weight: 600; font-size: 12px; color: var(--black); line-height: 1.2; }
+.card-v2__role { font-family: var(--f-exp); font-weight: 400; font-size: 10px; color: #7c7c7c; line-height: 1.3; }
+.card-v2__dept {
+  background: #f2f2f2;
+  border: 1.5px solid var(--white);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-family: var(--f-exp);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--black);
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  margin: 8px 0 0;
+  line-height: 1.25;
+}
+.card-v2__dept--link {
+  border-color: #e55b54;
+  color: #d33831;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+.card-v2__dept--link:hover { background: #fff0f0; }
+
+/* Карточка-в-карточке */
+.card-v2-nested {
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: 0 0 30px rgba(82,42,34,0.1);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.card-v2-nested__header {
+  padding: 14px 14px 10px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-bottom: 1px solid #f0f0f0;
+}
+.card-v2-nested__inner {
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+}
+.card-v2-nested .card-v2 {
+  width: 176px;
+  box-shadow: 0 0 12px rgba(82,42,34,0.08);
+}
+.card-v2-nested .card-v2__dept {
+  min-height: 46px;
+  font-size: 10px;
+}
+
+/* Мульти-голова (несколько руководителей → один общий блок) */
+.card-v2-multi {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: 0 0 30px rgba(82,42,34,0.1);
+  padding: 10px;
+  flex-shrink: 0;
+}
+.card-v2-multi__heads { display: flex; gap: 6px; }
+.card-v2-multi .card-v2 {
+  box-shadow: none;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.card-v2-multi__dept {
+  background: #f2f2f2;
+  border: 1.5px solid var(--white);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-family: var(--f-exp);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--black);
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  line-height: 1.25;
+}
+
+/* Badge NEW на блоке */
+.block-tile--badge { position: relative; }
+.block-tile__badge {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: var(--red);
+  color: var(--white);
+  font-family: var(--f-exp);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 3px 7px;
+  border-radius: 20px;
+}
+
+/* ============================================================
    КАРТОЧКА СОТРУДНИКА (боковая панель)
 ============================================================ */
 .pc-hero {
@@ -1254,6 +1391,7 @@ const ORG_DATA = {
   setlgroup: {
     blocks: [
       { id: 'construction', name: 'Строительный блок'        },
+      { id: 'construction2', name: 'Строительный блок 2', badge: 'NEW' },
       { id: 'arch',         name: 'Архитектурное бюро'       },
       { id: 'kaliningrad',  name: 'Группа компаний\nКалининград' },
       { id: 'realestate',   name: 'Управление\nнедвижимостью' },
@@ -1374,6 +1512,62 @@ const ORG_DATA = {
               manager: { name: 'БЕЛОВА Т.А.', photo: null }, count: 15,
               tooltip: { desc: 'Административное обеспечение', assistant: null } },
           ],
+        },
+      ],
+    },
+
+    construction2: {
+      version: 2,
+      heads: [
+        { id: 'v2-vlash1', name: 'Влащенко Имя Отчество', role: 'Генеральный директор /\nИсполнительный директор', photo: null },
+        { id: 'v2-vlash2', name: 'Влащенко Имя Отчество', role: 'Генеральный директор /\nИсполнительный директор', photo: null },
+      ],
+      headsLabel: 'Дирекция специальных проектов',
+      persons: [
+        { id: 'v2-pokr', name: 'Покровская С.В.', role: 'Директор департамента развития', photo: 'https://i.pravatar.cc/160?img=47',
+          dept: { name: 'Департамент развития', link: false },
+          children: [
+            { id: 'v2-pokr-1', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+            { id: 'v2-pokr-2', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+          ]
+        },
+        { id: 'v2-tikh', name: 'Тиханов И.Ю.', role: 'Директор департамента\nподготовки проектов', photo: null,
+          dept: { name: 'Департамент подготовки проектов', link: false },
+          children: [
+            { id: 'v2-tikh-1', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+            { id: 'v2-tikh-2', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+          ]
+        },
+        { id: 'v2-ersh', name: 'Ершов В.В.', role: 'Заместитель генерального директора', photo: null,
+          nested: [
+            { id: 'v2-ersh-n1', name: 'ФИО', role: 'Руководитель дирекции\nспециальных проектов', photo: null,
+              dept: { name: 'Департамент строительства', link: true } },
+            { id: 'v2-ersh-n2', name: 'ФИО', role: 'Руководитель дирекции\nспециальных проектов', photo: null,
+              dept: { name: 'Производственно-коммерческий департамент', link: false } },
+          ],
+          children: [
+            { id: 'v2-ersh-c1', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+            { id: 'v2-ersh-c2', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+            { id: 'v2-ersh-c3', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+          ]
+        },
+        { id: 'v2-ship', name: 'Шипунов В.В.', role: 'Руководитель дирекции\nспециальных проектов', photo: null,
+          dept: { name: 'Дирекция специальных проектов', link: false },
+          children: []
+        },
+        { id: 'v2-krem', name: 'Кремлева Е.С.', role: 'Заместитель генерального директора', photo: null,
+          nested: [
+            { id: 'v2-krem-n1', name: 'ФИО', role: 'Руководитель дирекции\nспециальных проектов', photo: null,
+              dept: { name: 'Дирекция по качеству', link: true } },
+            { id: 'v2-krem-n2', name: 'ФИО', role: 'Руководитель дирекции\nспециальных проектов', photo: null,
+              dept: { name: 'Административный департамент', link: false } },
+            { id: 'v2-krem-n3', name: 'Король А.Е.', role: 'Руководитель дирекции\nспециальных проектов', photo: null,
+              dept: { name: 'Департамент IT', link: false } },
+          ],
+          children: [
+            { id: 'v2-krem-c1', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+            { id: 'v2-krem-c2', name: 'ФИО', role: 'Должность', dept: 'Название отдела', photo: null },
+          ]
         },
       ],
     },
@@ -1605,8 +1799,9 @@ function renderCompany(id) {
   row.innerHTML = '';
   (data?.blocks || []).forEach(b => {
     const tile = document.createElement('div');
-    tile.className = 'block-tile';
+    tile.className = 'block-tile' + (b.badge ? ' block-tile--badge' : '');
     tile.innerHTML = `
+      ${b.badge ? `<span class="block-tile__badge">${b.badge}</span>` : ''}
       <div class="block-name">${b.name.replace(/\n/g,'<br>')}</div>
       <div class="block-arrow">
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -1739,7 +1934,8 @@ function openTree(companyId, blockId, blockName) {
   document.getElementById('tv-title').textContent = blockName;
   renderBoStrip('bo-strip-tree');
   canvas = { scale: 1, x: 0, y: 0 };
-  if (treeData.expanded) buildTreeExpanded(treeData);
+  if (treeData.version === 2) buildTreeV2(treeData);
+  else if (treeData.expanded) buildTreeExpanded(treeData);
   else buildTree(treeData);
   centerView(true);
   setupCanvas();
@@ -2104,6 +2300,192 @@ function buildTreeExpanded(data) {
   svg.setAttribute('height', maxY);
   inner.style.width  = maxX + 'px';
   inner.style.height = maxY + 'px';
+
+  applyTransform();
+}
+
+/* ====================================================================
+   TREE V2 — новый дизайн карточек
+==================================================================== */
+function makeV2Photo(name, photo) {
+  const el = document.createElement('div');
+  el.className = 'card-v2__photo';
+  if (photo) {
+    el.innerHTML = `<img src="${photo}" alt="">`;
+  } else {
+    const ini = document.createElement('span');
+    ini.className = 'card-v2__photo-initials';
+    ini.textContent = initials(name);
+    el.appendChild(ini);
+  }
+  return el;
+}
+
+function makeCardV2El(name, role, photo, deptName, deptIsLink, onDeptClick) {
+  const card = document.createElement('div');
+  card.className = 'card-v2';
+  const body = document.createElement('div');
+  body.className = 'card-v2__body';
+  body.appendChild(makeV2Photo(name, photo));
+  const text = document.createElement('div');
+  text.className = 'card-v2__text';
+  text.innerHTML = `<div class="card-v2__name">${name}</div><div class="card-v2__role">${(role || '').replace(/\n/g, '<br>')}</div>`;
+  body.appendChild(text);
+  card.appendChild(body);
+  if (deptName) {
+    const dept = document.createElement('div');
+    dept.className = 'card-v2__dept' + (deptIsLink ? ' card-v2__dept--link' : '');
+    dept.textContent = deptName;
+    if (deptIsLink && onDeptClick) dept.onclick = onDeptClick;
+    card.appendChild(dept);
+  }
+  return card;
+}
+
+function makeNestedCardV2El(managerName, managerRole, managerPhoto, nestedItems) {
+  const outer = document.createElement('div');
+  outer.className = 'card-v2-nested';
+  const header = document.createElement('div');
+  header.className = 'card-v2-nested__header';
+  header.appendChild(makeV2Photo(managerName, managerPhoto));
+  const text = document.createElement('div');
+  text.className = 'card-v2__text';
+  text.innerHTML = `<div class="card-v2__name">${managerName}</div><div class="card-v2__role">${(managerRole || '').replace(/\n/g, '<br>')}</div>`;
+  header.appendChild(text);
+  outer.appendChild(header);
+  const inner = document.createElement('div');
+  inner.className = 'card-v2-nested__inner';
+  nestedItems.forEach(item => {
+    inner.appendChild(makeCardV2El(item.name, item.role, item.photo, item.dept.name, item.dept.link,
+      item.dept.link ? () => alert('Переход в: ' + item.dept.name + '\n(ссылка будет настроена в 1С)') : null));
+  });
+  outer.appendChild(inner);
+  return outer;
+}
+
+function makeMultiHeadV2El(heads, label) {
+  const group = document.createElement('div');
+  group.className = 'card-v2-multi';
+  const headsRow = document.createElement('div');
+  headsRow.className = 'card-v2-multi__heads';
+  heads.forEach(h => {
+    const card = document.createElement('div');
+    card.className = 'card-v2';
+    const body = document.createElement('div');
+    body.className = 'card-v2__body';
+    body.appendChild(makeV2Photo(h.name, h.photo));
+    const text = document.createElement('div');
+    text.className = 'card-v2__text';
+    text.innerHTML = `<div class="card-v2__name">${h.name}</div><div class="card-v2__role">${(h.role || '').replace(/\n/g, '<br>')}</div>`;
+    body.appendChild(text);
+    card.appendChild(body);
+    headsRow.appendChild(card);
+  });
+  group.appendChild(headsRow);
+  if (label) {
+    const dept = document.createElement('div');
+    dept.className = 'card-v2-multi__dept';
+    dept.textContent = label;
+    group.appendChild(dept);
+  }
+  return group;
+}
+
+function buildTreeV2(data) {
+  DEPT_REGISTRY = {};
+  const inner = document.getElementById('canvas-inner');
+  const svg   = document.getElementById('tree-svg');
+  inner.innerHTML = '';
+  inner.appendChild(svg);
+  svg.innerHTML = '';
+
+  const V2_CW = 196, V2_CH = 205;
+  const V2_INNER_CW = 176, V2_NESTED_PAD = 10, V2_NESTED_GAP = 8;
+  const VG1 = 80, VG2 = 80, HG = 48, START_X = 60, START_Y = 40;
+
+  const heads   = data.heads   || [];
+  const persons = data.persons || [];
+
+  function nestedCardW(n) { return n * V2_INNER_CW + (n - 1) * V2_NESTED_GAP + 2 * V2_NESTED_PAD; }
+  function personCardW(p) { return p.nested ? nestedCardW(p.nested.length) : V2_CW; }
+  function childrenRowW(p) {
+    const ch = p.children || [];
+    return ch.length ? ch.length * V2_CW + (ch.length - 1) * HG : 0;
+  }
+  function personSlotW(p) { return Math.max(personCardW(p), childrenRowW(p)); }
+
+  const slots   = persons.map(personSlotW);
+  const totalW  = slots.reduce((s, w) => s + w, 0) + Math.max(0, persons.length - 1) * HG;
+  const centerX = START_X + totalW / 2;
+
+  // === HEADS ===
+  const headsEl = heads.length > 1
+    ? makeMultiHeadV2El(heads, data.headsLabel)
+    : makeCardV2El(heads[0].name, heads[0].role, heads[0].photo, data.headsLabel, false);
+  const headsNode = document.createElement('div');
+  headsNode.className = 'tree-node';
+  headsNode.style.top = START_Y + 'px';
+  headsNode.appendChild(headsEl);
+  inner.appendChild(headsNode);
+  // Measure after append
+  const headsH = headsEl.offsetHeight || 210;
+  const headsW2 = headsEl.offsetWidth || (heads.length > 1 ? heads.length * V2_CW + (heads.length - 1) * 6 + 20 : V2_CW);
+  headsNode.style.left = (centerX - headsW2 / 2) + 'px';
+
+  const headsBottomY = START_Y + headsH;
+  const personsY     = headsBottomY + VG1;
+  const childrenY    = personsY + V2_CH + VG2;
+  const branchY      = personsY - Math.round(VG1 / 2);
+
+  // === PERSONS ===
+  let px = centerX - totalW / 2;
+  persons.forEach((p, i) => {
+    const slotW   = slots[i];
+    const slotCX  = px + slotW / 2;
+    const cardW   = personCardW(p);
+    const cardX   = slotCX - cardW / 2;
+
+    const personEl = p.nested
+      ? makeNestedCardV2El(p.name, p.role, p.photo, p.nested)
+      : makeCardV2El(p.name, p.role, p.photo, p.dept ? p.dept.name : null, p.dept && p.dept.link, null);
+    const personNode = document.createElement('div');
+    personNode.className = 'tree-node';
+    personNode.style.top  = personsY + 'px';
+    personNode.style.left = cardX + 'px';
+    personNode.appendChild(personEl);
+    inner.appendChild(personNode);
+
+    addConnector(svg, centerX, headsBottomY, slotCX, personsY, branchY);
+
+    // === CHILDREN ===
+    const children = p.children || [];
+    if (children.length) {
+      const rowW  = childrenRowW(p);
+      const childBranchY = childrenY - Math.round(VG2 / 2);
+      let cx = slotCX - rowW / 2;
+      children.forEach(c => {
+        const childCX = cx + V2_CW / 2;
+        const childEl = makeCardV2El(c.name, c.role, c.photo, c.dept, false);
+        const childNode = document.createElement('div');
+        childNode.className = 'tree-node';
+        childNode.style.top  = childrenY + 'px';
+        childNode.style.left = cx + 'px';
+        childNode.appendChild(childEl);
+        inner.appendChild(childNode);
+        addConnector(svg, slotCX, personsY + V2_CH, childCX, childrenY, childBranchY);
+        cx += V2_CW + HG;
+      });
+    }
+    px += slotW + HG;
+  });
+
+  // Size SVG
+  const totalH = (persons.some(p => (p.children || []).length) ? childrenY + V2_CH : personsY + V2_CH) + 60;
+  const canvasW = totalW + 2 * START_X;
+  svg.setAttribute('width',  canvasW);
+  svg.setAttribute('height', totalH);
+  inner.style.width  = canvasW + 'px';
+  inner.style.height = totalH + 'px';
 
   applyTransform();
 }
