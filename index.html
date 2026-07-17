@@ -1165,12 +1165,11 @@ body {
   flex-shrink: 0;
 }
 .card-v2__dept--link {
-  border: 1px solid #e55b54;
-  color: #d33831;
+  box-shadow: inset 0 0 0 2px #3C83F6;
   cursor: pointer;
   transition: background 0.18s;
 }
-.card-v2__dept--link:hover { background: #fff0f0; }
+.card-v2__dept--link:hover { background: #e8f0fe; }
 
 /* ---- Карточка-в-карточке ---- */
 .card-v2-nested {
@@ -1331,6 +1330,8 @@ body {
   word-break: break-word;
 }
 .card-v2-multi__dept:hover { background: #E0EBFE; }
+.card-v2-multi__dept--link { box-shadow: inset 0 0 0 2px #3C83F6; cursor: pointer; }
+.card-v2-multi__dept--link:hover { background: #e8f0fe; }
 
 /* ===== 3й вариант: 1 руководитель + несколько отделов ===== */
 .card-v3 {
@@ -2039,7 +2040,7 @@ const ORG_DATA = {
       { id: 'realestate',   name: 'Управление\nнедвижимостью' },
     ],
     legalEntities: [
-      { name: 'ООО СетлСтрой',         director: 'Влащенко И.С.',   inn: '7814000001', phone: '+7 (812) 320-00-01', href: '#' },
+      { name: 'ООО СэтлСтрой',         director: 'Влащенко И.С.',   inn: '7814000001', phone: '+7 (812) 320-00-01', href: '#' },
       { name: 'ООО Архитектурное Бюро', director: 'Петров А.В.',     inn: '7814000002', phone: '+7 (812) 320-00-02', href: '#' },
       { name: 'ООО УК Недвижимость',   director: 'Козлова М.А.',    inn: '7814000003', phone: '+7 (812) 320-00-03', href: '#' },
     ],
@@ -2067,92 +2068,101 @@ const ORG_DATA = {
   trees: {
 
     construction: {
+      version: 2,
+      blockName: 'Департамент строительства',
+      description: 'Производственное ядро холдинга: генподряд, организация строительства и контроль качества на всех объектах Setl Group. Отвечает за то, чтобы проекты возводились в срок и по единым стандартам — от котлована до сдачи дома.',
       heads: [
-        { id: 'vlash', name: 'ВЛАЩЕНКО И.С.',  role: 'Генеральный директор /\nИсполнительный директор', photo: null, showPhoto: true },
-        { id: 'erem',  name: 'ЕРЕМЕНКО И.А.',  role: 'Член совета директоров /\nГенеральный директор',  photo: null, showPhoto: true },
+        { id: 'con-ersh', name: 'Ершов В.В.', fullName: 'Ершов Владимир Вячеславович',
+          role: 'Заместитель генерального директора', photo: null,
+          phone: '+7 (812) 320-04-01, доб. 401', email: 'ershov.v@setl.ru', office: '401' },
+      ],
+      headsDepts: [
+        {
+          person: { id: 'con-kinesh', name: 'Кинешемцев М.В.', fullName: 'Кинешемцев Михаил Владимирович',
+            role: 'Руководитель Дирекции\nпо строительству №2', photo: null,
+            phone: '', email: 'kineshemtsev.m@setl.ru', office: '' },
+          deptName: 'Дирекция по строительству №2',
+          link: false,
+        },
+        {
+          person: { id: 'v2-ersh-n2', name: 'Баранов О.В.', fullName: 'Баранов Олег Владимирович',
+            role: 'Руководитель дирекции\nспециальных проектов', photo: null,
+            phone: '+7 (812) 320-04-11, доб. 411', email: 'baranov.o@setl.ru', office: '411' },
+          deptName: 'Производственно-коммерческий\nдепартамент',
+          deptId: 'dept-pkd',
+          treeId: 'construction2',
+          link: true,
+        },
       ],
       persons: [
         {
-          id: 'pokr', name: 'ПОКРОВСКАЯ С.Б.', role: 'Директор\nдепартамента развития', photo: 'https://i.pravatar.cc/160?img=47', showPhoto: true, phone: '+7 (812) 320-00-21', email: 'pokrovskaya@setl.ru',
-          assistant: { name: 'ПЕШЕХОДЬКО Ю.С.', role: 'Административный помощник', photo: null },
-          divisions: [
-            {
-              id: 'div-razvitie',
-              type: 'division',
-              name: 'Департамент развития',
-              manager: { name: 'ИВАНОВА И.И.', photo: null },
-              count: 16,
-              children: [
-                {
-                  id: 'team-obuchenie',
-                  type: 'division',
-                  name: 'Отдел обучения',
-                  manager: { name: 'ПЕТРОВА А.В.', photo: null },
-                  count: 8,
-                  employees: [
-                    { name: 'СИДОРОВА М.А.',  role: 'Ведущий методолог',         phone: '+7 (812) 320-01-01', email: 'm.sidorova@setl.ru',  office: 'К. 312', photo: 'https://i.pravatar.cc/160?img=12' },
-                    { name: 'КУЗЬМИН П.О.',   role: 'Специалист по обучению',    phone: '+7 (812) 320-01-02', email: 'p.kuzmin@setl.ru',    office: 'К. 313' },
-                    { name: 'ФЁДОРОВА Т.С.',  role: 'Старший методолог',         phone: '+7 (812) 320-01-03', email: 't.fedorova@setl.ru',  office: 'К. 312' },
-                    { name: 'ВОРОНОВ Д.И.',   role: 'Младший специалист',        phone: '+7 (812) 320-01-04', email: 'd.voronov@setl.ru',   office: 'К. 314' },
-                  ],
-                },
-                {
-                  id: 'team-podderzhka',
-                  type: 'division',
-                  name: 'Отдел поддержки',
-                  manager: { name: 'КОЗЛОВ Н.Р.', photo: null },
-                  count: 5,
-                  employees: [
-                    { name: 'ОРЛОВА Е.К.',    role: 'Специалист поддержки',      phone: '+7 (812) 320-02-01', email: 'e.orlova@setl.ru',    office: 'К. 401' },
-                    { name: 'РОМАНОВ А.Д.',   role: 'Ведущий аналитик',          phone: '+7 (812) 320-02-02', email: 'a.romanov@setl.ru',   office: 'К. 402' },
-                    { name: 'ЛЕБЕДЕВА С.В.',  role: 'Аналитик данных',           phone: '+7 (812) 320-02-03', email: 's.lebedeva@setl.ru',  office: 'К. 401' },
-                  ],
-                },
-              ],
+          id: 'con-blinov', name: 'Блинов А.П.', fullName: 'Блинов Андрей Павлович',
+          role: 'Заместитель Руководителя Дирекции', photo: null,
+          phone: '', email: 'blinov.a@setl.ru', office: '',
+          dept: { name: 'ЖК «Дворцовый фасад»', link: false, id: 'dept-blinov-jk',
+            modal: {
+              description: 'Объекты ЖК «Дворцовый фасад» под управлением Блинова А.П.',
+              managers: [{ id: 'con-blinov', name: 'Блинов А.П.', fullName: 'Блинов Андрей Павлович',
+                role: 'Заместитель Руководителя Дирекции', photo: null, leadsAlso: [] }],
+              deputies: [], assistants: [], subdepts: [], team: [],
             },
-          ],
-        },
-        {
-          id: 'tikh', name: 'ТИХАНОВ И.Ю.', role: 'Директор департамента\nподготовки проектов', photo: null, showPhoto: true,
-          assistant: null,
-          divisions: [
-            { id: 'div-podg', type: 'division', name: 'Департамент подготовки\nпроектов',
-              manager: { name: 'ТИХАНОВ И.Ю.', photo: null }, count: 12,
-              tooltip: { desc: 'Подготовка проектной документации', assistant: null } },
-          ],
-        },
-        {
-          id: 'ship', name: 'ШИПУНОВ В.В.', role: 'Руководитель дирекции\nспециальных проектов', photo: null, showPhoto: true,
-          assistant: null,
-          divisions: [
-            { id: 'div-special', type: 'division', name: 'Дирекция специальных\nпроектов',
-              manager: { name: 'ШИПУНОВ В.В.', photo: null }, count: 8,
-              tooltip: { desc: 'Управление специальными проектами', assistant: null } },
-          ],
-        },
-        {
-          id: 'ershov', name: 'ЕРШОВ В.В.', role: 'Заместитель\nгенерального директора', photo: null, showPhoto: true,
-          assistant: null,
-          skipLevel: true,
-          divisions: [
-            { id: 'div-stroy', type: 'division-link', name: 'Департамент\nстроительства',
-              href: '#construction-objects',
-              tooltip: { desc: 'Управление строительными объектами', assistant: 'СМИРНОВА О.П.' } },
-            { id: 'div-pkd', type: 'division', name: 'Производственно-\nкоммерческий департамент',
-              manager: { name: 'ЕРШОВ В.В.', photo: null }, count: 25,
-              tooltip: { desc: 'Коммерческое и производственное управление', assistant: null } },
-          ],
-        },
-        {
-          id: 'kreml', name: 'КРЕМЛЁВА Е.С.', role: 'Заместитель\nгенерального директора', photo: null, showPhoto: true,
-          assistant: null,
-          divisions: [
-            { id: 'div-quality', type: 'division', name: 'Дирекция\nпо качеству',
-              manager: { name: 'КРЕМЛЁВА Е.С.', photo: null }, count: 10,
-              tooltip: { desc: 'Контроль качества строительства', assistant: null } },
-            { id: 'div-adm', type: 'division', name: 'Административный\nдепартамент',
-              manager: { name: 'БЕЛОВА Т.А.', photo: null }, count: 15,
-              tooltip: { desc: 'Административное обеспечение', assistant: null } },
+          },
+          children: [
+            { id: 'con-tremb', name: 'Трембач Р.А.', fullName: 'Трембач Роман Андреевич',
+              role: 'Руководитель проекта', photo: null, phone: '', email: 'trembach.r@setl.ru', office: '',
+              dept: { name: 'ЖК «Сэтл Лофт»\nоч. 1, S = 15 000 м²', link: false, id: 'dept-sf-loft',
+                modal: {
+                  description: 'ЖК «Сэтл Лофт» — очередь 1. Площадь объекта 15 000 м².',
+                  managers: [{ id: 'con-tremb', name: 'Трембач Р.А.', fullName: 'Трембач Роман Андреевич',
+                    role: 'Руководитель проекта', photo: null, leadsAlso: [] }],
+                  deputies: [], assistants: [], subdepts: [], team: [],
+                },
+              },
+            },
+            { id: 'con-gorob1', name: 'Горобец В.А.', fullName: 'Горобец Владимир Андреевич',
+              role: 'Руководитель проекта', photo: null, phone: '', email: 'gorobets.v1@setl.ru', office: '',
+              dept: { name: 'ЖК «Дворцовый фасад»\nоч. 2 (уч. 6) НС-4\nS = 36 472 м²', link: false, id: 'dept-df-q2',
+                modal: {
+                  description: 'ЖК «Дворцовый фасад» — очередь 2, участок 6. НС-4. Площадь 36 472 м².',
+                  managers: [{ id: 'con-gorob1', name: 'Горобец В.А.', fullName: 'Горобец Владимир Андреевич',
+                    role: 'Руководитель проекта', photo: null, leadsAlso: [] }],
+                  deputies: [], assistants: [], subdepts: [], team: [],
+                },
+              },
+            },
+            { id: 'con-drobn', name: 'Дробницкий К.А.', fullName: 'Дробницкий Кирилл Андреевич',
+              role: 'Руководитель проекта', photo: null, phone: '', email: 'drobnitsky.k@setl.ru', office: '',
+              dept: { name: 'ЖК «Дворцовый фасад»\nоч. 3 (уч. 12) НС-4\nS = 31 362 м²', link: false, id: 'dept-df-q3',
+                modal: {
+                  description: 'ЖК «Дворцовый фасад» — очередь 3, участок 12. НС-4. Площадь 31 362 м².',
+                  managers: [{ id: 'con-drobn', name: 'Дробницкий К.А.', fullName: 'Дробницкий Кирилл Андреевич',
+                    role: 'Руководитель проекта', photo: null, leadsAlso: [] }],
+                  deputies: [], assistants: [], subdepts: [], team: [],
+                },
+              },
+            },
+            { id: 'con-dymov', name: 'Дымов А.А.', fullName: 'Дымов Андрей Александрович',
+              role: 'Руководитель проекта', photo: null, phone: '', email: 'dymov.a@setl.ru', office: '',
+              dept: { name: 'ЖК «Дворцовый фасад»\nоч. 4 (уч. 5) НС-4\nS = 33 653 м²', link: false, id: 'dept-df-q4',
+                modal: {
+                  description: 'ЖК «Дворцовый фасад» — очередь 4, участок 5. НС-4. Площадь 33 653 м².',
+                  managers: [{ id: 'con-dymov', name: 'Дымов А.А.', fullName: 'Дымов Андрей Александрович',
+                    role: 'Руководитель проекта', photo: null, leadsAlso: [] }],
+                  deputies: [], assistants: [], subdepts: [], team: [],
+                },
+              },
+            },
+            { id: 'con-gorob2', name: 'Горобец В.А.', fullName: 'Горобец Вячеслав Андреевич',
+              role: 'Руководитель проекта', photo: null, phone: '', email: 'gorobets.v2@setl.ru', office: '',
+              dept: { name: 'ЖК «Дворцовый фасад»\nоч. 5 (уч. 3) НС-4\nS = 13 913 м²', link: false, id: 'dept-df-q5',
+                modal: {
+                  description: 'ЖК «Дворцовый фасад» — очередь 5, участок 3. НС-4. Площадь 13 913 м².',
+                  managers: [{ id: 'con-gorob2', name: 'Горобец В.А.', fullName: 'Горобец Вячеслав Андреевич',
+                    role: 'Руководитель проекта', photo: null, leadsAlso: [] }],
+                  deputies: [], assistants: [], subdepts: [], team: [],
+                },
+              },
+            },
           ],
         },
       ],
@@ -2304,7 +2314,7 @@ const ORG_DATA = {
               role: 'Руководитель дирекции\nспециальных проектов', photo: null,
               phone: '+7 (812) 320-04-10, доб. 410', email: 'kuznetsov.p@setl.ru', office: '410',
               dept: {
-                name: 'Департамент строительства', link: true, id: 'dept-stroitelstvo',
+                name: 'Департамент строительства', link: true, id: 'dept-stroitelstvo', treeId: 'construction',
                 modal: {
                   description: 'Генподряд и организация строительства объектов холдинга по единым стандартам.',
                   managers: [{ id: 'v2-ersh', name: 'Ершов В.В.', fullName: 'Ершов Владимир Вячеславович',
@@ -2994,9 +3004,11 @@ function buildGlobalSearchIndex() {
   });
 }
 
+function normalizeYo(s) { return s.replace(/ё/g, 'е'); }
 function wordMatch(text, q) {
   if (!text) return false;
-  return text.toLowerCase().split(/[\s\n/()]+/).some(w => w.startsWith(q));
+  const nq = normalizeYo(q);
+  return normalizeYo(text.toLowerCase()).split(/[\s\n/()]+/).some(w => w.startsWith(nq));
 }
 
 function onLandingSearch(val) {
@@ -3918,13 +3930,12 @@ function makeMultiDeptV2El(head, depts) {
       deptWrap.className = 'card-v2-multi__dept-wrap';
       deptWrap.style.width = '170px';
       const dept = document.createElement('div');
-      dept.className = 'card-v2-multi__dept';
+      dept.className = 'card-v2-multi__dept' + (d.isLink ? ' card-v2-multi__dept--link' : '');
       const deptText2 = document.createElement('span');
       deptText2.className = 'card-v2-multi__dept-text';
       deptText2.textContent = d.deptName;
       dept.appendChild(deptText2);
       if (d.onDeptClick) {
-        dept.style.cursor = 'pointer';
         dept.addEventListener('click', d.onDeptClick);
       }
       deptWrap.appendChild(dept);
@@ -3972,7 +3983,14 @@ function buildTreeV2(data) {
     });
     return total;
   }
-  function personSlotW(p) { return Math.max(personCardW(p), childrenRowW(p), nestedChildrenW(p)); }
+  function childrenChildBlockW(p) {
+    return (p.children || []).reduce((max, c) => {
+      if (!c.childBlock) return max;
+      const n = c.childBlock.depts.length;
+      return Math.max(max, n * V2_CW + Math.max(0, n - 1) * HG);
+    }, 0);
+  }
+  function personSlotW(p) { return Math.max(personCardW(p), childrenRowW(p), nestedChildrenW(p), childrenChildBlockW(p)); }
 
   const slots   = persons.map(personSlotW);
   const totalW  = slots.reduce((s, w) => s + w, 0) + Math.max(0, persons.length - 1) * HG_SLOT;
@@ -3987,7 +4005,10 @@ function buildTreeV2(data) {
     const depts = data.headsDepts.map(d => ({
       person: d.person,
       deptName: d.deptName,
-      onDeptClick: d.deptId ? () => openV2DeptModal(d.deptId, crumbsHead) : null
+      isLink: !!(d.link || d.treeId),
+      onDeptClick: d.treeId
+        ? () => openTree(state.companyId, d.treeId, d.deptName.replace(/\n/g, ' '))
+        : (d.deptId ? () => openV2DeptModal(d.deptId, crumbsHead) : null)
     }));
     headsEl = makeMultiDeptV2El(heads[0], depts);
     // Клик на общий header → модалка руководителя
@@ -4075,7 +4096,12 @@ function buildTreeV2(data) {
       const depts = p.nested.map(n => ({
         person: { id: n.id, name: n.name, fullName: n.fullName, role: n.role, photo: n.photo },
         deptName: n.dept ? n.dept.name.replace(/\n/g, ' ') : null,
-        onDeptClick: (n.dept && n.dept.id) ? () => openV2DeptModal(n.dept.id, null) : null,
+        isLink: !!(n.dept && n.dept.link),
+        onDeptClick: n.dept
+          ? (n.dept.treeId
+              ? () => openTree(state.companyId, n.dept.treeId, n.dept.name.replace(/\n/g, ' '))
+              : (n.dept.id ? () => openV2DeptModal(n.dept.id, null) : null))
+          : null,
       }));
       personEl = makeMultiDeptV2El(head, depts);
       const headWrap = personEl.querySelector('.card-v3__head-wrap');
@@ -4128,6 +4154,42 @@ function buildTreeV2(data) {
         inner.appendChild(childNode);
         addConnector(svg, slotCX, personsY + personH, childCX, childrenY, childBranchY);
         cx += V2_CW + HG;
+      });
+
+      // === CHILDREN'S CHILD BLOCKS ===
+      const level2Y   = childrenY + V2_CH + VG2;
+      const l2BranchY = level2Y - Math.round(VG2 / 2);
+      let cx2 = slotCX - rowW / 2;
+      children.forEach(c => {
+        const childCX      = cx2 + V2_CW / 2;
+        const childBottomY = childrenY + V2_CH;
+        if (c.childBlock) {
+          const cb  = c.childBlock;
+          const n   = cb.depts.length;
+          const cbW = n * V2_CW + Math.max(0, n - 1) * HG;
+          let   dx  = childCX - Math.round(cbW / 2);
+          const cCrumb = c.dept && c.dept.id
+            ? { label: (c.dept.name || '').replace(/\n/g,' '), type: 'dept', id: c.dept.id } : null;
+          const cbCrumbs = cCrumb ? [...blockCrumb, cCrumb] : blockCrumb;
+          cb.depts.forEach(d => {
+            const dCX  = dx + Math.round(V2_CW / 2);
+            const dEl  = makeMultiHeadV2El(
+              [d.person],
+              d.deptName || null,
+              d.deptId ? () => openV2DeptModal(d.deptId, cbCrumbs) : null
+            );
+            v2WirePersonClick(dEl, d.person, data, c.dept ? c.dept.id : null);
+            const dNode = document.createElement('div');
+            dNode.className = 'tree-node';
+            dNode.style.top  = level2Y + 'px';
+            dNode.style.left = dx + 'px';
+            dNode.appendChild(dEl);
+            inner.appendChild(dNode);
+            addConnector(svg, childCX, childBottomY, dCX, level2Y, l2BranchY);
+            dx += V2_CW + HG;
+          });
+        }
+        cx2 += V2_CW + HG;
       });
     }
     // === NESTED ITEM CHILDREN ===
@@ -4240,8 +4302,9 @@ function buildTreeV2(data) {
   const hasL2nested = persons.some(p => p.nested && p.nested.some(n => n.childBlock && n.childBlock.depts && n.childBlock.depts.some(d => d.children && d.children.length)));
   const hasL1nested = persons.some(p => p.nested && p.nested.some(n => (n.children && n.children.length) || n.childBlock));
   const hasRegChildren = persons.some(p => (p.children || []).length);
+  const hasChildrenChildBlock = persons.some(p => (p.children || []).some(c => c.childBlock));
   const level2AbsY = childrenY + V2_CH + VG2;
-  const totalH = (hasL2nested ? level2AbsY + V2_CH : (hasL1nested || hasRegChildren) ? childrenY + V2_CH : personsY + V2_CH) + 60;
+  const totalH = (hasL2nested || hasChildrenChildBlock ? level2AbsY + V2_CH : (hasL1nested || hasRegChildren) ? childrenY + V2_CH : personsY + V2_CH) + 60;
   const canvasW = totalW + 2 * START_X;
   svg.setAttribute('width',  canvasW);
   svg.setAttribute('height', totalH);
@@ -5026,6 +5089,21 @@ function buildV2Registries(data) {
     const childCrumbs = pDeptC ? [...blockCrumb, pDeptC] : blockCrumb;
     (p.children || []).forEach(c => {
       regPersonWithDept(c, childCrumbs);
+      if (c.childBlock) {
+        const cDeptC = c.dept && c.dept.id ? { label: (c.dept.name || '').replace(/\n/g,' '), type: 'dept', id: c.dept.id } : null;
+        const cbCrumbs = cDeptC ? [...childCrumbs, cDeptC] : childCrumbs;
+        (c.childBlock.depts || []).forEach(d => {
+          if (d.person && d.person.id) {
+            V2_PERSON_REG[d.person.id] = d.person;
+            if (!V2_CRUMB_MAP[d.person.id]) V2_CRUMB_MAP[d.person.id] = cbCrumbs;
+          }
+          if (d.deptId && d.deptModal) {
+            V2_DEPT_REG[d.deptId] = Object.assign({ name: d.deptName }, d.deptModal);
+            if (!V2_DEPT_CRUMB_MAP[d.deptId]) V2_DEPT_CRUMB_MAP[d.deptId] = cbCrumbs;
+            if (d.person && d.person.id) { V2_DEPT_HEAD_MAP[d.deptId] = d.person.id; addLeads(d.person.id, [d.deptId]); }
+          }
+        });
+      }
     });
   });
 }
