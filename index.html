@@ -2816,7 +2816,9 @@ function restoreFromHash() {
   const hash = window.location.hash.slice(1);
   if (!hash || hash === 'landing') { renderLanding(); return; }
   const [view, companyId, blockId, blockNameEnc] = hash.split('/');
-  const blockName = blockNameEnc ? decodeURIComponent(blockNameEnc) : '';
+  // Название берём из списка блоков компании, а не из адреса — в ссылке может быть что угодно
+  const reg = ((ORG_DATA[companyId] || {}).blocks || []).find(b => b.id === blockId);
+  const blockName = reg ? reg.name.replace(/\s*\n\s*/g, ' ') : (blockNameEnc ? decodeURIComponent(blockNameEnc) : '');
   if (view === 'tree' && companyId && blockId) {
     renderLanding();
     openTree(companyId, blockId, blockName);
@@ -3106,7 +3108,7 @@ function renderLanding() {
 
   ORG_DATA.trees.constructionFull = {
     version: 2,
-    blockName: 'Строительный блок — полный',
+    blockName: 'Тестовый блок',
     description: 'Демо-данные в объёме печатной оргструктуры строительного блока: 18 департаментов, до трёх уровней подразделений.',
     heads: [
       { id: 'full-h1', name: 'Влащенко И.С.', fullName: 'Влащенко Игорь Сергеевич',
@@ -3117,7 +3119,7 @@ function renderLanding() {
     headsLabel: 'Строительный блок',
     persons: COLS.map(c => node(c, 'Директор')),
   };
-  ORG_DATA.setlgroup.blocks.splice(1, 0, { id: 'constructionFull', name: 'Строительный блок —\nполный', badge: 'DEMO' });
+  ORG_DATA.setlgroup.blocks.splice(1, 0, { id: 'constructionFull', name: 'Тестовый блок —\nпосмотреть', badge: 'DEMO' });
 })();
 
       const blocksEl = document.createElement('div');
