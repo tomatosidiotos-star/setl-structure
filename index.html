@@ -51,6 +51,12 @@
   --f-body:  'TT Commons Pro', sans-serif;
   --f-exp:   'TT Commons Pro Expanded', sans-serif;
   --lh:      1.2;
+
+  /* полотно структуры */
+  --canvas-bg:   #E7F4FF;
+  --canvas-dot:  #A1D4FF;
+  --canvas-line: #83BFFC;
+  --link-blue:   #3C83F6;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -116,8 +122,10 @@ body {
 }
 
 .org-content {
-  width: 1568px;
-  padding: 0 40px;
+  /* до 1568px по ширине контентной области Битрикса, уже — тянется (адаптив) */
+  flex: 1 1 auto; min-width: 0; max-width: 1568px;
+  padding: 0 24px;
+  container-type: inline-size; container-name: org;
   min-height: 100vh;
   position: relative;
   overflow: hidden;
@@ -222,8 +230,8 @@ body {
 #view-tree {
   background: #ffffff;
   min-height: 100vh;
-  margin: 0 -40px;
-  padding: 0 40px;
+  margin: 0 -24px;
+  padding: 0 24px;
 }
 .org-content:has(#view-tree.active) {
   background: #ffffff;
@@ -398,7 +406,7 @@ body {
   display: flex;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  margin: 0 -40px;
+  margin: 0 -24px;
 }
 .dir-card {
   flex: 1;
@@ -578,7 +586,6 @@ body {
 }
 .btn-legal:hover { background: #fad8d8; color: #c0302a; }
 .btn-legal svg { margin-right: 6px; }
-.tv-topbar__actions { display: flex; gap: 8px; }
 
 .blocks-row {
   display: grid;
@@ -643,60 +650,81 @@ body {
 /* ============================================================
    TREE VIEW
 ============================================================ */
-.tv-topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding-top: 24px;
+/* Шапка блока */
+.tv-head {
+  display: flex; gap: 24px; align-items: center;
+  padding: 36px 0 12px;
 }
-.btn-back {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: #fdf0f0; color: #d33831;
-  border: none; cursor: pointer;
-  padding: 0 14px; height: 30px; border-radius: 6px;
-  font-family: var(--f-body); font-size: 14px;
-  white-space: nowrap; transition: background 0.15s, color 0.15s;
+.tv-head__main, .tv-head__desc { flex: 1 1 0; min-width: 0; }
+.tv-head__main { display: flex; gap: 16px; align-items: flex-start; }
+.tv-back {
+  margin-top: 6px; width: 30px; height: 30px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: #fdf0f0; border: none; border-radius: 6px; cursor: pointer;
+  transition: background 0.15s;
 }
-.btn-back:hover { background: #fad8d8; color: #c0302a; }
-.tv-info { padding: 20px 0 0; }
+.tv-back:hover { background: #fad8d8; }
+.tv-head__titles { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .tv-title {
-  font-family: var(--f-exp);
-  font-weight: 700;
-  font-size: 28px;
+  font-family: var(--f-exp); font-weight: 600; font-size: 32px; line-height: 1.2;
   color: var(--black);
 }
+.tv-head__actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.tv-head .btn-legal { font-family: var(--f-exp); color: #e2221c; }
+.btn-legal--icon { padding: 0 12px; gap: 4px; }
+.btn-legal--icon img { display: block; }
+.tv-head__desc { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .tv-desc {
-  font-size: 14px; color: #7c7c7c; line-height: 1.45;
-  margin-top: 6px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden; max-width: 680px;
+  max-width: 700px;
+  font-family: var(--f-exp); font-size: 16px; line-height: 1.2; color: #7c7c7c;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .btn-more {
+  height: 30px; padding: 4px 0;
   background: none; border: none; cursor: pointer;
-  color: var(--red); font-size: 14px; font-family: var(--f-body);
-  padding: 0; display: inline-flex; align-items: center; gap: 4px;
-  margin-top: 6px; line-height: 1;
+  font-family: var(--f-exp); font-size: 14px; line-height: 1.2; color: #d33831;
 }
 .btn-more:hover { opacity: 0.75; }
 .tv-controls-row {
-  display: flex; align-items: center; gap: 8px;
-  margin: 20px -40px 0; padding: 10px 40px;
+  display: flex; align-items: center; gap: 32px;
+  margin: 24px -24px 0; padding: 8px 24px;
   position: sticky; top: 0; z-index: 100;
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
 }
-.tv-controls { display: flex; align-items: center; gap: 32px; flex: 1 0 0; }
+.tv-controls { display: flex; align-items: center; gap: 32px; flex-shrink: 0; }
+.tv-controls .search-wrap { flex: none; width: 280px; }
+.tv-controls-row .bo-strip-items { gap: 16px; }
+
+/* Иконки бэк-офиса (вместо текстовых пилюль), подпись — в тултипе */
+.bo-strip-item--icon { width: 36px; height: 36px; padding: 0; }
+.bo-strip-item--icon svg { width: 20px; height: 20px; }
+
+/* Адаптив экрана дерева (по ширине контентной области .org-content):
+   — описание с «Подробнее» уходит под название и кнопки;
+   — поиск и масштаб уходят под иконки бэк-офиса;
+   — полотно уменьшается пропорционально (aspect-ratio у .canvas-wrapper) */
+@container org (max-width: 1150px) {
+  .tv-head { flex-direction: column; align-items: stretch; gap: 12px; }
+  .tv-head__desc { padding-left: 46px; }   /* по левому краю названия: «назад» 30 + отступ 16 */
+}
+@container org (max-width: 1000px) {
+  .tv-controls-row { flex-wrap: wrap; row-gap: 12px; }
+  .tv-controls { width: 100%; }
+  .tv-controls .search-wrap { flex: 1 1 auto; width: auto; }
+}
 .zoom-right { display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
 .zoom-group { display: flex; align-items: center; gap: 8px; }
 
 .search-wrap { position: relative; flex: 1 0 0; }
 .search-input {
   width: 100%;
-  height: 48px;
-  padding: 0 44px 0 20px;
+  height: 36px;
+  padding: 0 40px 0 12px;
   border: none;
   border-radius: 12px;
-  font-family: var(--f-body);
-  font-size: 16px;
+  font-family: var(--f-exp);
+  font-size: 16px; letter-spacing: 0.02em;
   outline: none;
   background: #f6f6f6;
   color: var(--black);
@@ -763,8 +791,8 @@ body {
 .sd-role { font-size: 11px; color: rgba(0,0,0,0.42); margin-top: 2px; }
 
 .zoom-btn {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   background: #fdf0f0;
   border: none;
   border-radius: 6px;
@@ -778,12 +806,12 @@ body {
 .zoom-btn:hover { background: #fad8d8; }
 
 .canvas-wrapper {
-  margin-top: 16px;
-  height: calc(100vh - 216px);
-  background-color: #F6F6F6;
-  background-image: radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px);
+  margin-top: 8px;
+  aspect-ratio: 1488 / 902;   /* по макету; на узких экранах уменьшается пропорционально */
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
   background-size: 24px 24px;
-  border-radius: var(--r-lg);
+  border-radius: 20px;
   overflow: hidden;
   position: relative;
   cursor: grab;
@@ -805,6 +833,21 @@ body {
    КАРТОЧКИ ДЕРЕВА
 ============================================================ */
 .tree-node { position: absolute; }
+
+/* Кнопка сворачивания ветки — по центру нижнего края карточки */
+.fold-btn {
+  position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); z-index: 2;
+  height: 24px; min-width: 24px; padding: 0 6px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 2px;
+  background: #fff; border: 1px solid #CFE6FD; color: var(--link-blue);
+  font-family: var(--f-exp); font-weight: 600; font-size: 11px; line-height: 1;
+  box-shadow: 0 2px 8px rgba(23,137,190,0.18); cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.fold-btn svg { transform: rotate(180deg); }
+.fold-btn--folded { padding: 0 6px 0 9px; }
+.fold-btn--folded svg { transform: none; }
+.fold-btn:hover { background: #E8F0FE; border-color: var(--link-blue); }
 
 /* Группа топ-руководителей */
 .group-heads-box {
@@ -1125,7 +1168,7 @@ body {
   padding-top: 14px;
   flex-shrink: 0;
   clip-path: path('M 20 0 H 150 L 170 20 V 176 C 170 187 161 196 150 196 H 20 C 9 196 0 187 0 176 V 20 C 0 9 9 0 20 0 Z');
-  filter: drop-shadow(0 0 15px rgba(82,42,34,0.1));
+  filter: drop-shadow(0 0 15px rgba(23,137,190,0.1));
 }
 .card-v2__body {
   padding: 0 14px;
@@ -1182,7 +1225,7 @@ body {
   justify-content: space-between;
   flex-shrink: 0;
   clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
-  filter: drop-shadow(0 0 15px rgba(82,42,34,0.1));
+  filter: drop-shadow(0 0 15px rgba(23,137,190,0.1));
 }
 .card-v2-nested__header {
   padding: 8px 14px 0;
@@ -1214,7 +1257,7 @@ body {
   flex-direction: column;
   align-items: flex-end;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 15px rgba(82,42,34,0.1));
+  filter: drop-shadow(0 0 15px rgba(23,137,190,0.1));
 }
 .card-v2-multi__heads { display: flex; gap: 4px; align-items: flex-start; }
 
@@ -1332,13 +1375,27 @@ body {
   word-break: break-word;
 }
 .card-v2-multi__dept:hover { background: #E0EBFE; }
-.card-v2-multi__dept--link { box-shadow: inset 0 0 0 2px #3C83F6; cursor: pointer; }
+.card-v2-multi__dept--link { box-shadow: inset 0 0 0 2px var(--link-blue); cursor: pointer; }
 .card-v2-multi__dept--link:hover { background: #e8f0fe; }
+
+/* Отдел-ссылка (ведёт в отдельное дерево): силуэт города + стрелка над названием */
+.card-v2-multi__dept--link {
+  flex-direction: column; align-items: stretch; justify-content: center;
+  padding: 8px 14px; border: none;
+}
+.card-v2-multi__dept--link .card-v2-multi__dept-text { -webkit-line-clamp: 2; }
+.dept-link__head { display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0; }
+.dept-link__city {
+  position: relative; width: 125px; height: 18px; overflow: hidden;
+  border-radius: 8px 8px 0 0; flex-shrink: 0;
+}
+.dept-link__city img { position: absolute; left: -17px; top: 3px; width: 142.47px; height: 76.63px; max-width: none; }
+.dept-link__arrow { display: block; width: 13px; height: 13px; }
 
 /* ===== 3й вариант: 1 руководитель + несколько отделов ===== */
 .card-v3 {
   display: flex; flex-direction: column; align-items: flex-end;
-  flex-shrink: 0; filter: drop-shadow(0 0 15px rgba(82,42,34,0.1));
+  flex-shrink: 0; filter: drop-shadow(0 0 15px rgba(23,137,190,0.1));
   height: 196px;
 }
 /* Общий header: аватар + текст + Surface; height: 50px clips surface 51px → gap закрывается margin-top:-1px на cards */
@@ -1372,7 +1429,7 @@ body {
   margin-top: -1px;
 }
 /* Каждая под-карточка (NameCard1 + GroupCard) — растягивается на всю высоту ряда */
-.card-v3__sub { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; width: 170px; min-height: 0; filter: drop-shadow(0 0 15px rgba(82,42,34,0.1)); }
+.card-v3__sub { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; width: 170px; min-height: 0; filter: drop-shadow(0 0 15px rgba(23,137,190,0.1)); }
 /* В под-карточках убираем отрицательный margin и даём 5px сверху —
    Surface SVG в под-карточках делаем 50px (как wrap), body margin-top: 0, gap 4px */
 .card-v3__sub .card-v2-mh__surface { height: 50px; }
@@ -1882,32 +1939,30 @@ body {
          ВЬЮХА 3: ДЕРЕВО (infinite canvas)
     ================================================ -->
     <div class="view" id="view-tree">
-      <!-- Верхняя панель: На главную + Список юрлиц -->
-      <div class="tv-topbar">
-        <button class="btn-back" onclick="goTo('landing')">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11.5L4.5 7L9 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          На главную
-        </button>
-        <div class="tv-topbar__actions">
-          <button class="btn-legal" id="btn-print-open" onclick="openPrintPreview()">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 6V1.5h8V6"/><rect x="1.5" y="6" width="13" height="6" rx="1.5"/><path d="M4 10h8v4.5H4z"/></svg>
-            Печать
+      <!-- Шапка блока: слева «назад» + название + кнопки, справа описание -->
+      <div class="tv-head">
+        <div class="tv-head__main">
+          <button class="tv-back" onclick="goTo('landing')" title="На главную" aria-label="На главную">
+            <img src="Icons/header/arrow-left.svg" width="14" height="14" alt="">
           </button>
-          <button class="btn-legal" id="btn-legal-open">Список юридических лиц</button>
+          <div class="tv-head__titles">
+            <div class="tv-title" id="tv-title"></div>
+            <div class="tv-head__actions">
+              <button class="btn-legal" id="btn-legal-open">Список юридических лиц</button>
+              <button class="btn-legal btn-legal--icon" id="btn-print-open" onclick="openPrintPreview()">
+                <img src="Icons/header/print.svg" width="14" height="14" alt="">
+                Печать
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="tv-head__desc">
+          <div class="tv-desc" id="tv-desc" style="display:none"></div>
+          <button class="btn-more" id="btn-block-more" style="display:none" onclick="openBlockDescModal()">Подробнее</button>
         </div>
       </div>
 
-      <!-- Заголовок блока + описание -->
-      <div class="tv-info">
-        <div class="tv-title" id="tv-title"></div>
-        <div class="tv-desc" id="tv-desc" style="display:none"></div>
-        <button class="btn-more" id="btn-block-more" style="display:none" onclick="openBlockDescModal()">
-          Подробнее
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5.5L7 9.5L11 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </div>
-
-      <!-- Строка управления: BO пилюли + поиск + зум -->
+      <!-- Строка управления: иконки бэк-офиса + поиск + зум -->
       <div class="tv-controls-row">
         <div class="bo-strip-items" id="bo-strip-tree"></div>
         <div class="tv-controls">
@@ -2779,120 +2834,6 @@ const ORG_DATA = {
 };
 
 /* ====================================================================
-   СОСТОЯНИЕ
-==================================================================== */
-let state = { view: 'landing', companyId: null, blockId: null, blockName: '' };
-let DEPT_REGISTRY = {};
-let SEARCH_INDEX  = [];
-let _searchResults = [];
-let _globalSearchHits = [];
-let GLOBAL_SEARCH_INDEX = [];
-let panelBack = null;
-let canvas = { scale: 1, x: 60, y: 40 };
-let panning = false;
-let panOrigin = { x: 0, y: 0 };
-
-/* ====================================================================
-   НАВИГАЦИЯ
-==================================================================== */
-let _skipHashChange = false;
-
-function goTo(view, companyId, blockId, blockName) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-' + view).classList.add('active');
-  state = { view, companyId, blockId, blockName };
-  renderBreadcrumb();
-  window.scrollTo(0, 0);
-
-  _skipHashChange = true;
-  if (view === 'landing') {
-    window.location.hash = 'landing';
-  } else if (view === 'tree') {
-    window.location.hash = 'tree/' + companyId + '/' + blockId + '/' + encodeURIComponent(blockName || '');
-  }
-}
-
-function restoreFromHash() {
-  const hash = window.location.hash.slice(1);
-  if (!hash || hash === 'landing') { renderLanding(); return; }
-  const [view, companyId, blockId, blockNameEnc] = hash.split('/');
-  const blockName = blockNameEnc ? decodeURIComponent(blockNameEnc) : '';
-  if (view === 'tree' && companyId && blockId) {
-    renderLanding();
-    openTree(companyId, blockId, blockName);
-  } else {
-    renderLanding();
-  }
-}
-
-window.addEventListener('hashchange', () => {
-  if (_skipHashChange) { _skipHashChange = false; return; }
-  restoreFromHash();
-});
-
-function renderBreadcrumb() {
-  const el = document.getElementById('breadcrumb');
-  if (state.view === 'landing') { el.innerHTML = ''; return; }
-  const crumbs = [{ label: 'Главная', fn: () => goTo('landing') }];
-  if (state.blockName) crumbs.push({ label: state.blockName, fn: null });
-  el.innerHTML = '';
-  crumbs.forEach((c, i) => {
-    if (i > 0) { const sep = document.createElement('span'); sep.className = 'bc-sep'; sep.textContent = '›'; el.appendChild(sep); }
-    const span = document.createElement('span');
-    span.className = 'bc-item' + (i === crumbs.length - 1 ? ' current' : '');
-    span.textContent = c.label;
-    if (c.fn && i < crumbs.length - 1) span.onclick = c.fn;
-    el.appendChild(span);
-  });
-}
-
-/* ====================================================================
-   LANDING
-==================================================================== */
-function renderLanding() {
-  // Директора
-  const dirRow = document.getElementById('directors-row');
-  dirRow.innerHTML = '';
-  ORG_DATA.directors.forEach(d => {
-    const card = document.createElement('div');
-    card.className = 'lnd-dir-card';
-    const displayName = d.displayName || d.name.replace(/\n/g,' ');
-    const ini = initials(d.name);
-    const photoHtml = d.photo
-      ? `<div class="lnd-dir-photo"><img src="${d.photo}" alt=""></div>`
-      : `<div class="lnd-dir-photo" style="background:${avatarColor(d.name)};color:white">${ini}</div>`;
-    card.innerHTML = `${photoHtml}<div class="lnd-dir-info"><div class="lnd-dir-name">${displayName}</div><div class="lnd-dir-role">${d.role}</div></div>`;
-    card.style.cursor = 'pointer';
-    card.onclick = () => openDirectorModal(d);
-    dirRow.appendChild(card);
-  });
-
-  // Бэк-офис
-  document.getElementById('bo-landing').innerHTML =
-    ORG_DATA.backoffice.map(b => `
-      <div class="lnd-bo-item" onmouseenter="showTt(event,'${b.name}','${b.desc}','')" onmouseleave="hideTt()" onmousemove="moveTt(event)">
-        <div class="lnd-bo-icon-wrap">${BO_ICONS[b.id] || ''}</div>
-        <div class="lnd-bo-name">${b.name}</div>
-      </div>`).join('');
-
-  // Компании
-  const row = document.getElementById('companies-row');
-  row.innerHTML = '';
-  ORG_DATA.companies.forEach(c => {
-    const card = document.createElement('div');
-    card.className = 'lnd-co-card';
-
-    const defaultEl = document.createElement('div');
-    defaultEl.className = 'lnd-co-default';
-    const logoHtml = c.logo
-      ? `<img class="lnd-co-logo" src="${c.logo}" alt="${c.name.replace(/\n/g,' ')}">`
-      : `<div class="lnd-co-name-text">${c.name.replace(/\n/g,'<br>')}</div>`;
-    defaultEl.innerHTML = `${logoHtml}<div class="lnd-co-desc">${c.description || ''}</div>`;
-    card.appendChild(defaultEl);
-
-    const blocks = ORG_DATA[c.id]?.blocks;
-    if (blocks && blocks.length && c.type === 'tree') {
-/* ====================================================================
    ДЕМО: ПОЛНЫЙ СТРОИТЕЛЬНЫЙ БЛОК (для проверки печати)
    Повторяет по объёму печатную оргструктуру заказчика: 2 гендиректора,
    18 департаментов, у части — 2–3 уровня подразделений. Имена, которые
@@ -3120,6 +3061,120 @@ function renderLanding() {
   ORG_DATA.setlgroup.blocks.splice(1, 0, { id: 'constructionFull', name: 'Строительный блок —\nполный', badge: 'DEMO' });
 })();
 
+/* ====================================================================
+   СОСТОЯНИЕ
+==================================================================== */
+let state = { view: 'landing', companyId: null, blockId: null, blockName: '' };
+let DEPT_REGISTRY = {};
+let SEARCH_INDEX  = [];
+let _searchResults = [];
+let _globalSearchHits = [];
+let GLOBAL_SEARCH_INDEX = [];
+let panelBack = null;
+let canvas = { scale: 1, x: 60, y: 40 };
+let panning = false;
+let panOrigin = { x: 0, y: 0 };
+
+/* ====================================================================
+   НАВИГАЦИЯ
+==================================================================== */
+let _skipHashChange = false;
+
+function goTo(view, companyId, blockId, blockName) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  state = { view, companyId, blockId, blockName };
+  renderBreadcrumb();
+  window.scrollTo(0, 0);
+
+  _skipHashChange = true;
+  if (view === 'landing') {
+    window.location.hash = 'landing';
+  } else if (view === 'tree') {
+    window.location.hash = 'tree/' + companyId + '/' + blockId + '/' + encodeURIComponent(blockName || '');
+  }
+}
+
+function restoreFromHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash || hash === 'landing') { renderLanding(); return; }
+  const [view, companyId, blockId, blockNameEnc] = hash.split('/');
+  const blockName = blockNameEnc ? decodeURIComponent(blockNameEnc) : '';
+  if (view === 'tree' && companyId && blockId) {
+    renderLanding();
+    openTree(companyId, blockId, blockName);
+  } else {
+    renderLanding();
+  }
+}
+
+window.addEventListener('hashchange', () => {
+  if (_skipHashChange) { _skipHashChange = false; return; }
+  restoreFromHash();
+});
+
+function renderBreadcrumb() {
+  const el = document.getElementById('breadcrumb');
+  if (state.view === 'landing') { el.innerHTML = ''; return; }
+  const crumbs = [{ label: 'Главная', fn: () => goTo('landing') }];
+  if (state.blockName) crumbs.push({ label: state.blockName, fn: null });
+  el.innerHTML = '';
+  crumbs.forEach((c, i) => {
+    if (i > 0) { const sep = document.createElement('span'); sep.className = 'bc-sep'; sep.textContent = '›'; el.appendChild(sep); }
+    const span = document.createElement('span');
+    span.className = 'bc-item' + (i === crumbs.length - 1 ? ' current' : '');
+    span.textContent = c.label;
+    if (c.fn && i < crumbs.length - 1) span.onclick = c.fn;
+    el.appendChild(span);
+  });
+}
+
+/* ====================================================================
+   LANDING
+==================================================================== */
+function renderLanding() {
+  // Директора
+  const dirRow = document.getElementById('directors-row');
+  dirRow.innerHTML = '';
+  ORG_DATA.directors.forEach(d => {
+    const card = document.createElement('div');
+    card.className = 'lnd-dir-card';
+    const displayName = d.displayName || d.name.replace(/\n/g,' ');
+    const ini = initials(d.name);
+    const photoHtml = d.photo
+      ? `<div class="lnd-dir-photo"><img src="${d.photo}" alt=""></div>`
+      : `<div class="lnd-dir-photo" style="background:${avatarColor(d.name)};color:white">${ini}</div>`;
+    card.innerHTML = `${photoHtml}<div class="lnd-dir-info"><div class="lnd-dir-name">${displayName}</div><div class="lnd-dir-role">${d.role}</div></div>`;
+    card.style.cursor = 'pointer';
+    card.onclick = () => openDirectorModal(d);
+    dirRow.appendChild(card);
+  });
+
+  // Бэк-офис
+  document.getElementById('bo-landing').innerHTML =
+    ORG_DATA.backoffice.map(b => `
+      <div class="lnd-bo-item" onmouseenter="showTt(event,'${b.name}','${b.desc}','')" onmouseleave="hideTt()" onmousemove="moveTt(event)">
+        <div class="lnd-bo-icon-wrap">${BO_ICONS[b.id] || ''}</div>
+        <div class="lnd-bo-name">${b.name}</div>
+      </div>`).join('');
+
+  // Компании
+  const row = document.getElementById('companies-row');
+  row.innerHTML = '';
+  ORG_DATA.companies.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'lnd-co-card';
+
+    const defaultEl = document.createElement('div');
+    defaultEl.className = 'lnd-co-default';
+    const logoHtml = c.logo
+      ? `<img class="lnd-co-logo" src="${c.logo}" alt="${c.name.replace(/\n/g,' ')}">`
+      : `<div class="lnd-co-name-text">${c.name.replace(/\n/g,'<br>')}</div>`;
+    defaultEl.innerHTML = `${logoHtml}<div class="lnd-co-desc">${c.description || ''}</div>`;
+    card.appendChild(defaultEl);
+
+    const blocks = ORG_DATA[c.id]?.blocks;
+    if (blocks && blocks.length && c.type === 'tree') {
       const blocksEl = document.createElement('div');
       blocksEl.className = 'lnd-co-blocks';
       blocks.forEach(b => {
@@ -3453,10 +3508,12 @@ function renderCompany(id) {
   document.getElementById('btn-legal-open').onclick = openPanel;
 }
 
-function renderBoStrip(containerId) {
+// icons: true — кнопки-иконки 36px (экран дерева), название и описание — в тултипе
+function renderBoStrip(containerId, icons) {
   document.getElementById(containerId).innerHTML =
     ORG_DATA.backoffice.map(b =>
-      `<div class="bo-strip-item" onmouseenter="showTt(event,'${b.name}','${b.desc}','')" onmouseleave="hideTt()" onmousemove="moveTt(event)">${b.name}</div>`
+      `<div class="bo-strip-item${icons ? ' bo-strip-item--icon' : ''}" ${icons ? `role="button" aria-label="${b.name}"` : ''}
+        onmouseenter="showTt(event,'${b.name}','${b.desc}','')" onmouseleave="hideTt()" onmousemove="moveTt(event)">${icons ? BO_ICONS[b.id] : b.name}</div>`
     ).join('');
 }
 
@@ -3587,8 +3644,12 @@ function openTree(companyId, blockId, blockName) {
     legalBtn.style.display = 'none';
   }
 
-  renderBoStrip('bo-strip-tree');
+  // Печать — пока только для деревьев v2
+  document.getElementById('btn-print-open').style.display = treeData.version === 2 ? '' : 'none';
+
+  renderBoStrip('bo-strip-tree', true);
   canvas = { scale: 1, x: 0, y: 0 };
+  V2_FOLD = new Map();
   if (treeData.version === 2) buildTreeV2(treeData);
   else if (treeData.expanded) buildTreeExpanded(treeData);
   else buildTree(treeData);
@@ -3701,9 +3762,6 @@ function buildTree(data) {
 
     const divsY  = p.skipLevel ? divsY4 : divsY3;
     const divsW  = divs.reduce((s, d) => s + divCardW(d), 0) + (divs.length - 1) * HG;
-  // Печать — пока только для деревьев v2
-  document.getElementById('btn-print-open').style.display = treeData.version === 2 ? '' : 'none';
-
     let dx = cx - divsW / 2;
 
     const personBottomY = y + NH;
@@ -4025,7 +4083,7 @@ function makeNestedCardV2El(managerName, managerRole, managerPhoto, nestedItems,
   return outer;
 }
 
-function makeMultiHeadV2El(heads, label, onLabelClick) {
+function makeMultiHeadV2El(heads, label, onLabelClick, isLink) {
   const group = document.createElement('div');
   group.className = 'card-v2-multi';
 
@@ -4082,6 +4140,7 @@ function makeMultiHeadV2El(heads, label, onLabelClick) {
     deptText1.className = 'card-v2-multi__dept-text';
     deptText1.textContent = label;
     dept.appendChild(deptText1);
+    if (isLink) decorateLinkDept(dept);
     const clickFn = typeof onLabelClick === 'function' ? onLabelClick : (onLabelClick ? () => openV2BlockModal(onLabelClick) : null);
     if (clickFn) {
       dept.style.cursor = 'pointer';
@@ -4093,6 +4152,16 @@ function makeMultiHeadV2El(heads, label, onLabelClick) {
   }
 
   return group;
+}
+
+// Отдел-ссылка: голубая рамка, силуэт города и стрелка над названием (макет «Один руководитель — 1 отдел»)
+function decorateLinkDept(deptEl) {
+  deptEl.classList.add('card-v2-multi__dept--link');
+  const head = document.createElement('div');
+  head.className = 'dept-link__head';
+  head.innerHTML = '<div class="dept-link__city"><img src="Icons/link-card/skyline.svg" alt=""></div>'
+    + '<img class="dept-link__arrow" src="Icons/link-card/arrow-right-up.svg" width="13" height="13" alt="">';
+  deptEl.prepend(head);
 }
 
 // 3й вариант: 1 руководитель (общий header с текстом) + N под-карточек (каждая: NameCard1 + GroupCard)
@@ -4170,11 +4239,12 @@ function makeMultiDeptV2El(head, depts) {
       deptWrap.className = 'card-v2-multi__dept-wrap';
       deptWrap.style.width = '170px';
       const dept = document.createElement('div');
-      dept.className = 'card-v2-multi__dept' + (d.isLink ? ' card-v2-multi__dept--link' : '');
+      dept.className = 'card-v2-multi__dept';
       const deptText2 = document.createElement('span');
       deptText2.className = 'card-v2-multi__dept-text';
       deptText2.textContent = d.deptName;
       dept.appendChild(deptText2);
+      if (d.isLink) decorateLinkDept(dept);
       if (d.onDeptClick) {
         dept.addEventListener('click', d.onDeptClick);
       }
@@ -4189,6 +4259,119 @@ function makeMultiDeptV2El(head, depts) {
   return group;
 }
 
+/* ---- Сворачивание веток ----
+   Руководители блока и карточки 2-го уровня видны всегда. Ниже ветка карточки
+   по умолчанию свёрнута, если у неё больше V2_FOLD_LIMIT дочерних карточек.
+   Кнопка внизу карточки сворачивает/разворачивает; выбор помнится до смены блока. */
+const V2_FOLD_LIMIT = 3;
+let V2_FOLD = new Map();   // ключ карточки → true (свёрнута) / false (развёрнута)
+
+function v2IsFolded(key, count) {
+  return V2_FOLD.has(key) ? V2_FOLD.get(key) : count > V2_FOLD_LIMIT;
+}
+
+// Копия данных без свёрнутых веток; у карточек с ветками — _fold { key, count, folded }
+function v2ApplyFold(data) {
+  const persons = (data.persons || []).map(p => {
+    const q = { ...p };
+    const count = p.nested
+      ? p.nested.reduce((s, n) => s + ((n.children || []).length || (n.childBlock ? 1 : 0)), 0)
+      : (p.children || []).length;
+    if (count) q._fold = { key: p.id, count, folded: v2IsFolded(p.id, count) };
+    if (q._fold && q._fold.folded) {
+      q.children = [];
+      if (q.nested) q.nested = q.nested.map(n => ({ ...n, children: [], childBlock: undefined }));
+      return q;
+    }
+    q.children = (p.children || []).map(c => {
+      if (!c.childBlock || !c.childBlock.depts.length) return c;
+      const fold = { key: c.id, count: c.childBlock.depts.length };
+      fold.folded = v2IsFolded(fold.key, fold.count);
+      return fold.folded ? { ...c, childBlock: undefined, _fold: fold } : { ...c, _fold: fold };
+    });
+    if (q.nested) q.nested = q.nested.map(n => {
+      if (!n.childBlock) return n;
+      const cb = n.childBlock;
+      const cnt = cb.depts.reduce((s, d) => s + (d.children || []).length, 0);
+      if (!cnt) return n;
+      const fold = { key: cb.head.id, count: cnt };
+      fold.folded = v2IsFolded(fold.key, cnt);
+      return { ...n, childBlock: { ...cb, _fold: fold,
+        depts: fold.folded ? cb.depts.map(d => ({ ...d, children: [] })) : cb.depts } };
+    });
+    return q;
+  });
+  return { ...data, persons };
+}
+
+// Кнопка сворачивания внизу карточки: свёрнуто — «N ⌄», развёрнуто — «⌃»
+const SVG_FOLD_CHEVRON = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function v2AddFoldButton(nodeEl, fold) {
+  if (!fold) return;
+  nodeEl.dataset.foldKey = fold.key;
+  const btn = document.createElement('button');
+  btn.className = 'fold-btn' + (fold.folded ? ' fold-btn--folded' : '');
+  btn.title = fold.folded ? `Показать ${fold.count} ${pluralRu(fold.count, ['подразделение', 'подразделения', 'подразделений'])}` : 'Свернуть';
+  btn.innerHTML = (fold.folded ? `<span>${fold.count}</span>` : '') + SVG_FOLD_CHEVRON;
+  btn.addEventListener('mousedown', e => e.stopPropagation());   // не начинать перетаскивание холста
+  btn.addEventListener('click', e => { e.stopPropagation(); v2ToggleFold(fold); });
+  nodeEl.appendChild(btn);
+}
+
+// Перестроить дерево, оставив переключённую карточку на том же месте экрана
+function v2ToggleFold(fold) {
+  const sel = `.tree-node[data-fold-key="${fold.key}"]`;
+  const before = document.querySelector(sel);
+  const bx = before ? parseFloat(before.style.left) : 0, by = before ? parseFloat(before.style.top) : 0;
+  V2_FOLD.set(fold.key, !fold.folded);
+  buildTreeV2(V2_BLOCK_DATA);
+  const after = document.querySelector(sel);
+  if (before && after) {
+    canvas.x -= (parseFloat(after.style.left) - bx) * canvas.scale;
+    canvas.y -= (parseFloat(after.style.top) - by) * canvas.scale;
+    applyTransform();
+  }
+}
+
+// Раскрыть ветки, в которых лежит карточка человека (для поиска). true — что-то раскрыли
+function v2UnfoldTo(personId) {
+  const keys = [];
+  const has = list => (list || []).some(x => x && (x.id === personId));
+  (V2_BLOCK_DATA.persons || []).forEach(p => {
+    (p.children || []).forEach(c => {
+      if (c.id === personId) keys.push(p.id);
+      if (c.childBlock && (c.childBlock.head.id === personId || c.childBlock.depts.some(d => d.person.id === personId)))
+        keys.push(p.id, c.id);
+    });
+    (p.nested || []).forEach(n => {
+      if (has(n.children)) keys.push(p.id);
+      const cb = n.childBlock;
+      if (!cb) return;
+      if (cb.head.id === personId || cb.depts.some(d => d.person.id === personId)) keys.push(p.id);
+      if (cb.depts.some(d => has(d.children))) keys.push(p.id, cb.head.id);
+    });
+  });
+  let changed = false;
+  keys.forEach(k => { if (V2_FOLD.get(k) !== false) { V2_FOLD.set(k, false); changed = true; } });
+  return changed;
+}
+
+function pluralRu(n, forms) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return forms[0];
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return forms[1];
+  return forms[2];
+}
+
+// Отдел-ссылка — тот, у которого есть своё дерево (treeId) или явный link
+function v2IsLink(dept) { return !!(dept && typeof dept === 'object' && (dept.link || dept.treeId)); }
+// Клик по отделу: ссылка с деревом — открыть дерево, иначе — модалка отдела
+function v2DeptClick(dept, crumbs) {
+  if (!dept || typeof dept !== 'object') return null;
+  if (dept.treeId) return () => openTree(state.companyId, dept.treeId, (dept.name || '').replace(/\n/g, ' '));
+  return dept.id ? () => openV2DeptModal(dept.id, crumbs) : null;
+}
+
 function buildTreeV2(data) {
   DEPT_REGISTRY = {};
   V2_BLOCK_DATA = data;
@@ -4198,13 +4381,14 @@ function buildTreeV2(data) {
   inner.innerHTML = '';
   inner.appendChild(svg);
   svg.innerHTML = '';
+  CONNECTOR_HSEGS = [];
 
   const V2_CW = 170, V2_CH = 196;
   const V2_INNER_CW = 170, V2_NESTED_GAP = 9;
   const VG1 = 120, VG2 = 120, HG = 80, HG_SLOT = 120, HG_GROUP = 120, START_X = 60, START_Y = 40;
 
   const heads   = data.heads   || [];
-  const persons = data.persons || [];
+  const persons = v2ApplyFold(data).persons || [];
 
   function nestedCardW(n) { return n * V2_INNER_CW + (n - 1) * V2_NESTED_GAP; }
   function personCardW(p) { return p.nested ? p.nested.length * 170 + Math.max(0, p.nested.length - 1) * 4 : V2_CW; }
@@ -4214,14 +4398,19 @@ function buildTreeV2(data) {
   }
   function nestedChildrenW(p) {
     if (!p.nested) return 0;
-    let total = 0;
-    p.nested.forEach(n => {
+    const cardW    = personCardW(p);
+    const halfCard = Math.round(cardW / 2);
+    let leftExt = halfCard, rightExt = halfCard;
+    p.nested.forEach((n, k) => {
       let w = 0;
       if (n.children && n.children.length) w = n.children.length * V2_CW + (n.children.length - 1) * HG;
       else if (n.childBlock) w = n.childBlock.depts.length * 170 + Math.max(0, n.childBlock.depts.length - 1) * 4;
-      if (w) { if (total > 0) total += HG_GROUP; total += w; }
+      if (!w) return;
+      const relCX = k * (170 + 4) + 85 - halfCard; // ideal center relative to card center
+      leftExt  = Math.max(leftExt,  Math.round(w / 2) - relCX);
+      rightExt = Math.max(rightExt, relCX + Math.round(w / 2));
     });
-    return total;
+    return leftExt + rightExt;
   }
   function childrenChildBlockW(p) {
     return (p.children || []).reduce((max, c) => {
@@ -4356,8 +4545,7 @@ function buildTreeV2(data) {
         if (subBody) { subBody.style.cursor = 'pointer'; subBody.addEventListener('click', handler); }
       });
     } else {
-      personEl = makeMultiHeadV2El([p], p.dept ? p.dept.name : null,
-          p.dept && p.dept.id ? () => openV2DeptModal(p.dept.id, null) : null);
+      personEl = makeMultiHeadV2El([p], p.dept ? p.dept.name : null, v2DeptClick(p.dept, null), v2IsLink(p.dept));
       v2WirePersonClick(personEl, p, data, null);
     }
     const personNode = document.createElement('div');
@@ -4366,6 +4554,7 @@ function buildTreeV2(data) {
     personNode.style.left = cardX + 'px';
     personNode.appendChild(personEl);
     inner.appendChild(personNode);
+    v2AddFoldButton(personNode, p._fold);
 
     addConnector(svg, centerX, headsBottomY, slotCX, personsY, branchY);
 
@@ -4381,10 +4570,10 @@ function buildTreeV2(data) {
       children.forEach(c => {
         const childCX = cx + V2_CW / 2;
         const cDeptName = typeof c.dept === 'string' ? c.dept : (c.dept ? c.dept.name : null);
-        const cDeptLink = c.dept && c.dept.link;
+        const cDeptLink = v2IsLink(c.dept);
         const cDeptId   = c.dept && c.dept.id;
         const childEl = makeMultiHeadV2El([c], cDeptName,
-          cDeptId ? () => openV2DeptModal(cDeptId, childCrumbs) : null);
+          v2DeptClick(c.dept, childCrumbs), cDeptLink);
         v2WirePersonClick(childEl, c, data, p.dept ? p.dept.id : null);
         const childNode = document.createElement('div');
         childNode.className = 'tree-node';
@@ -4392,6 +4581,7 @@ function buildTreeV2(data) {
         childNode.style.left = cx + 'px';
         childNode.appendChild(childEl);
         inner.appendChild(childNode);
+        v2AddFoldButton(childNode, c._fold);
         addConnector(svg, slotCX, personsY + personH, childCX, childrenY, childBranchY);
         cx += V2_CW + HG;
       });
@@ -4439,25 +4629,27 @@ function buildTreeV2(data) {
       const level2Y    = childrenY + V2_CH + VG2;
       const l1BranchY  = level1Y - Math.round(VG2 / 2);
       const l2BranchY  = level2Y - Math.round(VG2 / 2);
-      let nx = slotCX - Math.round(nestedW / 2);
-      let firstGroup = true;
 
       p.nested.forEach((n, nIdx) => {
-        const subCX       = cardX + nIdx * (170 + 4) + 85;
-        const subBottomY  = personsY + V2_CH;
+        const subCX      = cardX + nIdx * (170 + 4) + 85;
+        const subBottomY = personsY + V2_CH;
+        // Group centered directly under its sub-card — no push (avoids line crossings)
+        const groupCX    = subCX;
+        let grpW = 0;
+        if (n.children && n.children.length) grpW = n.children.length * V2_CW + (n.children.length - 1) * HG;
+        else if (n.childBlock) grpW = n.childBlock.depts.length * 170 + Math.max(0, n.childBlock.depts.length - 1) * 4;
+        if (grpW === 0) return;
 
         if (n.children && n.children.length) {
-          if (!firstGroup) nx += HG_GROUP;
-          firstGroup = false;
-          const grpW = n.children.length * V2_CW + (n.children.length - 1) * HG;
+          const grpLeft = groupCX - Math.round(grpW / 2);
           const nParentCrumb = n.dept && n.dept.id ? { label: (n.dept.name || '').replace(/\n/g,' '), type: 'dept', id: n.dept.id } : null;
           const nChildCrumbs = nParentCrumb ? [...personCrumb, nParentCrumb] : personCrumb;
           n.children.forEach((c, ci) => {
-            const cLeft = nx + ci * (V2_CW + HG);
+            const cLeft = grpLeft + ci * (V2_CW + HG);
             const cCX   = cLeft + Math.round(V2_CW / 2);
             const cDeptId = c.dept && c.dept.id;
             const cEl = makeMultiHeadV2El([c], c.dept ? c.dept.name : null,
-              cDeptId ? () => openV2DeptModal(cDeptId, nChildCrumbs) : null);
+              v2DeptClick(c.dept, nChildCrumbs), v2IsLink(c.dept));
             v2WirePersonClick(cEl, c, data, null);
             const cNode = document.createElement('div');
             cNode.className = 'tree-node';
@@ -4467,18 +4659,15 @@ function buildTreeV2(data) {
             inner.appendChild(cNode);
             addConnector(svg, subCX, subBottomY, cCX, level1Y, l1BranchY);
           });
-          nx += grpW;
 
         } else if (n.childBlock) {
-          if (!firstGroup) nx += HG_GROUP;
-          firstGroup = false;
-          const cb  = n.childBlock;
-          const cbW = cb.depts.length * 170 + Math.max(0, cb.depts.length - 1) * 4;
-          const cbCX = nx + Math.round(cbW / 2);
+          const cbLeft = groupCX - Math.round(grpW / 2);
+          const cbCX   = groupCX;
+          const cb     = n.childBlock;
           const nCbParentCrumb    = n.dept && n.dept.id ? { label: (n.dept.name || '').replace(/\n/g,' '), type: 'dept', id: n.dept.id } : null;
-          const nCbBaseCrumbs     = nCbParentCrumb ? [...personCrumb, nCbParentCrumb] : personCrumb; // [block, p, n.dept]
+          const nCbBaseCrumbs     = nCbParentCrumb ? [...personCrumb, nCbParentCrumb] : personCrumb;
           const cbHeadPersonCrumb = { label: cb.head.fullName || cb.head.name, type: 'person', id: cb.head.id };
-          const cbDeptCrumbs      = [...nCbBaseCrumbs, cbHeadPersonCrumb]; // [block, p, n.dept, cb.head]
+          const cbDeptCrumbs      = [...nCbBaseCrumbs, cbHeadPersonCrumb];
           const cbEl = makeMultiDeptV2El(cb.head, cb.depts.map(d => ({
             person: d.person, deptName: d.deptName,
             onDeptClick: d.deptId ? () => openV2DeptModal(d.deptId, cbDeptCrumbs) : null,
@@ -4500,14 +4689,15 @@ function buildTreeV2(data) {
           const cbNode = document.createElement('div');
           cbNode.className = 'tree-node';
           cbNode.style.top  = level1Y + 'px';
-          cbNode.style.left = nx + 'px';
+          cbNode.style.left = cbLeft + 'px';
           cbNode.appendChild(cbEl);
           inner.appendChild(cbNode);
+          v2AddFoldButton(cbNode, cb._fold);
           addConnector(svg, subCX, subBottomY, cbCX, level1Y, l1BranchY);
 
           cb.depts.forEach((dept, di) => {
             if (!dept.children || !dept.children.length) return;
-            const deptSubCX      = nx + di * (170 + 4) + 85;
+            const deptSubCX      = cbLeft + di * (170 + 4) + 85;
             const deptSubBottomY = level1Y + V2_CH;
             const l3RowW  = dept.children.length * V2_CW + (dept.children.length - 1) * HG;
             const l3Start = deptSubCX - Math.round(l3RowW / 2);
@@ -4518,7 +4708,7 @@ function buildTreeV2(data) {
               const gcCX   = gcLeft + Math.round(V2_CW / 2);
               const gcDeptId = gc.dept && gc.dept.id;
               const gcEl = makeMultiHeadV2El([gc], gc.dept ? gc.dept.name : null,
-                gcDeptId ? () => openV2DeptModal(gcDeptId, gcCrumbs) : null);
+                v2DeptClick(gc.dept, gcCrumbs), v2IsLink(gc.dept));
               v2WirePersonClick(gcEl, gc, data, null);
               const gcNode = document.createElement('div');
               gcNode.className = 'tree-node';
@@ -4529,8 +4719,6 @@ function buildTreeV2(data) {
               addConnector(svg, deptSubCX, deptSubBottomY, gcCX, level2Y, l2BranchY);
             });
           });
-
-          nx += cbW;
         }
       });
     }
@@ -4558,18 +4746,37 @@ function addLine(svg, x1, y1, x2, y2) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   el.setAttribute('x1', x1); el.setAttribute('y1', y1);
   el.setAttribute('x2', x2); el.setAttribute('y2', y2);
-  el.setAttribute('stroke', '#C8C8C8');
+  el.setAttribute('stroke', 'var(--canvas-line)');
   el.setAttribute('stroke-width', '1.5');
   el.setAttribute('stroke-linecap', 'round');
   svg.appendChild(el);
 }
 
 
+// Горизонтальные участки линий текущего дерева — чтобы линии разных родителей
+// не сливались: если участок пересекается с чужим на той же высоте, он поднимается на 2px
+let CONNECTOR_HSEGS = [];
+const CONNECTOR_HOP = 2;
+
 function addConnector(svg, px, py, cx, cy, branchY) {
-  const midY = branchY !== undefined ? branchY : Math.round((py + cy) / 2);
+  let midY = branchY !== undefined ? branchY : Math.round((py + cy) / 2);
   const dx   = cx - px;
+  const owner = px + ',' + py;
+  if (Math.abs(dx) >= 1) {
+    const x1 = Math.min(px, cx), x2 = Math.max(px, cx);
+    const own = CONNECTOR_HSEGS.find(sg => sg.owner === owner && sg.baseY === midY);
+    if (own) midY = own.y;             // у одного родителя все ветки на общей высоте
+    else {
+      const clash = y => CONNECTOR_HSEGS.some(sg => sg.owner !== owner && Math.abs(sg.y - y) < 1 && sg.x1 < x2 && sg.x2 > x1);
+      const base = midY;
+      while (clash(midY)) midY -= CONNECTOR_HOP;
+      CONNECTOR_HSEGS.push({ owner, baseY: base, y: midY, x1, x2 });
+    }
+    const sg = CONNECTOR_HSEGS.find(g => g.owner === owner && g.y === midY);
+    if (sg) { sg.x1 = Math.min(sg.x1, x1); sg.x2 = Math.max(sg.x2, x2); }
+  }
   const el   = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  el.setAttribute('stroke', '#C8C8C8');
+  el.setAttribute('stroke', 'var(--canvas-line)');
   el.setAttribute('stroke-width', '1.5');
   el.setAttribute('fill', 'none');
   el.setAttribute('stroke-linecap', 'round');
@@ -4633,7 +4840,7 @@ function centerView(fitContent) {
   if (fitContent && contentW && contentH) {
     const scaleX = (wRect.width  - 80) / contentW;
     const scaleY = (wRect.height - 80) / contentH;
-    canvas.scale = Math.round(Math.max(0.35, Math.min(1, scaleX, scaleY)) * 100) / 100;
+    canvas.scale = Math.round(Math.max(0.25, Math.min(1, scaleX, scaleY)) * 100) / 100;   // 0.25 — как минимум ползунка
   }
   canvas.x = Math.round((wRect.width  - contentW * canvas.scale) / 2);
   canvas.y = Math.round((wRect.height - contentH * canvas.scale) / 4);
@@ -4762,7 +4969,9 @@ function clearHighlight() {
 
 function highlightV2Person(personId) {
   clearHighlight();
-  const cardEl = document.querySelector(`.card-v2[data-v2-pid="${personId}"], .card-v3[data-v2-pid="${personId}"]`);
+  const findCard = () => document.querySelector(`.card-v2[data-v2-pid="${personId}"], .card-v3[data-v2-pid="${personId}"]`);
+  let cardEl = findCard();
+  if (!cardEl && v2UnfoldTo(personId)) { buildTreeV2(V2_BLOCK_DATA); cardEl = findCard(); }
   if (!cardEl) return;
   cardEl.classList.add('hl');
 
@@ -5904,6 +6113,6 @@ function bindV2PersonEvents(p, breadcrumbs) {
 buildGlobalSearchIndex();
 restoreFromHash();
 </script>
+<script src="print.js"></script>
 </body>
 </html>
-<script src="print.js"></script>
