@@ -152,7 +152,7 @@ function openPrintPreview() {
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
     query: '',            // поиск по веткам
-    view: 'fit',          // 'fit' | 'actual'
+    zoom: null,           // масштаб просмотра листа; null — «лист целиком»
   };
   pp.format = ppAutoFormat() || 'A1';
 
@@ -212,9 +212,21 @@ function openPrintPreview() {
       </div>
     </aside>
     <main class="pp-stage" id="pp-stage">
+      <!-- Масштаб — компонент страницы (.zoom-right / .zoom-group / .zoom-btn / .zoom-slider из index.html) -->
       <div class="pp-viewbar">
-        <div class="pp-seg pp-seg--sm" id="pp-view">
-          <button data-v="fit">Лист целиком</button><button data-v="actual">Реальный размер</button>
+        <div class="zoom-right">
+          <div class="zoom-group">
+            <button class="zoom-btn" id="pp-zoom-out" title="Отдалить">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M15.0005 9.50024C15.2765 9.50042 15.5005 9.72421 15.5005 10.0002C15.5003 10.2761 15.2764 10.5001 15.0005 10.5002H5.00049C4.72445 10.5002 4.50066 10.2762 4.50049 10.0002C4.50049 9.7241 4.72435 9.50024 5.00049 9.50024H15.0005Z" fill="#E2221C"/></svg>
+            </button>
+            <input type="range" class="zoom-slider" id="pp-zoom-slider" min="0" max="100" value="0">
+            <button class="zoom-btn" id="pp-zoom-in" title="Приблизить">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10.0005 4.50024C10.2765 4.50042 10.5005 4.72421 10.5005 5.00024V9.50024H15.0005C15.2765 9.50042 15.5005 9.72421 15.5005 10.0002C15.5003 10.2761 15.2764 10.5001 15.0005 10.5002H10.5005V15.0002C10.5003 15.2761 10.2764 15.5001 10.0005 15.5002C9.72445 15.5002 9.50066 15.2762 9.50049 15.0002V10.5002H5.00049C4.72445 10.5002 4.50066 10.2762 4.50049 10.0002C4.50049 9.7241 4.72435 9.50024 5.00049 9.50024H9.50049V5.00024C9.50049 4.7241 9.72435 4.50024 10.0005 4.50024Z" fill="#E2221C"/></svg>
+            </button>
+          </div>
+          <button class="zoom-btn" id="pp-zoom-reset" title="Лист целиком">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10.0005 1.88135C14.4843 1.88157 18.1196 5.5166 18.1196 10.0005C18.1194 14.4842 14.4842 18.1194 10.0005 18.1196C5.5166 18.1196 1.88157 14.4843 1.88135 10.0005C1.88135 9.72435 2.10521 9.50049 2.38135 9.50049C2.65734 9.50066 2.88135 9.72445 2.88135 10.0005C2.88157 13.932 6.06889 17.1196 10.0005 17.1196C13.9319 17.1194 17.1194 13.9319 17.1196 10.0005C17.1196 6.06889 13.932 2.88157 10.0005 2.88135C7.68929 2.88135 5.63552 3.98301 4.33447 5.69092H7.14307C7.41914 5.69099 7.64307 5.91482 7.64307 6.19092C7.64287 6.46684 7.41902 6.69084 7.14307 6.69092H3.3335C3.0575 6.69089 2.8337 6.46687 2.8335 6.19092V2.38135C2.8335 2.10522 3.05737 1.88137 3.3335 1.88135C3.60957 1.88142 3.8335 2.10525 3.8335 2.38135V4.72021C5.32207 2.98319 7.53232 1.88135 10.0005 1.88135Z" fill="#E2221C"/></svg>
+          </button>
         </div>
       </div>
       <div class="pp-sheet-wrap" id="pp-sheet-wrap">
@@ -232,9 +244,9 @@ function openPrintPreview() {
 
   root.querySelector('#pp-close').onclick = closePrintPreview;
   root.querySelector('#pp-print').onclick = () => window.print();
-  ppSeg('#pp-format', v => { pp.format = v; ppRender(); });
+  ppSeg('#pp-format', v => { pp.format = v; pp.zoom = null; ppRender(); });
   ppSeg('#pp-depth', v => { pp.depth = v === 'all' ? Infinity : +v; ppRender(); });
-  ppSeg('#pp-view', v => { pp.view = v; ppPlaceSheet(); ppSyncControls(); });
+  ppSetupZoom(root);
   root.querySelector('#pp-fullnames').onchange = e => { pp.fullNames = e.target.checked; ppRender(); };
   root.querySelector('#pp-photos').onchange = e => { pp.photos = e.target.checked; ppRender(); };
   root.querySelector('#pp-team').onchange = e => { pp.team = e.target.checked; ppRender(); };
@@ -277,7 +289,6 @@ function ppSyncControls() {
   const mark = (sel, v) => document.querySelectorAll(sel + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   mark('#pp-format', pp.format);
   mark('#pp-depth', pp.depth === Infinity ? 'all' : String(pp.depth));
-  mark('#pp-view', pp.view);
 }
 
 /* ---------- Дерево выбора веток (левая панель) ---------- */
@@ -618,25 +629,96 @@ function ppRender() {
     (best && best !== pp.format ? ` <button id="pp-auto">Перейти на ${best}</button>` : '') +
     (small && !best ? ' Уберите часть веток или уровней.' : '');
   const auto = document.getElementById('pp-auto');
-  if (auto) auto.onclick = () => { pp.format = best; ppRender(); };
+  if (auto) auto.onclick = () => { pp.format = best; pp.zoom = null; ppRender(); };
 
   ppSyncControls();
   ppPlaceSheet();
 }
 
-// Лист на экране: «целиком» — вписан в область, «реальный» — 1:1 с прокруткой
+/* ---------- Масштаб просмотра: как на холсте страницы ----------
+   «−»/«+» — шаг ×1.2, колесо — ×1.1 к точке под курсором, перетаскивание — сдвиг,
+   сброс — лист целиком. Диапазон: от «лист целиком» до 300%. */
+
+const PP_ZOOM_MAX = 3;
+
+function ppSheetPx() {
+  const [wmm, hmm] = PP_FORMATS[pp.format];
+  return { sw: wmm * PP_PX_PER_MM, sh: hmm * PP_PX_PER_MM };
+}
+
+function ppZoomRange() {
+  const wrap = document.getElementById('pp-sheet-wrap');
+  const { sw, sh } = ppSheetPx();
+  const min = Math.min((wrap.clientWidth - 64) / sw, (wrap.clientHeight - 64) / sh, 1);
+  return { min, max: Math.max(PP_ZOOM_MAX, min) };
+}
+
+function ppCurZoom() {
+  const { min, max } = ppZoomRange();
+  return pp.zoom == null ? min : Math.min(max, Math.max(min, pp.zoom));
+}
+
+// Новый масштаб, точка (px, py) в координатах области просмотра остаётся на месте
+function ppSetZoom(k, px, py) {
+  const wrap = document.getElementById('pp-sheet-wrap');
+  if (px == null) { px = wrap.clientWidth / 2; py = wrap.clientHeight / 2; }
+  const fx = (wrap.scrollLeft + px) / wrap.scrollWidth;
+  const fy = (wrap.scrollTop + py) / wrap.scrollHeight;
+  const { min, max } = ppZoomRange();
+  k = Math.min(max, Math.max(min, k));
+  pp.zoom = k <= min * 1.001 ? null : k;
+  ppPlaceSheet();
+  wrap.scrollLeft = fx * wrap.scrollWidth - px;
+  wrap.scrollTop = fy * wrap.scrollHeight - py;
+}
+
+function ppSetupZoom(root) {
+  const wrap = root.querySelector('#pp-sheet-wrap');
+  root.querySelector('#pp-zoom-out').onclick = () => ppSetZoom(ppCurZoom() / 1.2);
+  root.querySelector('#pp-zoom-in').onclick = () => ppSetZoom(ppCurZoom() * 1.2);
+  root.querySelector('#pp-zoom-reset').onclick = () => { pp.zoom = null; ppPlaceSheet(); };
+  root.querySelector('#pp-zoom-slider').oninput = e => {
+    const { min, max } = ppZoomRange();
+    ppSetZoom(min + (e.target.value / 100) * (max - min));
+  };
+  wrap.onwheel = e => {
+    e.preventDefault();
+    const r = wrap.getBoundingClientRect();
+    ppSetZoom(ppCurZoom() * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  };
+  wrap.onmousedown = e => {
+    if (e.button !== 0) return;
+    const start = { x: e.clientX, y: e.clientY, l: wrap.scrollLeft, t: wrap.scrollTop };
+    wrap.classList.add('dragging');
+    const move = ev => {
+      wrap.scrollLeft = start.l - (ev.clientX - start.x);
+      wrap.scrollTop = start.t - (ev.clientY - start.y);
+    };
+    const up = () => {
+      wrap.classList.remove('dragging');
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    e.preventDefault();
+  };
+}
+
+// Лист на экране в текущем масштабе + ползунок
 function ppPlaceSheet() {
   if (!pp) return;
-  const wrap = document.getElementById('pp-sheet-wrap');
   const sizer = document.getElementById('pp-sizer');
   const sheet = document.getElementById('pp-sheet');
-  const [wmm, hmm] = PP_FORMATS[pp.format];
-  const sw = wmm * PP_PX_PER_MM, sh = hmm * PP_PX_PER_MM;
-  const k = pp.view === 'fit'
-    ? Math.min((wrap.clientWidth - 64) / sw, (wrap.clientHeight - 64) / sh, 1)
-    : 1;
+  const { sw, sh } = ppSheetPx();
+  const k = ppCurZoom();
   sheet.style.transform = `scale(${k})`;
   sizer.style.width = sw * k + 'px';      // обёртка по видимому размеру — для центрирования и прокрутки
   sizer.style.height = sh * k + 'px';
-  wrap.classList.toggle('actual', pp.view !== 'fit');
+
+  const { min, max } = ppZoomRange();
+  const val = Math.round((k - min) / (max - min || 1) * 100);
+  const sl = document.getElementById('pp-zoom-slider');
+  sl.value = val;
+  sl.style.background = `linear-gradient(to right,#e2221c 0%,#e2221c ${val}%,#f6f6f6 ${val}%,#f6f6f6 100%)`;
 }
