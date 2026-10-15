@@ -4376,19 +4376,66 @@ function v2AddInnerButton(nodeEl, fold) {
   nodeEl.appendChild(btn);
 }
 
+// Плавность раскрытия (FLIP): оставшиеся карточки переезжают, новые выплывают, ушедшие тают,
+// линии проявляются в конце. При «уменьшить движение» в системе — без анимации
+const FOLD_ANIM = { move: 420, enter: 360, leave: 220, ease: 'cubic-bezier(0.22, 0.7, 0.2, 1)' };
+function v2NodeKey(n) {
+  const c = n.querySelector('[data-v2-pid]');
+  return c ? c.dataset.v2Pid : null;
+}
+
 // Перестроить дерево, оставив переключённую карточку на том же месте экрана
 function v2ToggleFold(fold, selector) {
   const sel = selector || `.tree-node[data-fold-key="${fold.key}"]`;
   const before = document.querySelector(sel);
   const bx = before ? parseFloat(before.style.left) : 0, by = before ? parseFloat(before.style.top) : 0;
+  const snap = new Map();
+  document.querySelectorAll('.tree-node').forEach(n => {
+    const k = v2NodeKey(n);
+    if (k) snap.set(k, { x: parseFloat(n.style.left), y: parseFloat(n.style.top), el: n });
+  });
+
   V2_FOLD.set(fold.key, !fold.folded);
   buildTreeV2(V2_BLOCK_DATA);
+
   const after = document.querySelector(sel);
+  let dX = 0, dY = 0;   // сдвиг системы координат холста (якорная карточка стоит на месте)
   if (before && after) {
-    canvas.x -= (parseFloat(after.style.left) - bx) * canvas.scale;
-    canvas.y -= (parseFloat(after.style.top) - by) * canvas.scale;
+    dX = parseFloat(after.style.left) - bx;
+    dY = parseFloat(after.style.top) - by;
+    canvas.x -= dX * canvas.scale;
+    canvas.y -= dY * canvas.scale;
     applyTransform();
   }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const A = FOLD_ANIM, seen = new Set();
+  document.querySelectorAll('.tree-node').forEach(n => {
+    const k = v2NodeKey(n), o = k && snap.get(k);
+    if (o) {
+      seen.add(k);
+      const tx = o.x + dX - parseFloat(n.style.left), ty = o.y + dY - parseFloat(n.style.top);
+      if (Math.abs(tx) > 0.5 || Math.abs(ty) > 0.5)
+        n.animate([{ transform: `translate(${tx}px, ${ty}px)` }, { transform: 'none' }], { duration: A.move, easing: A.ease });
+    } else {
+      n.animate([{ opacity: 0, transform: 'translateY(-16px) scale(0.96)' }, { opacity: 1, transform: 'none' }],
+        { duration: A.enter, easing: A.ease, delay: 80, fill: 'backwards' });
+    }
+  });
+  // Ушедшие карточки — призраки на старом месте, тают
+  const inner = document.getElementById('canvas-inner');
+  snap.forEach((o, k) => {
+    if (seen.has(k)) return;
+    const ghost = o.el;
+    ghost.style.left = (o.x + dX) + 'px';
+    ghost.style.top = (o.y + dY) + 'px';
+    ghost.style.pointerEvents = 'none';
+    inner.appendChild(ghost);
+    ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-12px) scale(0.96)' }],
+      { duration: A.leave, easing: 'ease-in', fill: 'forwards' }).onfinish = () => ghost.remove();
+  });
+  document.getElementById('tree-svg').animate([{ opacity: 0 }, { opacity: 1 }],
+    { duration: 260, delay: A.move * 0.6, easing: 'ease-out', fill: 'backwards' });
 }
 
 // Раскрыть ветки, в которых лежит карточка человека (для поиска). true — что-то раскрыли
