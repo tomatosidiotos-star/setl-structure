@@ -57,7 +57,29 @@
   --canvas-dot:  #A1D4FF;
   --canvas-line: #83BFFC;
   --link-blue:   #3C83F6;
+
+  /* полоса прокрутки — из setl-akademiya-ui-kit (Scrollbar, размер xs; --gray-150/300/600) */
+  --scrollbar-track:       #f4f3f3;
+  --scrollbar-thumb:       #dedcdc;
+  --scrollbar-thumb-hover: #bdb9b8;
 }
+
+/* Маленькая полоса прокрутки (Scrollbar xs из setl-akademiya-ui-kit): 12px = полоса 4 + поля 4.
+   Это вид нативного скролла, а не нарисованный — тачпад и инерция работают как обычно */
+.scroll-xs { overflow: auto; }
+@supports not selector(::-webkit-scrollbar) {
+  .scroll-xs { scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); scrollbar-width: thin; }
+}
+.scroll-xs::-webkit-scrollbar { width: 12px; height: 12px; }
+.scroll-xs::-webkit-scrollbar-button { display: none; }
+.scroll-xs::-webkit-scrollbar-corner { background: transparent; }
+.scroll-xs::-webkit-scrollbar-track,
+.scroll-xs::-webkit-scrollbar-thumb {
+  border-radius: 100px; border: 4px solid transparent; background-clip: padding-box;
+}
+.scroll-xs::-webkit-scrollbar-track { background-color: var(--scrollbar-track); }
+.scroll-xs::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); }
+.scroll-xs::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -304,8 +326,13 @@ body {
   display: flex; gap: 0; align-items: center;
 }
 .lnd-dir-card {
-  flex: 1; display: flex; gap: 16px; align-items: center;
-  padding: 0 16px; cursor: pointer;
+  flex: 1; min-width: 0; padding: 0 16px; cursor: pointer;
+  container-type: inline-size;
+}
+.lnd-dir-card__in { display: flex; gap: 16px; align-items: center; }
+/* узкая карточка — текст под фото */
+@container (max-width: 380px) {
+  .lnd-dir-card__in { flex-direction: column; align-items: flex-start; gap: 12px; }
 }
 .lnd-dir-card:first-child { padding-left: 0; }
 .lnd-dir-card:last-child { padding-right: 0; }
@@ -371,8 +398,9 @@ body {
 .lnd-co-desc { font-size: 15px; color: #7c7c7c; line-height: 1.35; flex: 1; display: flex; align-items: flex-end; }
 
 .lnd-co-blocks {
-  display: flex; flex-direction: column; justify-content: center; flex: 1; gap: 2px;
-  position: absolute; inset: 24px;
+  display: flex; flex-direction: column; flex: 1; gap: 2px;
+  position: absolute; inset: 24px 12px 24px 24px;   /* справа место под полосу прокрутки */
+  overflow-y: auto; overscroll-behavior: contain;
   transition: opacity 0.22s ease, transform 0.22s ease;
   opacity: 0; transform: translateY(10px); pointer-events: none;
 }
@@ -391,6 +419,9 @@ body {
 }
 .lnd-co-block-item:hover { background: rgba(226,34,28,0.06); color: #e2221c; }
 .lnd-co-block-item svg { flex-shrink: 0; color: var(--red); }
+/* пока список помещается — по центру по высоте; не помещается — прокрутка с начала */
+.lnd-co-blocks > :first-child { margin-top: auto; }
+.lnd-co-blocks > :last-child { margin-bottom: auto; }
 
 .section-label {
   font-family: var(--f-exp);
@@ -3176,7 +3207,7 @@ function renderLanding() {
     const photoHtml = d.photo
       ? `<div class="lnd-dir-photo"><img src="${d.photo}" alt=""></div>`
       : `<div class="lnd-dir-photo" style="background:${avatarColor(d.name)};color:white">${ini}</div>`;
-    card.innerHTML = `${photoHtml}<div class="lnd-dir-info"><div class="lnd-dir-name">${displayName}</div><div class="lnd-dir-role">${d.role}</div></div>`;
+    card.innerHTML = `<div class="lnd-dir-card__in">${photoHtml}<div class="lnd-dir-info"><div class="lnd-dir-name">${displayName}</div><div class="lnd-dir-role">${d.role}</div></div></div>`;
     card.style.cursor = 'pointer';
     card.onclick = () => openDirectorModal(d);
     dirRow.appendChild(card);
@@ -3208,7 +3239,7 @@ function renderLanding() {
     const blocks = ORG_DATA[c.id]?.blocks;
     if (blocks && blocks.length && c.type === 'tree') {
       const blocksEl = document.createElement('div');
-      blocksEl.className = 'lnd-co-blocks';
+      blocksEl.className = 'lnd-co-blocks scroll-xs';
       blocks.forEach(b => {
         const item = document.createElement('a');
         item.className = 'lnd-co-block-item';
