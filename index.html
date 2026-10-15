@@ -3070,6 +3070,28 @@ function renderLanding() {
     ]],
   ];
 
+  // Команды — рыба из «Строительного блока 2»: фамилии, имена и отчества тасуются
+  // внутри одного пола (по отчеству), должности берутся по кругу
+  const pool = { m: [], f: [] }, roles = [];
+  (function walk(o) {
+    if (Array.isArray(o)) return o.forEach(walk);
+    if (!o || typeof o !== 'object') return;
+    (o.team || []).forEach(t => {
+      const [sur, first, mid] = (t.fullName || '').split(' ');
+      if (mid) pool[/вна$/.test(mid) ? 'f' : 'm'].push({ sur, first, mid });
+      if (t.role) roles.push(t.role);
+    });
+    Object.values(o).forEach(walk);
+  })(ORG_DATA.trees.construction2);
+  let t = 0;
+  const makeTeam = () => Array.from({ length: 1 + (t % 3) }, () => {
+    const g = pool[t % 2 ? 'f' : 'm'], i = t++;
+    const fullName = `${g[i % g.length].sur} ${g[(i * 7 + 3) % g.length].first} ${g[(i * 3 + 1) % g.length].mid}`;
+    const [sur, first, mid] = fullName.split(' ');
+    return { id: 'full-tm-' + i, name: `${sur} ${first[0]}.${mid[0]}.`, fullName,
+      role: roles[i % roles.length], photo: null, phone: '', email: '', office: '' };
+  });
+
   let n = 0;
   const node = ([dept, name, kids], role) => {
     const id = 'full-' + (++n);
@@ -3077,7 +3099,7 @@ function renderLanding() {
     return {
       ...p,
       dept: { name: dept, link: false, id: id + '-d',
-        modal: { description: '', managers: [{ ...p, leadsAlso: [] }], deputies: [], assistants: [], subdepts: [], team: [] } },
+        modal: { description: '', managers: [{ ...p, leadsAlso: [] }], deputies: [], assistants: [], subdepts: [], team: makeTeam() } },
       children: (kids || []).map(k => node(k, 'Руководитель подразделения')),
     };
   };
