@@ -21,11 +21,6 @@ body.pp-open { overflow: hidden; }
   padding: 20px 20px 16px;
 }
 .pp-panel__title { font-family: var(--f-exp); font-weight: 600; font-size: 18px; }
-.pp-close {
-  width: 32px; height: 32px; border: none; border-radius: 6px; background: #f6f6f6;
-  color: #41484a; cursor: pointer; display: grid; place-items: center;
-}
-.pp-close:hover { background: #ececec; }
 .pp-panel__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 20px; }
 .pp-panel__foot { padding: 16px 20px 20px; border-top: 1px solid #eee; }
 
@@ -87,9 +82,11 @@ body.pp-open { overflow: hidden; }
 /* ---------- Область предпросмотра ---------- */
 .pp-stage { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .pp-viewbar {
-  display: flex; justify-content: flex-end; padding: 16px 24px;
-  background: #fff; border-bottom: 1px solid #e1e1e1;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 16px 24px; background: #fff; border-bottom: 1px solid #e1e1e1;
 }
+.pp-viewbar__left { display: flex; align-items: center; gap: 24px; }
+.pp-viewbar .pp-seg button { padding: 0 16px; height: 42px; white-space: nowrap; }
 .pp-sheet-wrap { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 32px; cursor: grab; }
 .pp-sheet-wrap.dragging { cursor: grabbing; user-select: none; }
 .pp-sizer { margin: auto; flex-shrink: 0; }

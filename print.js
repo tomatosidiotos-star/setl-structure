@@ -162,9 +162,6 @@ function openPrintPreview() {
     <aside class="pp-panel">
       <div class="pp-panel__head">
         <div class="pp-panel__title">Печать структуры</div>
-        <button class="pp-close" id="pp-close" aria-label="Закрыть">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </button>
       </div>
       <div class="pp-panel__body">
         <div class="pp-group">
@@ -212,9 +209,12 @@ function openPrintPreview() {
       </div>
     </aside>
     <main class="pp-stage" id="pp-stage">
-      <!-- Масштаб — компонент страницы (.zoom-right / .zoom-group / .zoom-btn / .zoom-slider из index.html) -->
+      <!-- Масштаб — компонент страницы (.zoom-group / .zoom-btn / .zoom-slider), закрытие — .vm-close из модалок -->
       <div class="pp-viewbar">
-        <div class="zoom-right">
+        <div class="pp-viewbar__left">
+          <div class="pp-seg" id="pp-view">
+            <button data-v="fit">Лист целиком</button><button data-v="actual">Реальный размер</button>
+          </div>
           <div class="zoom-group">
             <button class="zoom-btn" id="pp-zoom-out" title="Отдалить">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M15.0005 9.50024C15.2765 9.50042 15.5005 9.72421 15.5005 10.0002C15.5003 10.2761 15.2764 10.5001 15.0005 10.5002H5.00049C4.72445 10.5002 4.50066 10.2762 4.50049 10.0002C4.50049 9.7241 4.72435 9.50024 5.00049 9.50024H15.0005Z" fill="#E2221C"/></svg>
@@ -224,10 +224,10 @@ function openPrintPreview() {
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10.0005 4.50024C10.2765 4.50042 10.5005 4.72421 10.5005 5.00024V9.50024H15.0005C15.2765 9.50042 15.5005 9.72421 15.5005 10.0002C15.5003 10.2761 15.2764 10.5001 15.0005 10.5002H10.5005V15.0002C10.5003 15.2761 10.2764 15.5001 10.0005 15.5002C9.72445 15.5002 9.50066 15.2762 9.50049 15.0002V10.5002H5.00049C4.72445 10.5002 4.50066 10.2762 4.50049 10.0002C4.50049 9.7241 4.72435 9.50024 5.00049 9.50024H9.50049V5.00024C9.50049 4.7241 9.72435 4.50024 10.0005 4.50024Z" fill="#E2221C"/></svg>
             </button>
           </div>
-          <button class="zoom-btn" id="pp-zoom-reset" title="Лист целиком">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10.0005 1.88135C14.4843 1.88157 18.1196 5.5166 18.1196 10.0005C18.1194 14.4842 14.4842 18.1194 10.0005 18.1196C5.5166 18.1196 1.88157 14.4843 1.88135 10.0005C1.88135 9.72435 2.10521 9.50049 2.38135 9.50049C2.65734 9.50066 2.88135 9.72445 2.88135 10.0005C2.88157 13.932 6.06889 17.1196 10.0005 17.1196C13.9319 17.1194 17.1194 13.9319 17.1196 10.0005C17.1196 6.06889 13.932 2.88157 10.0005 2.88135C7.68929 2.88135 5.63552 3.98301 4.33447 5.69092H7.14307C7.41914 5.69099 7.64307 5.91482 7.64307 6.19092C7.64287 6.46684 7.41902 6.69084 7.14307 6.69092H3.3335C3.0575 6.69089 2.8337 6.46687 2.8335 6.19092V2.38135C2.8335 2.10522 3.05737 1.88137 3.3335 1.88135C3.60957 1.88142 3.8335 2.10525 3.8335 2.38135V4.72021C5.32207 2.98319 7.53232 1.88135 10.0005 1.88135Z" fill="#E2221C"/></svg>
-          </button>
         </div>
+        <button class="vm-close" id="pp-close" title="Закрыть">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.64645 5.64645C5.84171 5.45118 6.15829 5.45118 6.35355 5.64645L12 11.2929L17.6464 5.64652C17.8417 5.45126 18.1583 5.45126 18.3536 5.64652C18.5488 5.84178 18.5488 6.15837 18.3536 6.35363L12.7071 12L18.3536 17.6464C18.5488 17.8416 18.5488 18.1582 18.3536 18.3535C18.1583 18.5487 17.8417 18.5487 17.6464 18.3535L12 12.7071L6.35355 18.3536C6.15829 18.5488 5.84171 18.5488 5.64645 18.3536C5.45118 18.1583 5.45118 17.8417 5.64645 17.6464L11.2929 12L5.64645 6.35355C5.45118 6.15829 5.45118 5.84171 5.64645 5.64645Z" fill="currentColor"/></svg>
+        </button>
       </div>
       <div class="pp-sheet-wrap" id="pp-sheet-wrap">
         <div class="pp-sizer" id="pp-sizer">
@@ -637,7 +637,7 @@ function ppRender() {
 
 /* ---------- Масштаб просмотра: как на холсте страницы ----------
    «−»/«+» — шаг ×1.2, колесо — ×1.1 к точке под курсором, перетаскивание — сдвиг,
-   сброс — лист целиком. Диапазон: от «лист целиком» до 300%. */
+   «Лист целиком» / «Реальный размер» — быстрые значения. Диапазон: от «лист целиком» до 300%. */
 
 const PP_ZOOM_MAX = 3;
 
@@ -676,7 +676,7 @@ function ppSetupZoom(root) {
   const wrap = root.querySelector('#pp-sheet-wrap');
   root.querySelector('#pp-zoom-out').onclick = () => ppSetZoom(ppCurZoom() / 1.2);
   root.querySelector('#pp-zoom-in').onclick = () => ppSetZoom(ppCurZoom() * 1.2);
-  root.querySelector('#pp-zoom-reset').onclick = () => { pp.zoom = null; ppPlaceSheet(); };
+  ppSeg('#pp-view', v => v === 'fit' ? (pp.zoom = null, ppPlaceSheet()) : ppSetZoom(1));
   root.querySelector('#pp-zoom-slider').oninput = e => {
     const { min, max } = ppZoomRange();
     ppSetZoom(min + (e.target.value / 100) * (max - min));
@@ -721,4 +721,8 @@ function ppPlaceSheet() {
   const sl = document.getElementById('pp-zoom-slider');
   sl.value = val;
   sl.style.background = `linear-gradient(to right,#e2221c 0%,#e2221c ${val}%,#f6f6f6 ${val}%,#f6f6f6 100%)`;
+
+  // «Лист целиком» / «Реальный размер» горят, только когда масштаб ровно такой
+  const view = pp.zoom == null ? 'fit' : Math.abs(k - 1) < 0.005 ? 'actual' : '';
+  document.querySelectorAll('#pp-view button').forEach(b => b.classList.toggle('on', b.dataset.v === view));
 }
