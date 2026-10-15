@@ -13,7 +13,7 @@
    формата не зависит, при переносе достаточно переписать normalize.
 ==================================================================== */
 
-const PP_FORMATS = {           // альбомная ориентация, мм
+const PP_FORMATS = {           // альбомная ориентация, мм; книжная — те же стороны наоборот
   A4: [297, 210],
   A3: [420, 297],
   A2: [594, 420],
@@ -21,6 +21,12 @@ const PP_FORMATS = {           // альбомная ориентация, мм
   A0: [1189, 841],
 };
 const PP_PX_PER_MM = 96 / 25.4;
+
+// Размер листа в мм с учётом ориентации
+function ppDims(format) {
+  const [w, h] = PP_FORMATS[format];
+  return pp && pp.orient === 'portrait' ? [h, w] : [w, h];
+}
 const PP_MARGIN_MM = 10;       // поля листа
 const PP_BASE_FONT = 12;       // кегль пунктов списка в «натуральном» размере, px
 const PP_MIN_PT    = 6;        // мельче — предупреждаем
@@ -144,6 +150,7 @@ function openPrintPreview() {
     title: treeData.blockName || state.blockName || '',
     logo: company ? company.logo : null,
     format: 'A3',
+    orient: 'landscape',  // 'landscape' — горизонтально (по умолчанию) | 'portrait' — вертикально
     depth: Infinity,      // уровней: 1 — руководители, 2 — карточки, 3+ — списки
     fullNames: true,
     photos: true,
@@ -165,7 +172,10 @@ function openPrintPreview() {
       </div>
       <div class="pp-panel__body">
         <div class="pp-group">
-          <div class="pp-gtitle">Формат листа <span class="pp-hint">альбомный</span></div>
+          <div class="pp-gtitle">Формат листа</div>
+          <div class="pp-seg pp-seg--orient" id="pp-orient">
+            <button data-v="landscape">Горизонтально</button><button data-v="portrait">Вертикально</button>
+          </div>
           <div class="pp-seg" id="pp-format">
             ${Object.keys(PP_FORMATS).map(f => `<button data-v="${f}">${f}</button>`).join('')}
           </div>
@@ -245,6 +255,7 @@ function openPrintPreview() {
   root.querySelector('#pp-close').onclick = closePrintPreview;
   root.querySelector('#pp-print').onclick = () => window.print();
   ppSeg('#pp-format', v => { pp.format = v; pp.zoom = null; ppRender(); });
+  ppSeg('#pp-orient', v => { pp.orient = v; pp.zoom = null; ppRender(); });
   ppSeg('#pp-depth', v => { pp.depth = v === 'all' ? Infinity : +v; ppRender(); });
   ppSetupZoom(root);
   root.querySelector('#pp-fullnames').onchange = e => { pp.fullNames = e.target.checked; ppRender(); };
@@ -288,6 +299,7 @@ function ppSeg(sel, onPick) {
 function ppSyncControls() {
   const mark = (sel, v) => document.querySelectorAll(sel + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   mark('#pp-format', pp.format);
+  mark('#pp-orient', pp.orient);
   mark('#pp-depth', pp.depth === Infinity ? 'all' : String(pp.depth));
 }
 
@@ -522,7 +534,7 @@ function ppPartition(h, k) {
 }
 
 function ppScaleFor(format, size) {
-  const [wmm, hmm] = PP_FORMATS[format];
+  const [wmm, hmm] = ppDims(format);
   const iw = (wmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
   const ih = (hmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
   return Math.min(iw / size.w, ih / size.h, PP_MAX_SCALE);
@@ -601,7 +613,7 @@ function ppRender() {
   const html = ppContentHTML(ppLayout(model, pp.format));
   const size = ppMeasure(html);
   const scale = ppScaleFor(pp.format, size);
-  const [wmm, hmm] = PP_FORMATS[pp.format];
+  const [wmm, hmm] = ppDims(pp.format);
 
   const sheet = document.getElementById('pp-sheet');
   const content = document.getElementById('pp-content');
@@ -642,7 +654,7 @@ function ppRender() {
 const PP_ZOOM_MAX = 3;
 
 function ppSheetPx() {
-  const [wmm, hmm] = PP_FORMATS[pp.format];
+  const [wmm, hmm] = ppDims(pp.format);
   return { sw: wmm * PP_PX_PER_MM, sh: hmm * PP_PX_PER_MM };
 }
 
