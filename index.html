@@ -4497,9 +4497,20 @@ function buildTreeV2(data) {
       return Math.max(max, n * V2_CW + Math.max(0, n - 1) * HG);
     }, 0);
   }
-  function personSlotW(p) { return Math.max(personCardW(p), childrenRowW(p), nestedChildrenW(p), childrenChildBlockW(p)); }
+  // Слот колонки: сколько места нужно слева и справа от центра карточки. Ветки наборной
+  // карточки могут расходиться несимметрично — слот тогда тоже несимметричный, без пустой половины
+  function personExt(p) {
+    const half = Math.max(personCardW(p), childrenRowW(p), childrenChildBlockW(p)) / 2;
+    let L = half, R = half;
+    if (p.nested) {
+      const ng = nestedGroups(p);
+      if (ng.groups.length) { L = Math.max(L, -ng.left); R = Math.max(R, ng.right); }
+    }
+    return { L, R };
+  }
 
-  const slots   = persons.map(personSlotW);
+  const exts    = persons.map(personExt);
+  const slots   = exts.map(e => e.L + e.R);
   const totalW  = slots.reduce((s, w) => s + w, 0) + Math.max(0, persons.length - 1) * HG_SLOT;
   const centerX = START_X + totalW / 2;
 
@@ -4591,7 +4602,7 @@ function buildTreeV2(data) {
   let px = centerX - totalW / 2;
   persons.forEach((p, i) => {
     const slotW   = slots[i];
-    const slotCX  = px + slotW / 2;
+    const slotCX  = px + exts[i].L;   // центр карточки (слот может быть несимметричным)
     const cardW   = personCardW(p);
     const cardX   = slotCX - cardW / 2;
 
@@ -4834,9 +4845,9 @@ function addLine(svg, x1, y1, x2, y2) {
 
 
 // Горизонтальные участки линий текущего дерева — чтобы линии разных родителей
-// не сливались: если участок пересекается с чужим на той же высоте, он поднимается на 2px
+// не сливались: если участок пересекается с чужим на той же высоте, он поднимается на CONNECTOR_HOP
 let CONNECTOR_HSEGS = [];
-const CONNECTOR_HOP = 2;
+const CONNECTOR_HOP = 8;
 
 function addConnector(svg, px, py, cx, cy, branchY) {
   let midY = branchY !== undefined ? branchY : Math.round((py + cy) / 2);
