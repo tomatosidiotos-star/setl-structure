@@ -846,6 +846,7 @@ body {
 }
 .fold-btn svg { transform: rotate(180deg); }
 .fold-btn--folded { padding: 0 6px 0 9px; }
+.fold-btn--corner { left: auto; right: 24px; transform: none; }
 .fold-btn--folded svg { transform: none; }
 .fold-btn:hover { background: #E8F0FE; border-color: var(--link-blue); }
 /* боковая — по центру правого края наборной карточки */
@@ -4311,16 +4312,20 @@ function v2ApplyFold(data) {
       q._innerFold = { key, count: hidden, folded: v2IsFolded(key, p.nested.length) };
       if (q._innerFold.folded) q.nested = p.nested.slice(0, V2_FOLD_LIMIT);
     }
-    const count = (p.children || []).length
-      + (q.nested || []).reduce((s, n) => s + ((n.children || []).length || (n.childBlock ? 1 : 0)), 0);
-    if (count) q._fold = { key: p.id, count, folded: v2IsFolded(p.id, count) };
-    if (q._fold && q._fold.folded) {
-      q.children = [];
-      if (q.nested) q.nested = q.nested.map(n => ({ ...n, children: [], childBlock: undefined }));
-      return q;
-    }
+    // У наборной карточки ветки внутренних карточек сворачиваются каждая своей кнопкой;
+    // общая кнопка — только для подразделений, висящих прямо под всей карточкой
+    if (q.nested) q.nested = q.nested.map(n => {
+      const cnt = (n.children || []).length || (n.childBlock ? 1 : 0);
+      if (!cnt) return n;
+      const fold = { key: 'n:' + n.id, count: cnt };
+      fold.folded = v2IsFolded(fold.key, cnt);
+      return fold.folded ? { ...n, children: [], childBlock: undefined, _fold: fold } : { ...n, _fold: fold };
+    });
+    const count = (p.children || []).length;
+    if (count) q._fold = { key: p.id, count, folded: v2IsFolded(p.id, count), corner: !!q.nested };
     const nestedSrc = q.nested;
-    q.children = (p.children || []).map(c => {
+    if (q._fold && q._fold.folded) { q.children = []; }
+    else q.children = (p.children || []).map(c => {
       if (!c.childBlock || !c.childBlock.depts.length) return c;
       const fold = { key: c.id, count: c.childBlock.depts.length };
       fold.folded = v2IsFolded(fold.key, fold.count);
@@ -4343,15 +4348,17 @@ function v2ApplyFold(data) {
 
 // Кнопка сворачивания внизу карточки: свёрнуто — «N ⌄», развёрнуто — «⌃»
 const SVG_FOLD_CHEVRON = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-function v2AddFoldButton(nodeEl, fold) {
+// left — центр кнопки от левого края узла (для внутренних карточек наборной)
+function v2AddFoldButton(nodeEl, fold, left) {
   if (!fold) return;
-  nodeEl.dataset.foldKey = fold.key;
+  if (!nodeEl.dataset.foldKey) nodeEl.dataset.foldKey = fold.key;
   const btn = document.createElement('button');
-  btn.className = 'fold-btn' + (fold.folded ? ' fold-btn--folded' : '');
+  btn.className = 'fold-btn' + (fold.folded ? ' fold-btn--folded' : '') + (fold.corner ? ' fold-btn--corner' : '');
+  if (left != null) btn.style.left = left + 'px';
   btn.title = fold.folded ? `Показать ${fold.count} ${pluralRu(fold.count, ['подразделение', 'подразделения', 'подразделений'])}` : 'Свернуть';
   btn.innerHTML = (fold.folded ? `<span>${fold.count}</span>` : '') + SVG_FOLD_CHEVRON;
   btn.addEventListener('mousedown', e => e.stopPropagation());   // не начинать перетаскивание холста
-  btn.addEventListener('click', e => { e.stopPropagation(); v2ToggleFold(fold); });
+  btn.addEventListener('click', e => { e.stopPropagation(); v2ToggleFold(fold, nodeEl.dataset.pid ? `.tree-node[data-pid="${nodeEl.dataset.pid}"]` : null); });
   nodeEl.appendChild(btn);
 }
 
@@ -4365,7 +4372,7 @@ function v2AddInnerButton(nodeEl, fold) {
   btn.title = fold.folded ? `Показать ещё ${fold.count}` : 'Свернуть';
   btn.innerHTML = (fold.folded ? `<span>+${fold.count}</span>` : '') + SVG_FOLD_CHEVRON;
   btn.addEventListener('mousedown', e => e.stopPropagation());
-  btn.addEventListener('click', e => { e.stopPropagation(); v2ToggleFold(fold, `.tree-node[data-inner-key="${fold.key}"]`); });
+  btn.addEventListener('click', e => { e.stopPropagation(); v2ToggleFold(fold, `.tree-node[data-pid="${nodeEl.dataset.pid}"]`); });
   nodeEl.appendChild(btn);
 }
 
@@ -4398,11 +4405,11 @@ function v2UnfoldTo(personId) {
       const deep = n.id === personId || has(n.children)
         || (n.childBlock && (n.childBlock.head.id === personId || n.childBlock.depts.some(d => d.person.id === personId || has(d.children))));
       if (deep && ni >= V2_FOLD_LIMIT) keys.push('inner:' + p.id);
-      if (has(n.children)) keys.push(p.id);
+      if (has(n.children)) keys.push('n:' + n.id);
       const cb = n.childBlock;
       if (!cb) return;
-      if (cb.head.id === personId || cb.depts.some(d => d.person.id === personId)) keys.push(p.id);
-      if (cb.depts.some(d => has(d.children))) keys.push(p.id, cb.head.id);
+      if (cb.head.id === personId || cb.depts.some(d => d.person.id === personId)) keys.push('n:' + n.id);
+      if (cb.depts.some(d => has(d.children))) keys.push('n:' + n.id, cb.head.id);
     });
   });
   let changed = false;
@@ -4625,8 +4632,10 @@ function buildTreeV2(data) {
     personNode.style.left = cardX + 'px';
     personNode.appendChild(personEl);
     inner.appendChild(personNode);
+    personNode.dataset.pid = p.id;
     v2AddFoldButton(personNode, p._fold);
     v2AddInnerButton(personNode, p._innerFold);
+    (p.nested || []).forEach((n, k) => v2AddFoldButton(personNode, n._fold, k * (170 + 4) + 85));
 
     addConnector(svg, centerX, headsBottomY, slotCX, personsY, branchY);
 
