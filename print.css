@@ -1,0 +1,206 @@
+/* ====================================================================
+   ПЕЧАТЬ СТРУКТУРЫ — стили предпросмотра и листа (см. print.js)
+   Размеры листа — в «натуральных» px, на листе всё масштабируется целиком.
+==================================================================== */
+
+body.pp-open { overflow: hidden; }
+
+#pp {
+  position: fixed; inset: 0; z-index: 10000;
+  display: flex; background: #e9e9e9;
+  font-family: var(--f-body); color: var(--black);
+}
+
+/* ---------- Левая панель ---------- */
+.pp-panel {
+  width: 320px; flex-shrink: 0; display: flex; flex-direction: column;
+  background: #fff; border-right: 1px solid #e1e1e1;
+}
+.pp-panel__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 20px 16px;
+}
+.pp-panel__title { font-family: var(--f-exp); font-weight: 600; font-size: 18px; }
+.pp-close {
+  width: 32px; height: 32px; border: none; border-radius: 6px; background: #f6f6f6;
+  color: #41484a; cursor: pointer; display: grid; place-items: center;
+}
+.pp-close:hover { background: #ececec; }
+.pp-panel__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 20px; }
+.pp-panel__foot { padding: 16px 20px 20px; border-top: 1px solid #eee; }
+
+.pp-group { padding: 14px 0; border-bottom: 1px solid #f0f0f0; }
+.pp-group--grow { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: none; }
+.pp-gtitle {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px;
+  font-family: var(--f-exp); font-weight: 600; font-size: 13px;
+}
+.pp-hint { font-family: var(--f-body); font-weight: 400; font-size: 13px; color: #8a8a8a; }
+.pp-hint--block { display: block; margin-top: 8px; line-height: 1.25; }
+
+.pp-seg { display: flex; background: #f2f2f2; border-radius: 8px; padding: 3px; gap: 2px; }
+.pp-seg button {
+  flex: 1; height: 30px; border: none; border-radius: 6px; background: transparent;
+  font-family: var(--f-exp); font-size: 12px; color: #41484a; cursor: pointer;
+}
+.pp-seg button:hover { color: var(--black); }
+.pp-seg button.on { background: #fff; color: var(--black); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.pp-seg--sm button { padding: 0 12px; white-space: nowrap; }
+
+.pp-fit { margin-top: 10px; font-size: 13px; color: #41484a; line-height: 1.3; }
+.pp-fit.warn { color: #d33831; }
+.pp-fit button, .pp-links button {
+  border: none; background: none; padding: 0; cursor: pointer;
+  font: inherit; color: #3c83f6;
+}
+.pp-fit button:hover, .pp-links button:hover { text-decoration: underline; }
+.pp-links { margin-left: auto; font-family: var(--f-body); font-weight: 400; font-size: 13px; color: #b0b0b0; }
+
+.pp-check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 3px 0; }
+.pp-check input { width: 15px; height: 15px; accent-color: var(--red); flex-shrink: 0; cursor: pointer; }
+
+.pp-tree { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 0 8px 8px; }
+.pp-ti__row { display: flex; align-items: center; gap: 2px; }
+.pp-ti__row .pp-check { flex: 1; min-width: 0; font-size: 13px; line-height: 1.2; }
+.pp-ti__row .pp-check span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-ti__arrow {
+  width: 20px; height: 20px; flex-shrink: 0; border: none; background: none; border-radius: 4px;
+  color: #8a8a8a; cursor: pointer; display: grid; place-items: center;
+}
+.pp-ti__arrow:hover { background: #f2f2f2; color: var(--black); }
+.pp-ti__arrow.open svg { transform: rotate(90deg); }
+.pp-ti__arrow.empty { visibility: hidden; }
+
+.pp-btn-primary {
+  width: 100%; height: 44px; border: none; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--red); color: #fff; font-family: var(--f-exp); font-weight: 600; font-size: 14px;
+}
+.pp-btn-primary:hover { background: #d3141b; }
+
+/* ---------- Область предпросмотра ---------- */
+.pp-stage { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pp-viewbar { display: flex; justify-content: flex-end; padding: 12px 16px 0; }
+.pp-viewbar .pp-seg { background: #dcdcdc; }
+.pp-sheet-wrap { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 32px; }
+.pp-sizer { margin: auto; flex-shrink: 0; }
+.pp-sheet {
+  transform-origin: 0 0; background: #fff; overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+}
+.pp-content { transform-origin: 0 0; width: max-content; }
+.pp-probe { position: absolute; left: -100000px; top: 0; visibility: hidden; }
+
+/* ---------- Содержимое листа ---------- */
+.pp-content { --pp-ln: #c4c4c4; }
+
+.pp-header { display: flex; align-items: center; gap: 24px; margin-bottom: 36px; }
+.pp-logo { height: 40px; }
+.pp-header__title { font-family: var(--f-exp); font-size: 18px; line-height: 1.25; color: #41484a; }
+.pp-header__title b { font-weight: 600; color: var(--black); }
+.pp-header__date { margin-left: auto; padding-left: 40px; font-size: 13px; color: #8a8a8a; white-space: nowrap; }
+
+.pp-chart { display: flex; flex-direction: column; align-items: center; }
+
+/* Руководители блока и шина к карточкам */
+.pp-heads { position: relative; display: flex; gap: 12px; justify-content: center; }
+.pp-heads.has-kids { margin-bottom: 24px; }
+.pp-heads.has-kids::after {
+  content: ''; position: absolute; left: 50%; bottom: -24px; height: 24px;
+  border-left: 1.5px solid var(--pp-ln);
+}
+.pp-cols { display: flex; gap: 20px; align-items: flex-start; justify-content: center; }
+.pp-col { position: relative; width: 220px; padding-top: 24px; }
+.pp-col::before {
+  content: ''; position: absolute; top: 0; left: -10px; right: -10px;
+  border-top: 1.5px solid var(--pp-ln);
+}
+.pp-col:first-child::before { left: 50%; }
+.pp-col:last-child::before { right: 50%; }
+.pp-cols.single .pp-col::before { display: none; }
+
+/* Несколько рядов: ствол идёт по центральному проходу к следующему ряду */
+.pp-cols + .pp-cols { margin-top: 32px; }
+.pp-half { display: flex; gap: 20px; align-items: flex-start; flex-shrink: 0; }
+.pp-half--l { justify-content: flex-end; }
+.pp-half--l .pp-col:last-child::before { right: -20px; }
+.pp-half--r .pp-col:first-child::before { left: -20px; }
+.pp-corridor { position: relative; width: 40px; flex-shrink: 0; align-self: stretch; }
+.pp-corridor::after {
+  content: ''; position: absolute; left: 50%; top: 0; bottom: -32px;
+  border-left: 1.5px solid var(--pp-ln);
+}
+.pp-cols--pass { gap: 0; }
+.pp-col::after {
+  content: ''; position: absolute; top: 0; left: 50%; height: 24px;
+  border-left: 1.5px solid var(--pp-ln);
+}
+
+/* Карточки */
+.pp-card {
+  position: relative; background: #fff; border: 1px solid #dcdcdc; border-radius: 14px; padding: 12px;
+}
+.pp-card--head { width: 250px; }
+.pp-card__person { display: flex; gap: 10px; align-items: flex-start; }
+.pp-ph {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  display: grid; place-items: center;
+}
+.pp-ph img { width: 100%; height: 100%; object-fit: cover; }
+.pp-ph span { font-family: var(--f-exp); font-weight: 600; font-size: 11px; color: rgba(0,0,0,0.55); }
+.pp-card__text { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pp-card__name { font-family: var(--f-exp); font-weight: 600; font-size: 12.5px; line-height: 1.2; }
+.pp-card--head .pp-card__name { font-size: 14px; }
+.pp-card__role { font-size: 12px; line-height: 1.2; color: #6f6f6f; }
+.pp-card__dept {
+  margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: #f2f2f2;
+  font-family: var(--f-exp); font-weight: 600; font-size: 11.5px; line-height: 1.25;
+}
+.pp-card__person + .pp-card__stats { margin-top: 10px; }
+.pp-card__stats { margin-top: 8px; font-size: 12px; color: #6f6f6f; }
+
+/* Дерево-список под карточкой: кружки и линии, как «Место в структуре» */
+.pp-list { position: relative; padding-left: 16px; }
+.pp-list--root { margin-left: 12px; padding-top: 10px; }
+.pp-split { display: flex; gap: 16px; align-items: flex-start; }
+.pp-split > .pp-list--root { flex: 1; min-width: 0; }
+.pp-list--root::before {
+  content: ''; position: absolute; left: 4px; top: 0; height: 10px;
+  border-left: 1.5px solid var(--pp-ln);
+}
+.pp-item { position: relative; }
+.pp-item::before {          /* вертикаль от родителя */
+  content: ''; position: absolute; left: -12px; top: 0; bottom: 0;
+  border-left: 1.5px solid var(--pp-ln);
+}
+.pp-item:last-child::before { bottom: auto; height: 10.5px; }
+.pp-item::after {           /* отвод к кружку */
+  content: ''; position: absolute; left: -12px; top: 10px; width: 12px;
+  border-top: 1.5px solid var(--pp-ln);
+}
+.pp-row { position: relative; padding: 3px 0 7px 15px; }
+.pp-item.has-kids > .pp-row::after {   /* от кружка вниз к детям */
+  content: ''; position: absolute; left: 4px; top: 15px; bottom: 0;
+  border-left: 1.5px solid var(--pp-ln);
+}
+.pp-dot {
+  position: absolute; left: 0; top: 6px; width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid #b5b5b5; background: #fff; box-sizing: border-box;
+}
+.pp-item--top > .pp-row > .pp-dot { border-color: var(--red); }
+.pp-label { font-family: var(--f-exp); font-size: 12px; line-height: 1.2; color: #111; }
+.pp-item--top > .pp-row > .pp-label { font-weight: 600; }
+.pp-sub { margin-top: 2px; font-size: 12px; line-height: 1.2; color: #6f6f6f; }
+.pp-more { margin-top: 2px; font-size: 11px; line-height: 1.2; color: #a0a0a0; }
+
+/* ---------- Печать: только лист ---------- */
+@media print {
+  body.pp-open { background: #fff; overflow: visible; }
+  body.pp-open > *:not(#pp) { display: none !important; }
+  #pp { position: static; display: block; background: none; }
+  .pp-panel, .pp-viewbar { display: none !important; }
+  .pp-stage, .pp-sheet-wrap { display: block; overflow: visible; padding: 0; }
+  .pp-sizer { width: auto !important; height: auto !important; margin: 0; }
+  .pp-sheet { transform: none !important; box-shadow: none; }
+  #pp * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

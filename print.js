@@ -1,0 +1,581 @@
+/* ====================================================================
+   ПЕЧАТЬ СТРУКТУРЫ — предпросмотр и сохранение в PDF
+
+   Вся структура на одном альбомном листе: руководители блока сверху,
+   карточки 2-го уровня в ряд, под каждой карточкой — дерево-список
+   (кружки и линии, как «Место в структуре» в модалке).
+   Слева в предпросмотре: формат листа, глубина, выбор веток.
+   Печать — системная (window.print), «Сохранить как PDF» в диалоге.
+
+   Зависит от: ORG_DATA, state, initials(), avatarColor(), escHtml()
+   из index.html. Данные v2-дерева сначала приводятся к одному виду:
+   { uid, dept, person, people, children } — раскладка от исходного
+   формата не зависит, при переносе достаточно переписать normalize.
+==================================================================== */
+
+const PP_FORMATS = {           // альбомная ориентация, мм
+  A4: [297, 210],
+  A3: [420, 297],
+  A2: [594, 420],
+  A1: [841, 594],
+  A0: [1189, 841],
+};
+const PP_PX_PER_MM = 96 / 25.4;
+const PP_MARGIN_MM = 10;       // поля листа
+const PP_BASE_FONT = 12;       // кегль пунктов списка в «натуральном» размере, px
+const PP_MIN_PT    = 6;        // мельче — предупреждаем
+const PP_GOOD_PT   = 7;        // «Подобрать формат» ищет первый формат не мельче этого
+const PP_MAX_SCALE = 2.5;
+const PP_COL_W     = 220;      // ширина колонки (карточка 2-го уровня), px
+const PP_COL_GAP   = 20;       // между колонками — должно совпадать с .pp-cols gap в print.css
+const PP_SPLIT_GAP = 16;       // между подколонками длинной колонки
+const PP_ROW_GAP   = 32;       // между рядами карточек — как .pp-cols + .pp-cols в print.css
+const PP_CORRIDOR  = 40;       // проход для ствола в центре ряда — как .pp-corridor
+const PP_MAX_ROWS  = 4;
+
+let pp = null;   // состояние открытого предпросмотра
+
+/* ---------- Приведение данных v2 к одному виду ---------- */
+
+function ppNormalize(treeData, rootTreeId) {
+  let uid = 0;
+  const visitedTrees = new Set([rootTreeId]);
+  const clean = s => (s || '').replace(/\s*\n\s*/g, ' ').trim();
+  const person = p => p ? {
+    id: p.id, name: clean(p.name), fullName: clean(p.fullName || p.name),
+    role: (p.role || '').replace(/\s*\n\s*/g, ' ').replace(/ \/ ?$/, '').trim(), photo: p.photo || null,
+  } : null;
+  const modalPeople = m => m ? [...(m.managers || []), ...(m.deputies || []), ...(m.assistants || []), ...(m.team || [])]
+    .map(x => x.id || x.fullName || x.name) : [];
+
+  function node(dept, p, extraPeople) {
+    return { uid: 'n' + (++uid), dept: clean(dept), person: person(p), people: extraPeople || [], children: [] };
+  }
+
+  // Карточка человека: с отделом / над несколькими отделами (nested) / с дочерним блоком
+  function fromPerson(p) {
+    const n = node(p.dept && p.dept.name, p, modalPeople(p.dept && p.dept.modal));
+    (p.nested || []).forEach(x => n.children.push(fromPerson(x)));
+    if (p.dept) n.children.push(...fromDeptExtras(p.dept));
+    (p.children || []).forEach(c => n.children.push(fromPerson(c)));
+    if (p.childBlock) n.children.push(fromChildBlock(p.childBlock));
+    return n;
+  }
+
+  function fromChildBlock(cb) {
+    const n = node('', cb.head);
+    (cb.depts || []).forEach(d => n.children.push(fromPerson({
+      ...d.person, dept: { name: d.deptName, id: d.deptId, modal: d.deptModal }, children: d.children,
+    })));
+    return n;
+  }
+
+  // Подотделы из модалки и содержимое связанного дерева (отдел-ссылка «ведёт дальше»)
+  function fromDeptExtras(dept) {
+    const out = [];
+    ((dept.modal && dept.modal.subdepts) || []).forEach(s => out.push(node(s.name,
+      s.managerName ? { id: s.id + '-m', name: s.managerName, fullName: s.managerName, role: s.managerRole } : null,
+      modalPeople(s.modal))));
+    if (dept.treeId && !visitedTrees.has(dept.treeId)) {
+      visitedTrees.add(dept.treeId);
+      out.push(...treeChildren(ORG_DATA.trees[dept.treeId]));
+    }
+    return out;
+  }
+
+  function treeChildren(t) {
+    if (!t) return [];
+    const out = [];
+    (t.headsDepts || []).forEach(d => {
+      if (d.treeId && visitedTrees.has(d.treeId)) return;   // ссылка назад — уже есть в печати
+      out.push(fromPerson({ ...d.person, dept: { name: d.deptName, id: d.deptId, treeId: d.treeId } }));
+    });
+    (t.persons || []).forEach(p => out.push(fromPerson(p)));
+    return out;
+  }
+
+  return {
+    heads: (treeData.heads || []).map(person),
+    cards: treeChildren(treeData),
+  };
+}
+
+/* ---------- Подсчёты ---------- */
+
+function ppPlural(n, forms) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return forms[0];
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return forms[1];
+  return forms[2];
+}
+
+function ppStats(n) {
+  let depts = 0;
+  const people = new Set();
+  (function walk(x, isRoot) {
+    if (!isRoot && x.dept) depts++;
+    if (x.person) people.add(x.person.id || x.person.fullName);
+    x.people.forEach(id => people.add(id));
+    x.children.forEach(c => walk(c, false));
+  })(n, true);
+  return { depts, people: people.size };
+}
+
+function ppStatsText(s) {
+  const parts = [];
+  if (s.depts) parts.push(`${s.depts} ${ppPlural(s.depts, ['подразделение', 'подразделения', 'подразделений'])}`);
+  if (s.people) parts.push(`${s.people} ${ppPlural(s.people, ['человек', 'человека', 'человек'])}`);
+  return parts.join(' · ');
+}
+
+/* ---------- Открыть / закрыть ---------- */
+
+function openPrintPreview() {
+  const treeData = ORG_DATA.trees && ORG_DATA.trees[state.blockId];
+  if (!treeData || treeData.version !== 2) return;
+  const company = (ORG_DATA.companies || []).find(c => c.id === state.companyId);
+  const data = ppNormalize(treeData, state.blockId);
+
+  pp = {
+    data,
+    title: treeData.blockName || state.blockName || '',
+    logo: company ? company.logo : null,
+    format: 'A3',
+    depth: Infinity,      // уровней: 1 — руководители, 2 — карточки, 3+ — списки
+    fullNames: true,
+    photos: true,
+    balance: true,        // авто-раскладка: переносить карточки в ряды, делить длинные колонки
+    excluded: new Set(),  // uid скрытых веток
+    open: new Set(),      // раскрытые пункты в дереве выбора
+    view: 'fit',          // 'fit' | 'actual'
+  };
+  pp.format = ppAutoFormat() || 'A1';
+
+  const root = document.createElement('div');
+  root.id = 'pp';
+  root.innerHTML = `
+    <aside class="pp-panel">
+      <div class="pp-panel__head">
+        <div class="pp-panel__title">Печать структуры</div>
+        <button class="pp-close" id="pp-close" aria-label="Закрыть">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="pp-panel__body">
+        <div class="pp-group">
+          <div class="pp-gtitle">Формат листа <span class="pp-hint">альбомный</span></div>
+          <div class="pp-seg" id="pp-format">
+            ${Object.keys(PP_FORMATS).map(f => `<button data-v="${f}">${f}</button>`).join('')}
+          </div>
+          <div class="pp-fit" id="pp-fit"></div>
+        </div>
+        <div class="pp-group">
+          <div class="pp-gtitle">Уровни</div>
+          <div class="pp-seg" id="pp-depth">
+            <button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button>
+            <button data-v="5">5</button><button data-v="all">Все</button>
+          </div>
+          <div class="pp-hint pp-hint--block">1 — руководители блока, 2 — карточки, дальше — уровни списков</div>
+        </div>
+        <div class="pp-group">
+          <label class="pp-check"><input type="checkbox" id="pp-fullnames" checked> ФИО полностью</label>
+          <label class="pp-check"><input type="checkbox" id="pp-photos" checked> Фото в карточках</label>
+          <label class="pp-check"><input type="checkbox" id="pp-balance" checked> Авто-раскладка <span class="pp-hint">ряды и подколонки</span></label>
+        </div>
+        <div class="pp-group pp-group--grow">
+          <div class="pp-gtitle">Ветки
+            <span class="pp-links"><button id="pp-all">все</button> · <button id="pp-none">ни одной</button></span>
+          </div>
+          <div class="pp-tree" id="pp-tree"></div>
+        </div>
+      </div>
+      <div class="pp-panel__foot">
+        <button class="pp-btn-primary" id="pp-print">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 6V1.5h8V6"/><rect x="1.5" y="6" width="13" height="6" rx="1.5"/><path d="M4 10h8v4.5H4z" fill="#fff"/></svg>
+          Сохранить PDF / Печать
+        </button>
+        <div class="pp-hint pp-hint--block">В окне печати выберите «Сохранить как PDF». Формат и ориентация уже заданы.</div>
+      </div>
+    </aside>
+    <main class="pp-stage" id="pp-stage">
+      <div class="pp-viewbar">
+        <div class="pp-seg pp-seg--sm" id="pp-view">
+          <button data-v="fit">Лист целиком</button><button data-v="actual">Реальный размер</button>
+        </div>
+      </div>
+      <div class="pp-sheet-wrap" id="pp-sheet-wrap">
+        <div class="pp-sizer" id="pp-sizer">
+          <div class="pp-sheet" id="pp-sheet"><div class="pp-content" id="pp-content"></div></div>
+        </div>
+      </div>
+    </main>`;
+  document.body.appendChild(root);
+  document.body.classList.add('pp-open');
+
+  const style = document.createElement('style');
+  style.id = 'pp-page-style';
+  document.head.appendChild(style);
+
+  root.querySelector('#pp-close').onclick = closePrintPreview;
+  root.querySelector('#pp-print').onclick = () => window.print();
+  ppSeg('#pp-format', v => { pp.format = v; ppRender(); });
+  ppSeg('#pp-depth', v => { pp.depth = v === 'all' ? Infinity : +v; ppRender(); });
+  ppSeg('#pp-view', v => { pp.view = v; ppPlaceSheet(); ppSyncControls(); });
+  root.querySelector('#pp-fullnames').onchange = e => { pp.fullNames = e.target.checked; ppRender(); };
+  root.querySelector('#pp-photos').onchange = e => { pp.photos = e.target.checked; ppRender(); };
+  root.querySelector('#pp-balance').onchange = e => { pp.balance = e.target.checked; ppRender(); };
+  root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
+  root.querySelector('#pp-none').onclick = () => { pp.data.cards.forEach(c => pp.excluded.add(c.uid)); ppRenderTree(); ppRender(); };
+  window.addEventListener('resize', ppPlaceSheet);
+  document.addEventListener('keydown', ppOnKey);
+
+  ppRenderTree();
+  ppRender();
+}
+
+function closePrintPreview() {
+  document.getElementById('pp')?.remove();
+  document.getElementById('pp-page-style')?.remove();
+  document.body.classList.remove('pp-open');
+  window.removeEventListener('resize', ppPlaceSheet);
+  document.removeEventListener('keydown', ppOnKey);
+  pp = null;
+}
+
+function ppOnKey(e) { if (e.key === 'Escape') closePrintPreview(); }
+
+function ppSeg(sel, onPick) {
+  document.querySelector(sel).addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]');
+    if (b) onPick(b.dataset.v);
+  });
+}
+
+function ppSyncControls() {
+  const mark = (sel, v) => document.querySelectorAll(sel + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  mark('#pp-format', pp.format);
+  mark('#pp-depth', pp.depth === Infinity ? 'all' : String(pp.depth));
+  mark('#pp-view', pp.view);
+}
+
+/* ---------- Дерево выбора веток (левая панель) ---------- */
+
+function ppRenderTree() {
+  const box = document.getElementById('pp-tree');
+  box.innerHTML = '';
+  const walk = (n, parentEl, level) => {
+    const item = document.createElement('div');
+    item.className = 'pp-ti';
+    const hasKids = n.children.some(c => c.dept || c.children.length);
+    const isOpen = pp.open.has(n.uid);
+    const label = n.dept || (n.person ? n.person.fullName : '');
+    item.innerHTML = `
+      <div class="pp-ti__row" style="padding-left:${(level - 2) * 16}px">
+        <button class="pp-ti__arrow${hasKids ? '' : ' empty'}${isOpen ? ' open' : ''}" tabindex="${hasKids ? 0 : -1}">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 2l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <label class="pp-check"><input type="checkbox" ${pp.excluded.has(n.uid) ? '' : 'checked'}>
+          <span>${escHtml(label)}</span></label>
+      </div>`;
+    item.querySelector('input').onchange = e => {
+      e.target.checked ? pp.excluded.delete(n.uid) : pp.excluded.add(n.uid);
+      ppRender();
+    };
+    item.querySelector('.pp-ti__arrow').onclick = () => {
+      if (!hasKids) return;
+      isOpen ? pp.open.delete(n.uid) : pp.open.add(n.uid);
+      ppRenderTree();
+    };
+    parentEl.appendChild(item);
+    if (hasKids && isOpen) n.children.forEach(c => walk(c, parentEl, level + 1));
+  };
+  pp.data.cards.forEach(c => walk(c, box, 2));
+}
+
+/* ---------- Лист ---------- */
+
+function ppPersonName(p) { return pp.fullNames ? p.fullName : p.name; }
+
+function ppPhotoHTML(p) {
+  if (!pp.photos) return '';
+  return p.photo
+    ? `<div class="pp-ph"><img src="${p.photo}" alt=""></div>`
+    : `<div class="pp-ph" style="background:${avatarColor(p.fullName)}"><span>${escHtml(initials(p.fullName))}</span></div>`;
+}
+
+function ppCardHTML(n, extraClass) {
+  const p = n.person;
+  const stats = n.children ? ppStatsText(ppStats(n)) : '';
+  return `<div class="pp-card ${extraClass || ''}">
+    ${p ? `<div class="pp-card__person">${ppPhotoHTML(p)}
+      <div class="pp-card__text"><div class="pp-card__name">${escHtml(ppPersonName(p))}</div>
+      ${p.role ? `<div class="pp-card__role">${escHtml(p.role)}</div>` : ''}</div></div>` : ''}
+    ${n.dept ? `<div class="pp-card__dept">${escHtml(n.dept)}</div>` : ''}
+    ${stats ? `<div class="pp-card__stats">${stats}</div>` : ''}
+  </div>`;
+}
+
+function ppItemsHTML(children, level) {
+  const kids = children.filter(c => !pp.excluded.has(c.uid));
+  if (level > pp.depth) return [];
+  return kids.map(c => {
+    const label = c.dept || (c.person ? ppPersonName(c.person) : '');
+    const sub = c.dept ? (c.person ? ppPersonName(c.person) : '') : (c.person ? c.person.role : '');
+    const nested = ppListHTML(c.children, level + 1);
+    const hidden = !nested && c.children.length && level + 1 > pp.depth ? ppStats(c).depts : 0;
+    return `<div class="pp-item${nested ? ' has-kids' : ''}${level === 3 ? ' pp-item--top' : ''}">
+      <div class="pp-row"><span class="pp-dot"></span>
+        <div class="pp-label">${escHtml(label)}</div>
+        ${sub ? `<div class="pp-sub">${escHtml(sub)}</div>` : ''}
+        ${hidden ? `<div class="pp-more">ещё ${hidden} ${ppPlural(hidden, ['подразделение', 'подразделения', 'подразделений'])}</div>` : ''}
+      </div>${nested}</div>`;
+  });
+}
+
+function ppListHTML(children, level) {
+  const items = ppItemsHTML(children, level);
+  return items.length ? `<div class="pp-list">${items.join('')}</div>` : '';
+}
+
+// Колонка: карточка + список; groups — сколько пунктов верхнего уровня в каждой подколонке
+function ppColHTML(c, groups) {
+  const items = ppItemsHTML(c.children, 3);
+  const k = groups ? groups.length : 1;
+  let list = '';
+  if (items.length && k > 1) {
+    let i = 0;
+    list = `<div class="pp-split">${groups.map(g => {
+      const part = items.slice(i, i += g);
+      return `<div class="pp-list pp-list--root">${part.join('')}</div>`;
+    }).join('')}</div>`;
+  } else if (items.length) {
+    list = `<div class="pp-list pp-list--root">${items.join('')}</div>`;
+  }
+  return `<div class="pp-col" style="width:${k * PP_COL_W + (k - 1) * PP_SPLIT_GAP}px">${ppCardHTML(c)}${list}</div>`;
+}
+
+// Ряды карточек. Во всех рядах, кроме последнего, по центру проход, через него ствол идёт к следующему ряду
+function ppRowsHTML(cards, lay) {
+  return lay.rows.map((row, ri) => {
+    const cols = row.map(i => ppColHTML(cards[i], lay.splits[cards[i].uid]));
+    const hv = lay.halves[ri];
+    if (hv) return `<div class="pp-cols pp-cols--pass">
+        <div class="pp-half pp-half--l" style="width:${hv.half}px">${cols.slice(0, hv.left).join('')}</div>
+        <div class="pp-corridor"></div>
+        <div class="pp-half pp-half--r" style="width:${hv.half}px">${cols.slice(hv.left).join('')}</div>
+      </div>`;
+    return `<div class="pp-cols${row.length === 1 ? ' single' : ''}">${cols.join('')}</div>`;
+  }).join('');
+}
+
+function ppContentHTML(lay) {
+  const cards = pp.data.cards.filter(c => !pp.excluded.has(c.uid));
+  lay = lay || { rows: [cards.map((c, i) => i)], halves: [null], splits: {} };
+  const today = new Date().toLocaleDateString('ru-RU');
+  const heads = pp.data.heads.map(h => ppCardHTML({ person: h }, 'pp-card--head')).join('');
+  return `
+    <div class="pp-header">
+      ${pp.logo ? `<img class="pp-logo" src="${pp.logo}" alt="">` : ''}
+      <div class="pp-header__title">Организационная структура<br><b>${escHtml(pp.title)}</b></div>
+      <div class="pp-header__date">Актуально на ${today}</div>
+    </div>
+    <div class="pp-chart">
+      <div class="pp-heads${cards.length ? ' has-kids' : ''}">${heads}</div>
+      ${cards.length ? ppRowsHTML(cards, lay) : ''}
+    </div>`;
+}
+
+/* ---------- Раскладка и масштаб ---------- */
+
+function ppProbe(html) {
+  const probe = document.createElement('div');
+  probe.className = 'pp-content pp-probe';
+  probe.innerHTML = html;
+  document.body.appendChild(probe);
+  return probe;
+}
+
+// Натуральный размер содержимого (до масштабирования)
+function ppMeasure(html) {
+  const probe = ppProbe(html);
+  const size = { w: probe.scrollWidth, h: probe.scrollHeight };
+  probe.remove();
+  return size;
+}
+
+// Замер для раскладки: высота «шапки» листа и по каждой колонке —
+// карточка и высоты пунктов верхнего уровня (вместе с их поддеревьями)
+function ppModel() {
+  const cards = pp.data.cards.filter(c => !pp.excluded.has(c.uid));
+  const probe = ppProbe(ppContentHTML());
+  const colsEl = probe.querySelector('.pp-cols');
+  const header = probe.querySelector('.pp-header');
+  const model = {
+    top: colsEl ? colsEl.offsetTop : probe.scrollHeight,
+    minW: Math.max(probe.querySelector('.pp-heads').offsetWidth,
+      [...header.children].reduce((s, el) => s + el.offsetWidth, 0) + 24 * 2 + 40),
+    cols: [...probe.querySelectorAll('.pp-col')].map((el, i) => {
+      const root = el.querySelector(':scope > .pp-list--root');
+      return {
+        uid: cards[i].uid,
+        base: el.offsetHeight - (root ? root.offsetHeight : 0) + (root ? 10 : 0),
+        items: root ? [...root.children].map(x => x.offsetHeight) : [],
+      };
+    }),
+  };
+  probe.remove();
+  return model;
+}
+
+// Разбить пункты на k подряд идущих групп с минимальной самой высокой группой
+function ppPartition(h, k) {
+  const n = h.length;
+  const sum = h.reduce((a, b) => a + b, 0);
+  if (k <= 1 || n <= 1) return { max: sum, groups: [n] };
+  k = Math.min(k, n);
+  const pre = [0];
+  h.forEach(x => pre.push(pre[pre.length - 1] + x));
+  const dp = Array.from({ length: k + 1 }, () => Array(n + 1).fill(Infinity));
+  const cut = Array.from({ length: k + 1 }, () => Array(n + 1).fill(0));
+  dp[0][0] = 0;
+  for (let j = 1; j <= k; j++)
+    for (let i = j; i <= n; i++)
+      for (let m = j - 1; m < i; m++) {
+        const v = Math.max(dp[j - 1][m], pre[i] - pre[m]);
+        if (v < dp[j][i]) { dp[j][i] = v; cut[j][i] = m; }
+      }
+  const groups = [];
+  for (let j = k, i = n; j > 0; j--) { const m = cut[j][i]; groups.unshift(i - m); i = m; }
+  return { max: dp[k][n], groups };
+}
+
+function ppScaleFor(format, size) {
+  const [wmm, hmm] = PP_FORMATS[format];
+  const iw = (wmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
+  const ih = (hmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
+  return Math.min(iw / size.w, ih / size.h, PP_MAX_SCALE);
+}
+
+// Раскладка при заданных делениях колонок (k) и числе рядов (r): ряды — подряд идущие
+// колонки примерно равной ширины; в рядах с проходом колонки делятся на левую и правую половины
+function ppArrange(model, k, r, format) {
+  const colW = i => k[i] * PP_COL_W + (k[i] - 1) * PP_SPLIT_GAP;
+  const colH = i => model.cols[i].base + ppPartition(model.cols[i].items, k[i]).max;
+  const rowW = ws => ws.reduce((a, b) => a + b, 0) + Math.max(0, ws.length - 1) * PP_COL_GAP;
+  const n = model.cols.length;
+  const rows = [];
+  if (n) {
+    let idx = 0;
+    ppPartition(model.cols.map((c, i) => colW(i) + PP_COL_GAP), r).groups.forEach(sz => {
+      rows.push(Array.from({ length: sz }, (_, j) => idx + j));
+      idx += sz;
+    });
+  }
+  let w = model.minW, h = model.top;
+  const halves = rows.map((row, ri) => {
+    const ws = row.map(colW);
+    let hv = null, rw;
+    if (ri < rows.length - 1) {
+      const left = row.length > 1 ? ppPartition(ws.map(x => x + PP_COL_GAP), 2).groups[0] : 1;
+      hv = { left, half: Math.max(rowW(ws.slice(0, left)), rowW(ws.slice(left))) };
+      rw = hv.half * 2 + PP_CORRIDOR;
+    } else rw = rowW(ws);
+    w = Math.max(w, rw);
+    h += Math.max(...row.map(colH)) + (ri ? PP_ROW_GAP : 0);
+    return hv;
+  });
+  const splits = {};
+  model.cols.forEach((c, i) => { if (k[i] > 1) splits[c.uid] = ppPartition(c.items, k[i]).groups; });
+  return { rows, halves, splits, scale: ppScaleFor(format, { w, h }) };
+}
+
+// Перебираем число рядов; в каждом варианте делим колонки, пока от этого растёт масштаб.
+// Больше рядов берём, только если это заметно крупнее
+function ppLayout(model, format) {
+  const n = model.cols.length;
+  let best = null;
+  for (let r = 1; r <= Math.min(PP_MAX_ROWS, Math.max(1, n)); r++) {
+    if (r > 1 && !pp.balance) break;
+    const k = model.cols.map(() => 1);
+    let cur = ppArrange(model, k, r, format);
+    while (pp.balance) {
+      let pick = -1, pickLay = null;
+      model.cols.forEach((c, i) => {
+        if (k[i] >= c.items.length) return;
+        k[i]++;
+        const lay = ppArrange(model, k, r, format);
+        k[i]--;
+        if (lay.scale > (pickLay ? pickLay.scale : cur.scale * 1.01)) { pick = i; pickLay = lay; }
+      });
+      if (pick < 0) break;
+      k[pick]++;
+      cur = pickLay;
+    }
+    if (!best || cur.scale > best.scale * 1.05) best = cur;
+  }
+  return best;
+}
+
+function ppPt(scale) { return PP_BASE_FONT * scale * 0.75; }
+
+// Первый формат, на котором текст не мельче PP_GOOD_PT
+function ppAutoFormat(model) {
+  model = model || ppModel();
+  return Object.keys(PP_FORMATS).find(f => ppPt(ppLayout(model, f).scale) >= PP_GOOD_PT) || null;
+}
+
+function ppRender() {
+  const model = ppModel();
+  const html = ppContentHTML(ppLayout(model, pp.format));
+  const size = ppMeasure(html);
+  const scale = ppScaleFor(pp.format, size);
+  const [wmm, hmm] = PP_FORMATS[pp.format];
+
+  const sheet = document.getElementById('pp-sheet');
+  const content = document.getElementById('pp-content');
+  sheet.style.width = wmm + 'mm';
+  sheet.style.height = (hmm - 0.5) + 'mm';   // запас, чтобы не вылез пустой второй лист
+  sheet.style.padding = PP_MARGIN_MM + 'mm';
+  content.innerHTML = html;
+  content.style.width = size.w + 'px';
+  content.style.transform = `scale(${scale})`;
+  // По центру листа по горизонтали
+  const innerW = (wmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
+  content.style.marginLeft = Math.max(0, (innerW - size.w * scale) / 2) + 'px';
+
+  document.getElementById('pp-page-style').textContent =
+    `@page { size: ${wmm}mm ${hmm}mm; margin: 0; }`;
+
+  // Подсказка про читаемость
+  const pt = ppPt(scale);
+  const best = ppAutoFormat(model);
+  const small = pt < PP_MIN_PT;
+  const fit = document.getElementById('pp-fit');
+  fit.className = 'pp-fit' + (small ? ' warn' : '');
+  fit.innerHTML = `Текст ≈ ${pt.toFixed(1).replace('.', ',')} pt` +
+    (small ? ' — мелко для печати.' : '') +
+    (best && best !== pp.format ? ` <button id="pp-auto">Перейти на ${best}</button>` : '') +
+    (small && !best ? ' Уберите часть веток или уровней.' : '');
+  const auto = document.getElementById('pp-auto');
+  if (auto) auto.onclick = () => { pp.format = best; ppRender(); };
+
+  ppSyncControls();
+  ppPlaceSheet();
+}
+
+// Лист на экране: «целиком» — вписан в область, «реальный» — 1:1 с прокруткой
+function ppPlaceSheet() {
+  if (!pp) return;
+  const wrap = document.getElementById('pp-sheet-wrap');
+  const sizer = document.getElementById('pp-sizer');
+  const sheet = document.getElementById('pp-sheet');
+  const [wmm, hmm] = PP_FORMATS[pp.format];
+  const sw = wmm * PP_PX_PER_MM, sh = hmm * PP_PX_PER_MM;
+  const k = pp.view === 'fit'
+    ? Math.min((wrap.clientWidth - 64) / sw, (wrap.clientHeight - 64) / sh, 1)
+    : 1;
+  sheet.style.transform = `scale(${k})`;
+  sizer.style.width = sw * k + 'px';      // обёртка по видимому размеру — для центрирования и прокрутки
+  sizer.style.height = sh * k + 'px';
+  wrap.classList.toggle('actual', pp.view !== 'fit');
+}

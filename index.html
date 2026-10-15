@@ -577,6 +577,8 @@ body {
   white-space: nowrap; transition: background 0.15s, color 0.15s;
 }
 .btn-legal:hover { background: #fad8d8; color: #c0302a; }
+.btn-legal svg { margin-right: 6px; }
+.tv-topbar__actions { display: flex; gap: 8px; }
 
 .blocks-row {
   display: grid;
@@ -1790,6 +1792,7 @@ body {
 .vm-wz-sub  { font-family: var(--f-exp); font-size: 14px; color: #7e7e7e; line-height: 1.2; }
 
   </style>
+  <link rel="stylesheet" href="print.css">
 </head>
 <body>
 <div class="demo-layout">
@@ -1885,7 +1888,13 @@ body {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11.5L4.5 7L9 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           На главную
         </button>
-        <button class="btn-legal" id="btn-legal-open">Список юридических лиц</button>
+        <div class="tv-topbar__actions">
+          <button class="btn-legal" id="btn-print-open" onclick="openPrintPreview()">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 6V1.5h8V6"/><rect x="1.5" y="6" width="13" height="6" rx="1.5"/><path d="M4 10h8v4.5H4z"/></svg>
+            Печать
+          </button>
+          <button class="btn-legal" id="btn-legal-open">Список юридических лиц</button>
+        </div>
       </div>
 
       <!-- Заголовок блока + описание -->
@@ -3464,6 +3473,9 @@ function buildTree(data) {
 
     const divsY  = p.skipLevel ? divsY4 : divsY3;
     const divsW  = divs.reduce((s, d) => s + divCardW(d), 0) + (divs.length - 1) * HG;
+  // Печать — пока только для деревьев v2
+  document.getElementById('btn-print-open').style.display = treeData.version === 2 ? '' : 'none';
+
     let dx = cx - divsW / 2;
 
     const personBottomY = y + NH;
@@ -5666,3 +5678,4 @@ restoreFromHash();
 </script>
 </body>
 </html>
+<script src="print.js"></script>
