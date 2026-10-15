@@ -21,6 +21,13 @@ body.pp-open { overflow: hidden; }
   padding: 20px 20px 16px;
 }
 .pp-panel__title { font-family: var(--f-exp); font-weight: 600; font-size: 18px; }
+/* «Сбросить» — как ссылки «все · ни одной», с иконкой сброса из масштаба страницы */
+.pp-reset {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: none; background: none; padding: 4px 0; cursor: pointer;
+  font-family: var(--f-body); font-size: 13px; color: #3c83f6;
+}
+.pp-reset:hover { text-decoration: underline; }
 .pp-panel__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 20px; }
 .pp-panel__foot { padding: 16px 20px 20px; border-top: 1px solid #eee; }
 
