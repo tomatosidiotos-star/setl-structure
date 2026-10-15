@@ -163,7 +163,9 @@ function ppReset() {
   document.getElementById('pp-photos').checked = pp.photos;
   document.getElementById('pp-team').checked = pp.team;
   document.getElementById('pp-balance').checked = pp.balance;
-  document.getElementById('pp-search').value = '';
+  const search = document.getElementById('pp-search');
+  search.value = '';
+  search.dispatchEvent(new Event('input'));
   ppRenderTree();
   ppRender();
 }
@@ -225,10 +227,9 @@ function openPrintPreview() {
           <!-- Поле поиска страницы (.search-wrap / .search-input / .search-icon из index.html) -->
           <div class="search-wrap">
             <input type="text" class="search-input" id="pp-search" placeholder="Подразделение или ФИО" autocomplete="off">
-            <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="9.5" y1="9.5" x2="13.5" y2="13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
+            <!-- иконки — Stroke/search 02 и Stroke/close из setl-akademiya-ui-kit -->
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18.5 18.5L22 22M21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21C16.7467 21 21 16.7467 21 11.5Z" stroke="currentColor" vector-effect="non-scaling-stroke" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <button type="button" class="search-clear" aria-label="Очистить поиск" title="Очистить"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 3L3 21M21 21L3 3" stroke="currentColor" vector-effect="non-scaling-stroke" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </div>
           <div class="pp-tree" id="pp-tree"></div>
         </div>
@@ -290,6 +291,7 @@ function openPrintPreview() {
   root.querySelector('#pp-none').onclick = () => { ppAllNodes().forEach(n => pp.excluded.add(n.uid)); ppRenderTree(); ppRender(); };
   const search = root.querySelector('#pp-search');
   search.oninput = () => { pp.query = search.value; ppRenderTree(); };
+  setupSearchClear(search.closest('.search-wrap'));
   window.addEventListener('resize', ppPlaceSheet);
   document.addEventListener('keydown', ppOnKey);
 
@@ -309,7 +311,7 @@ function closePrintPreview() {
 function ppOnKey(e) {
   if (e.key !== 'Escape') return;
   const search = document.getElementById('pp-search');
-  if (document.activeElement === search && search.value) { search.value = ''; search.oninput(); return; }
+  if (document.activeElement === search && search.value) { search.value = ''; search.dispatchEvent(new Event('input')); return; }
   closePrintPreview();
 }
 
