@@ -187,12 +187,13 @@ function openPrintPreview() {
           <div class="pp-gtitle">Ветки
             <span class="pp-links"><button id="pp-all">все</button> · <button id="pp-none">ни одной</button></span>
           </div>
-          <div class="pp-search">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg>
-            <input type="text" id="pp-search" placeholder="Подразделение или ФИО" autocomplete="off">
-            <button class="pp-search__clear" id="pp-search-clear" aria-label="Очистить">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-            </button>
+          <!-- Поле поиска страницы (.search-wrap / .search-input / .search-icon из index.html) -->
+          <div class="search-wrap">
+            <input type="text" class="search-input" id="pp-search" placeholder="Подразделение или ФИО" autocomplete="off">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="9.5" y1="9.5" x2="13.5" y2="13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
           </div>
           <div class="pp-tree" id="pp-tree"></div>
         </div>
@@ -235,9 +236,7 @@ function openPrintPreview() {
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
   root.querySelector('#pp-none').onclick = () => { pp.data.cards.forEach(c => pp.excluded.add(c.uid)); ppRenderTree(); ppRender(); };
   const search = root.querySelector('#pp-search');
-  const clear = root.querySelector('#pp-search-clear');
-  search.oninput = () => { pp.query = search.value; clear.classList.toggle('vis', !!search.value); ppRenderTree(); };
-  clear.onclick = () => { search.value = ''; search.oninput(); search.focus(); };
+  search.oninput = () => { pp.query = search.value; ppRenderTree(); };
   window.addEventListener('resize', ppPlaceSheet);
   document.addEventListener('keydown', ppOnKey);
 
