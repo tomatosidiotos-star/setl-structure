@@ -48,13 +48,16 @@ function ppNormalize(treeData, rootTreeId) {
   const modalPeople = m => m ? [...(m.managers || []), ...(m.deputies || []), ...(m.assistants || []), ...(m.team || [])]
     .map(x => x.id || x.fullName || x.name) : [];
 
-  function node(dept, p, extraPeople) {
-    return { uid: 'n' + (++uid), dept: clean(dept), person: person(p), people: extraPeople || [], children: [] };
+  const team = m => ((m && m.team) || []).map(person);
+
+  function node(dept, p, extraPeople, teamList) {
+    return { uid: 'n' + (++uid), dept: clean(dept), person: person(p), people: extraPeople || [],
+      team: teamList || [], children: [] };
   }
 
   // Карточка человека: с отделом / над несколькими отделами (nested) / с дочерним блоком
   function fromPerson(p) {
-    const n = node(p.dept && p.dept.name, p, modalPeople(p.dept && p.dept.modal));
+    const n = node(p.dept && p.dept.name, p, modalPeople(p.dept && p.dept.modal), team(p.dept && p.dept.modal));
     (p.nested || []).forEach(x => n.children.push(fromPerson(x)));
     if (p.dept) n.children.push(...fromDeptExtras(p.dept));
     (p.children || []).forEach(c => n.children.push(fromPerson(c)));
@@ -75,7 +78,7 @@ function ppNormalize(treeData, rootTreeId) {
     const out = [];
     ((dept.modal && dept.modal.subdepts) || []).forEach(s => out.push(node(s.name,
       s.managerName ? { id: s.id + '-m', name: s.managerName, fullName: s.managerName, role: s.managerRole } : null,
-      modalPeople(s.modal))));
+      modalPeople(s.modal), team(s.modal))));
     if (dept.treeId && !visitedTrees.has(dept.treeId)) {
       visitedTrees.add(dept.treeId);
       out.push(...treeChildren(ORG_DATA.trees[dept.treeId]));
@@ -95,7 +98,7 @@ function ppNormalize(treeData, rootTreeId) {
   }
 
   return {
-    heads: (treeData.heads || []).map(person),
+    heads: (treeData.heads || []).map(person),   // у руководителей блока команды нет — node() не нужен
     cards: treeChildren(treeData),
   };
 }
@@ -144,6 +147,7 @@ function openPrintPreview() {
     depth: Infinity,      // уровней: 1 — руководители, 2 — карточки, 3+ — списки
     fullNames: true,
     photos: true,
+    team: false,          // сотрудники отделов (команда из модалки)
     balance: true,        // авто-раскладка: переносить карточки в ряды, делить длинные колонки
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
@@ -181,6 +185,7 @@ function openPrintPreview() {
         <div class="pp-group">
           <label class="pp-check"><input type="checkbox" id="pp-fullnames" checked> ФИО полностью</label>
           <label class="pp-check"><input type="checkbox" id="pp-photos" checked> Фото в карточках</label>
+          <label class="pp-check"><input type="checkbox" id="pp-team"> Сотрудники отделов</label>
           <label class="pp-check"><input type="checkbox" id="pp-balance" checked> Авто-раскладка <span class="pp-hint">ряды и подколонки</span></label>
         </div>
         <div class="pp-group pp-group--grow">
@@ -232,6 +237,7 @@ function openPrintPreview() {
   ppSeg('#pp-view', v => { pp.view = v; ppPlaceSheet(); ppSyncControls(); });
   root.querySelector('#pp-fullnames').onchange = e => { pp.fullNames = e.target.checked; ppRender(); };
   root.querySelector('#pp-photos').onchange = e => { pp.photos = e.target.checked; ppRender(); };
+  root.querySelector('#pp-team').onchange = e => { pp.team = e.target.checked; ppRender(); };
   root.querySelector('#pp-balance').onchange = e => { pp.balance = e.target.checked; ppRender(); };
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
   root.querySelector('#pp-none').onclick = () => { pp.data.cards.forEach(c => pp.excluded.add(c.uid)); ppRenderTree(); ppRender(); };
@@ -346,6 +352,16 @@ function ppPhotoHTML(p) {
     : `<div class="pp-ph" style="background:${avatarColor(p.fullName)}"><span>${escHtml(initials(p.fullName))}</span></div>`;
 }
 
+// Команда отдела: аватар + ФИО + должность, как строка «Команды» в модалке, только компактно
+function ppTeamHTML(n) {
+  if (!pp.team || !n.team || !n.team.length) return '';
+  return `<div class="pp-team">${n.team.map(p => `
+    <div class="pp-team__row">${pp.photos ? `<div class="pp-team__ava" style="background:${avatarColor(p.fullName)}">${escHtml(initials(p.fullName))}</div>` : ''}
+      <div class="pp-team__text"><div class="pp-team__name">${escHtml(ppPersonName(p))}</div>
+      ${p.role ? `<div class="pp-team__role">${escHtml(p.role)}</div>` : ''}</div>
+    </div>`).join('')}</div>`;
+}
+
 function ppCardHTML(n, extraClass) {
   const p = n.person;
   const stats = n.children ? ppStatsText(ppStats(n)) : '';
@@ -355,6 +371,7 @@ function ppCardHTML(n, extraClass) {
       ${p.role ? `<div class="pp-card__role">${escHtml(p.role)}</div>` : ''}</div></div>` : ''}
     ${n.dept ? `<div class="pp-card__dept">${escHtml(n.dept)}</div>` : ''}
     ${stats ? `<div class="pp-card__stats">${stats}</div>` : ''}
+    ${ppTeamHTML(n)}
   </div>`;
 }
 
@@ -371,6 +388,7 @@ function ppItemsHTML(children, level) {
         <div class="pp-label">${escHtml(label)}</div>
         ${sub ? `<div class="pp-sub">${escHtml(sub)}</div>` : ''}
         ${hidden ? `<div class="pp-more">ещё ${hidden} ${ppPlural(hidden, ['подразделение', 'подразделения', 'подразделений'])}</div>` : ''}
+        ${ppTeamHTML(c)}
       </div>${nested}</div>`;
   });
 }
