@@ -4389,11 +4389,12 @@ function v2ToggleFold(fold, selector) {
   const sel = selector || `.tree-node[data-fold-key="${fold.key}"]`;
   const before = document.querySelector(sel);
   const bx = before ? parseFloat(before.style.left) : 0, by = before ? parseFloat(before.style.top) : 0;
-  const snap = new Map();
+  const snap = new Map(), lines = new Map();
   document.querySelectorAll('.tree-node').forEach(n => {
     const k = v2NodeKey(n);
     if (k) snap.set(k, { x: parseFloat(n.style.left), y: parseFloat(n.style.top), el: n });
   });
+  document.querySelectorAll('#tree-svg path[data-key]').forEach(l => lines.set(l.dataset.key, JSON.parse(l.dataset.geom)));
 
   V2_FOLD.set(fold.key, !fold.folded);
   buildTreeV2(V2_BLOCK_DATA);
@@ -4434,8 +4435,36 @@ function v2ToggleFold(fold, selector) {
     ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-12px) scale(0.96)' }],
       { duration: A.leave, easing: 'ease-in', fill: 'forwards' }).onfinish = () => ghost.remove();
   });
-  document.getElementById('tree-svg').animate([{ opacity: 0 }, { opacity: 1 }],
-    { duration: 260, delay: A.move * 0.6, easing: 'ease-out', fill: 'backwards' });
+  // Линии: оставшиеся перетекают в новую форму синхронно с карточками, новые вырастают
+  // из родительской карточки, ушедшие втягиваются в неё обратно
+  const svg = document.getElementById('tree-svg');
+  const shift = g => ({ px: g.px + dX, py: g.py + dY, cx: g.cx + dX, cy: g.cy + dY, midY: g.midY + dY });
+  const seenLines = new Set();
+  svg.querySelectorAll('path[data-key]').forEach(l => {
+    const old = lines.get(l.dataset.key);
+    if (old) {
+      seenLines.add(l.dataset.key);
+      const from = connectorD(shift(old)), to = l.getAttribute('d');
+      if (from !== to) l.animate([{ d: `path("${from}")` }, { d: `path("${to}")` }], { duration: A.move, easing: A.ease });
+    } else {
+      const g = JSON.parse(l.dataset.geom);
+      const from = connectorD({ px: g.px, py: g.py, cx: g.px, cy: g.py, midY: g.py });
+      l.animate([{ d: `path("${from}")`, opacity: 0 }, { opacity: 1, offset: 0.25 }, { d: `path("${l.getAttribute('d')}")`, opacity: 1 }],
+        { duration: A.move, easing: A.ease });
+    }
+  });
+  lines.forEach((g, k) => {
+    if (seenLines.has(k)) return;
+    const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    ['stroke', 'stroke-width', 'fill', 'stroke-linecap'].forEach((a, i) =>
+      ghost.setAttribute(a, ['var(--canvas-line)', '1.5', 'none', 'round'][i]));
+    const sg = shift(g);
+    ghost.setAttribute('d', connectorD(sg));
+    svg.appendChild(ghost);
+    const to = connectorD({ px: sg.px, py: sg.py, cx: sg.px, cy: sg.py, midY: sg.py });
+    ghost.animate([{ d: `path("${connectorD(sg)}")`, opacity: 1 }, { opacity: 1, offset: 0.7 }, { d: `path("${to}")`, opacity: 0 }],
+      { duration: A.leave + 120, easing: A.ease, fill: 'forwards' }).onfinish = () => ghost.remove();
+  });
 }
 
 // Раскрыть ветки, в которых лежит карточка человека (для поиска). true — что-то раскрыли
@@ -4918,16 +4947,25 @@ function addConnector(svg, px, py, cx, cy, branchY) {
   el.setAttribute('stroke-width', '1.5');
   el.setAttribute('fill', 'none');
   el.setAttribute('stroke-linecap', 'round');
-  if (Math.abs(dx) < 1) {
-    el.setAttribute('d', `M ${px} ${py} V ${cy}`);
-  } else {
-    const r = Math.min(10, Math.abs(dx) / 2, (midY - py) / 2, (cy - midY) / 2);
-    const s = dx > 0 ? 1 : -1;
-    el.setAttribute('d',
-      `M ${px} ${py} V ${midY - r} Q ${px} ${midY} ${px + s*r} ${midY} H ${cx - s*r} Q ${cx} ${midY} ${cx} ${midY + r} V ${cy}`
-    );
-  }
+  const geom = { px, py, cx, cy, midY };
+  el.setAttribute('d', connectorD(geom));
+  el.dataset.geom = JSON.stringify(geom);
+  // Ключ линии — карточка, к которой она ведёт (её узел только что добавлен на холст):
+  // по нему при сворачивании линия перетекает из старой формы в новую
+  const last = svg.parentNode && svg.parentNode.lastElementChild;
+  const key = last && last.classList.contains('tree-node') ? v2NodeKey(last) : null;
+  if (key) el.dataset.key = key;
   svg.appendChild(el);
+}
+
+// Путь линии всегда одной структуры (M L Q L Q L), даже прямой — чтобы форму можно было
+// плавно интерполировать от старой к новой
+function connectorD({ px, py, cx, cy, midY }) {
+  const dx = cx - px;
+  const r = Math.max(0, Math.min(10, Math.abs(dx) / 2, (midY - py) / 2, (cy - midY) / 2));
+  const s = dx >= 0 ? 1 : -1;
+  return `M ${px} ${py} L ${px} ${midY - r} Q ${px} ${midY} ${px + s*r} ${midY} `
+       + `L ${cx - s*r} ${midY} Q ${cx} ${midY} ${cx} ${midY + r} L ${cx} ${cy}`;
 }
 
 /* ====================================================================
