@@ -725,6 +725,12 @@ body {
 }
 .tv-controls { display: flex; align-items: center; gap: 32px; flex-shrink: 0; }
 .tv-controls .search-wrap { flex: none; width: 280px; }
+/* Пока шапка в две колонки — поиск+масштаб занимают правую половину, и поиск начинается
+   по левому краю описания (половины шапки: (ширина − зазор 24) / 2) */
+@container org (min-width: 1151px) {
+  .tv-controls { flex: 0 0 calc((100% - 24px) / 2); }
+  .tv-controls .search-wrap { flex: 1 1 auto; width: auto; }
+}
 .tv-controls-row .bo-strip-items { gap: 16px; }
 
 /* Иконки бэк-офиса (вместо текстовых пилюль), подпись — в тултипе */
