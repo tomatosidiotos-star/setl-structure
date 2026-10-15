@@ -147,6 +147,7 @@ function openPrintPreview() {
     balance: true,        // авто-раскладка: переносить карточки в ряды, делить длинные колонки
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
+    query: '',            // поиск по веткам
     view: 'fit',          // 'fit' | 'actual'
   };
   pp.format = ppAutoFormat() || 'A1';
@@ -185,6 +186,13 @@ function openPrintPreview() {
         <div class="pp-group pp-group--grow">
           <div class="pp-gtitle">Ветки
             <span class="pp-links"><button id="pp-all">все</button> · <button id="pp-none">ни одной</button></span>
+          </div>
+          <div class="pp-search">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg>
+            <input type="text" id="pp-search" placeholder="Подразделение или ФИО" autocomplete="off">
+            <button class="pp-search__clear" id="pp-search-clear" aria-label="Очистить">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
           </div>
           <div class="pp-tree" id="pp-tree"></div>
         </div>
@@ -226,6 +234,10 @@ function openPrintPreview() {
   root.querySelector('#pp-balance').onchange = e => { pp.balance = e.target.checked; ppRender(); };
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
   root.querySelector('#pp-none').onclick = () => { pp.data.cards.forEach(c => pp.excluded.add(c.uid)); ppRenderTree(); ppRender(); };
+  const search = root.querySelector('#pp-search');
+  const clear = root.querySelector('#pp-search-clear');
+  search.oninput = () => { pp.query = search.value; clear.classList.toggle('vis', !!search.value); ppRenderTree(); };
+  clear.onclick = () => { search.value = ''; search.oninput(); search.focus(); };
   window.addEventListener('resize', ppPlaceSheet);
   document.addEventListener('keydown', ppOnKey);
 
@@ -242,7 +254,12 @@ function closePrintPreview() {
   pp = null;
 }
 
-function ppOnKey(e) { if (e.key === 'Escape') closePrintPreview(); }
+function ppOnKey(e) {
+  if (e.key !== 'Escape') return;
+  const search = document.getElementById('pp-search');
+  if (document.activeElement === search && search.value) { search.value = ''; search.oninput(); return; }
+  closePrintPreview();
+}
 
 function ppSeg(sel, onPick) {
   document.querySelector(sel).addEventListener('click', e => {
@@ -260,36 +277,63 @@ function ppSyncControls() {
 
 /* ---------- Дерево выбора веток (левая панель) ---------- */
 
+// Поиск по веткам: без учёта регистра и ё/е, по названию подразделения и ФИО руководителя
+function ppNorm(t) { return (t || '').toLowerCase().replace(/ё/g, 'е'); }
+
+function ppMark(text, q) {
+  const i = q ? ppNorm(text).indexOf(q) : -1;
+  if (i < 0) return escHtml(text);
+  return escHtml(text.slice(0, i)) + '<mark>' + escHtml(text.slice(i, i + q.length)) + '</mark>' + escHtml(text.slice(i + q.length));
+}
+
 function ppRenderTree() {
   const box = document.getElementById('pp-tree');
   box.innerHTML = '';
-  const walk = (n, parentEl, level) => {
-    const item = document.createElement('div');
-    item.className = 'pp-ti';
+  const q = ppNorm(pp.query.trim());
+  const labelOf = n => n.dept || (n.person ? n.person.fullName : '');
+  const nameHit = n => q && n.dept && n.person && ppNorm(n.person.fullName).includes(q);
+  const selfHit = n => !!q && (ppNorm(labelOf(n)).includes(q) || nameHit(n));
+
+  // При поиске показываем совпадения и путь к ним (раскрытым)
+  const shown = new Set();
+  if (q) (function mark(list) {
+    let any = false;
+    list.forEach(n => { if (mark(n.children) | selfHit(n)) { shown.add(n.uid); any = true; } });
+    return any;
+  })(pp.data.cards);
+
+  const walk = (n, level, parentOff) => {
+    if (q && !shown.has(n.uid)) return;
     const hasKids = n.children.some(c => c.dept || c.children.length);
-    const isOpen = pp.open.has(n.uid);
-    const label = n.dept || (n.person ? n.person.fullName : '');
+    const kidsShown = q ? n.children.some(c => shown.has(c.uid)) : hasKids;
+    const isOpen = q ? kidsShown : pp.open.has(n.uid);
+    const off = pp.excluded.has(n.uid);
+    const item = document.createElement('div');
+    item.className = 'pp-ti' + (parentOff ? ' pp-ti--muted' : '');
     item.innerHTML = `
       <div class="pp-ti__row" style="padding-left:${(level - 2) * 16}px">
-        <button class="pp-ti__arrow${hasKids ? '' : ' empty'}${isOpen ? ' open' : ''}" tabindex="${hasKids ? 0 : -1}">
+        <button class="pp-ti__arrow${kidsShown ? '' : ' empty'}${isOpen ? ' open' : ''}" tabindex="${kidsShown ? 0 : -1}">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 2l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <label class="pp-check"><input type="checkbox" ${pp.excluded.has(n.uid) ? '' : 'checked'}>
-          <span>${escHtml(label)}</span></label>
+        <label class="pp-check"><input type="checkbox" ${off ? '' : 'checked'}>
+          <span class="pp-ti__text"><span class="pp-ti__label">${ppMark(labelOf(n), q)}</span>
+          ${nameHit(n) ? `<span class="pp-ti__name">${ppMark(n.person.fullName, q)}</span>` : ''}</span></label>
       </div>`;
     item.querySelector('input').onchange = e => {
       e.target.checked ? pp.excluded.delete(n.uid) : pp.excluded.add(n.uid);
+      ppRenderTree();
       ppRender();
     };
     item.querySelector('.pp-ti__arrow').onclick = () => {
-      if (!hasKids) return;
+      if (!kidsShown || q) return;
       isOpen ? pp.open.delete(n.uid) : pp.open.add(n.uid);
       ppRenderTree();
     };
-    parentEl.appendChild(item);
-    if (hasKids && isOpen) n.children.forEach(c => walk(c, parentEl, level + 1));
+    box.appendChild(item);
+    if (kidsShown && isOpen) n.children.forEach(c => walk(c, level + 1, parentOff || off));
   };
-  pp.data.cards.forEach(c => walk(c, box, 2));
+  pp.data.cards.forEach(c => walk(c, 2, false));
+  if (q && !shown.size) box.innerHTML = '<div class="pp-tree__empty">Ничего не нашлось</div>';
 }
 
 /* ---------- Лист ---------- */
