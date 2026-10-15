@@ -263,7 +263,7 @@ function openPrintPreview() {
   root.querySelector('#pp-team').onchange = e => { pp.team = e.target.checked; ppRender(); };
   root.querySelector('#pp-balance').onchange = e => { pp.balance = e.target.checked; ppRender(); };
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
-  root.querySelector('#pp-none').onclick = () => { pp.data.cards.forEach(c => pp.excluded.add(c.uid)); ppRenderTree(); ppRender(); };
+  root.querySelector('#pp-none').onclick = () => { ppAllNodes().forEach(n => pp.excluded.add(n.uid)); ppRenderTree(); ppRender(); };
   const search = root.querySelector('#pp-search');
   search.oninput = () => { pp.query = search.value; ppRenderTree(); };
   window.addEventListener('resize', ppPlaceSheet);
@@ -305,6 +305,40 @@ function ppSyncControls() {
 
 /* ---------- Дерево выбора веток (левая панель) ---------- */
 
+/* Галочки веток — как обычное дерево с галочками:
+   снять ветку — снимается всё внутри; включить — включается всё внутри и путь к ней сверху;
+   у отмеченной ветки с частично снятыми подразделениями — частичная галочка (чёрточка) */
+function ppAllNodes() {
+  const out = [];
+  (function walk(list) { list.forEach(n => { out.push(n); walk(n.children); }); })(pp.data.cards);
+  return out;
+}
+function ppDescendants(n) {
+  const out = [];
+  (function walk(list) { list.forEach(c => { out.push(c); walk(c.children); }); })(n.children);
+  return out;
+}
+function ppAncestors(n) {
+  const path = [];
+  (function find(list, trail) {
+    for (const c of list) {
+      if (c === n) { path.push(...trail); return true; }
+      if (find(c.children, [...trail, c])) return true;
+    }
+    return false;
+  })(pp.data.cards, []);
+  return path;
+}
+function ppSetChecked(n, on) {
+  const all = [n, ...ppDescendants(n)];
+  if (on) {
+    all.forEach(x => pp.excluded.delete(x.uid));
+    ppAncestors(n).forEach(a => pp.excluded.delete(a.uid));
+  } else {
+    all.forEach(x => pp.excluded.add(x.uid));
+  }
+}
+
 // Поиск по веткам: без учёта регистра и ё/е, по названию подразделения и ФИО руководителя
 function ppNorm(t) { return (t || '').toLowerCase().replace(/ё/g, 'е'); }
 
@@ -330,14 +364,15 @@ function ppRenderTree() {
     return any;
   })(pp.data.cards);
 
-  const walk = (n, level, parentOff) => {
+  const walk = (n, level) => {
     if (q && !shown.has(n.uid)) return;
     const hasKids = n.children.some(c => c.dept || c.children.length);
     const kidsShown = q ? n.children.some(c => shown.has(c.uid)) : hasKids;
     const isOpen = q ? kidsShown : pp.open.has(n.uid);
     const off = pp.excluded.has(n.uid);
+    const partial = !off && ppDescendants(n).some(d => pp.excluded.has(d.uid));
     const item = document.createElement('div');
-    item.className = 'pp-ti' + (parentOff ? ' pp-ti--muted' : '');
+    item.className = 'pp-ti';
     item.innerHTML = `
       <div class="pp-ti__row" style="padding-left:${(level - 2) * 16}px">
         <button class="pp-ti__arrow${kidsShown ? '' : ' empty'}${isOpen ? ' open' : ''}" tabindex="${kidsShown ? 0 : -1}">
@@ -348,7 +383,7 @@ function ppRenderTree() {
           ${nameHit(n) ? `<span class="pp-ti__name">${ppMark(n.person.fullName, q)}</span>` : ''}</span></label>
       </div>`;
     item.querySelector('input').onchange = e => {
-      e.target.checked ? pp.excluded.delete(n.uid) : pp.excluded.add(n.uid);
+      ppSetChecked(n, e.target.checked);
       ppRenderTree();
       ppRender();
     };
@@ -358,9 +393,10 @@ function ppRenderTree() {
       ppRenderTree();
     };
     box.appendChild(item);
-    if (kidsShown && isOpen) n.children.forEach(c => walk(c, level + 1, parentOff || off));
+    item.querySelector('input').indeterminate = partial;
+    if (kidsShown && isOpen) n.children.forEach(c => walk(c, level + 1));
   };
-  pp.data.cards.forEach(c => walk(c, 2, false));
+  pp.data.cards.forEach(c => walk(c, 2));
   if (q && !shown.size) box.innerHTML = '<div class="pp-tree__empty">Ничего не нашлось</div>';
 }
 
