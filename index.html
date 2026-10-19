@@ -755,9 +755,36 @@ body {
 }
 .tv-controls-row .bo-strip-items { gap: 16px; }
 
+/* Лента иконок с прокруткой стрелками (setupHScroll) */
+.hscroll { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+.hscroll .bo-strip-items {
+  flex: 1 1 auto; min-width: 0; overflow-x: auto; scroll-behavior: smooth;
+  scrollbar-width: none; overscroll-behavior-x: contain;
+}
+.hscroll .bo-strip-items::-webkit-scrollbar { display: none; }
+.hscroll::before, .hscroll::after {        /* затухание у края, где есть продолжение */
+  content: ''; position: absolute; top: 0; bottom: 0; width: 56px; z-index: 1;
+  pointer-events: none; opacity: 0; transition: opacity 0.2s;
+}
+.hscroll::before { left: 0;  background: linear-gradient(to right, #fff 40%, rgba(255,255,255,0)); }
+.hscroll::after  { right: 0; background: linear-gradient(to left,  #fff 40%, rgba(255,255,255,0)); }
+.hscroll.can-prev::before, .hscroll.can-next::after { opacity: 1; }
+.hscroll__btn {
+  position: absolute; top: 50%; z-index: 2; transform: translateY(-50%);
+  width: 24px; height: 24px; border-radius: 50%; padding: 0;
+  display: grid; place-items: center; cursor: pointer;
+  background: #fff; border: 1px solid #ebebeb; color: #7c7c7c;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, color 0.15s, border-color 0.15s;
+}
+.hscroll__btn--prev { left: 0; }
+.hscroll__btn--next { right: 0; }
+.hscroll.can-prev .hscroll__btn--prev, .hscroll.can-next .hscroll__btn--next { opacity: 1; pointer-events: auto; }
+.hscroll__btn:hover { color: #e2221c; border-color: #f3c5c3; }
+
 /* Иконки бэк-офиса (вместо текстовых пилюль), подпись — в тултипе */
 .bo-strip-item--icon { width: 36px; height: 36px; padding: 0; }
-.bo-strip-item--icon svg { width: 20px; height: 20px; }
+.bo-strip-item--icon svg, .bo-strip-item--icon img { width: 20px; height: 20px; display: block; }
 
 /* Адаптив экрана дерева (по ширине контентной области .org-content):
    — описание с «Подробнее» уходит под название и кнопки;
@@ -3194,6 +3221,24 @@ const ORG_DATA = {
   };
   ORG_DATA.setlgroup.blocks.splice(1, 0, { id: 'constructionFull', name: 'Тестовый блок —\nпосмотреть', badge: 'DEMO' });
 
+  // Пример длинного списка отделов: у «Строительного блока» свой набор (иконки — Icons/Stroke)
+  ORG_DATA.trees.construction.backoffice = [...ORG_DATA.backoffice, ...[
+    ['tender', 'Тендерный отдел', 'Проведение тендеров и выбор подрядчиков', 'agreement'],
+    ['archive', 'Архив', 'Хранение проектной и исполнительной документации', 'archive'],
+    ['purchase', 'Закупки', 'Закупка материалов и оборудования', 'briefcase'],
+    ['estimate', 'Сметный отдел', 'Сметы и контроль стоимости работ', 'calculator'],
+    ['dev', 'Разработка', 'Внутренние цифровые сервисы блока', 'code'],
+    ['service', 'Эксплуатация', 'Обслуживание построенных объектов', 'house'],
+    ['treasury', 'Казначейство', 'Платежи и движение денежных средств', 'wallet'],
+    ['support', 'Техподдержка', 'Поддержка пользователей и оборудования', 'wrench'],
+    ['clients', 'Клиентский сервис', 'Работа с покупателями и собственниками', 'user-settings'],
+    ['analytics', 'Аналитика', 'Отчётность и показатели блока', 'dashboard-circle-settings'],
+    ['tax', 'Налоги', 'Налоговый учёт и отчётность', 'taxes'],
+    ['approval', 'Согласования', 'Согласование документов и договоров', 'validation-approval'],
+    ['web', 'Сайт и реклама', 'Сайты жилых комплексов и продвижение', 'browser'],
+    ['security', 'Безопасность', 'Экономическая и информационная безопасность', 'search-visual'],
+  ].map(([id, name, desc, icon]) => ({ id, name, desc, icon: `Icons/Stroke/${icon}.svg` }))];
+
   // Юрлица SetlGroup — рыба на 50 компаний (как в версии разработчиков), чтобы проверить длинный список
   const LE_NAMES = ['Актив ООО', 'Евростройпроект', 'ИК «Сэтл»', 'ИТТ', 'МОРИТЦ ООО', 'Сэтл Сити', 'Сэтл Строй',
     'Сэтл Девелопмент', 'Петербургская Недвижимость', 'Сэтл Групп Девелопмент', 'Строймонтаж', 'Невский берег',
@@ -3698,13 +3743,46 @@ function renderCompany(id) {
   document.getElementById('btn-legal-open').onclick = openPanel;
 }
 
-// icons: true — кнопки-иконки 36px (экран дерева), название и описание — в тултипе
-function renderBoStrip(containerId, icons) {
-  document.getElementById(containerId).innerHTML =
-    ORG_DATA.backoffice.map(b =>
+// icons: true — кнопки-иконки 36px (экран дерева), название и описание — в тултипе.
+// list — свой список отделов у блока (иначе общий бэк-офис); icon у пункта — путь к svg
+function renderBoStrip(containerId, icons, list) {
+  const el = document.getElementById(containerId);
+  el.innerHTML =
+    (list || ORG_DATA.backoffice).map(b =>
       `<div class="bo-strip-item${icons ? ' bo-strip-item--icon' : ''}" ${icons ? `role="button" aria-label="${b.name}"` : ''}
-        onmouseenter="showTt(event,'${b.name}','${b.desc}','')" onmouseleave="hideTt()" onmousemove="moveTt(event)">${icons ? BO_ICONS[b.id] : b.name}</div>`
+        onmouseenter="showTt(event,'${b.name}','${b.desc}','')" onmouseleave="hideTt()" onmousemove="moveTt(event)">${
+          icons ? (b.icon ? `<img src="${b.icon}" width="20" height="20" alt="">` : BO_ICONS[b.id]) : b.name}</div>`
     ).join('');
+  if (icons) setupHScroll(el);
+}
+
+// Горизонтальная лента без полосы прокрутки: не помещается — на краях стрелки и затухание.
+// Листать можно стрелками, тачпадом и колесом с Shift
+function setupHScroll(el) {
+  let wrap = el.parentElement;
+  if (!wrap.classList.contains('hscroll')) {
+    wrap = document.createElement('div');
+    wrap.className = 'hscroll';
+    el.parentElement.insertBefore(wrap, el);
+    wrap.appendChild(el);
+    const chev = d => `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="${d}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    wrap.insertAdjacentHTML('beforeend',
+      `<button type="button" class="hscroll__btn hscroll__btn--prev" aria-label="Прокрутить назад">${chev('M8.5 3L4.5 7l4 4')}</button>
+       <button type="button" class="hscroll__btn hscroll__btn--next" aria-label="Прокрутить вперёд">${chev('M5.5 3l4 4-4 4')}</button>`);
+    const step = () => Math.max(120, el.clientWidth * 0.6);
+    wrap.querySelector('.hscroll__btn--prev').onclick = () => el.scrollBy({ left: -step(), behavior: 'smooth' });
+    wrap.querySelector('.hscroll__btn--next').onclick = () => el.scrollBy({ left: step(), behavior: 'smooth' });
+    el.addEventListener('scroll', () => syncHScroll(wrap), { passive: true });
+    new ResizeObserver(() => syncHScroll(wrap)).observe(el);
+  }
+  el.scrollLeft = 0;
+  syncHScroll(wrap);
+}
+function syncHScroll(wrap) {
+  const el = wrap.querySelector('.bo-strip-items');
+  const max = el.scrollWidth - el.clientWidth;
+  wrap.classList.toggle('can-prev', el.scrollLeft > 1);
+  wrap.classList.toggle('can-next', el.scrollLeft < max - 1);
 }
 
 /* ====================================================================
@@ -3837,7 +3915,7 @@ function openTree(companyId, blockId, blockName) {
   // Печать — пока только для деревьев v2
   document.getElementById('btn-print-open').style.display = treeData.version === 2 ? '' : 'none';
 
-  renderBoStrip('bo-strip-tree', true);
+  renderBoStrip('bo-strip-tree', true, treeData.backoffice);
   canvas = { scale: 1, x: 0, y: 0 };
   V2_FOLD = new Map();
   if (treeData.version === 2) buildTreeV2(treeData);
