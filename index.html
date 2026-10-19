@@ -1717,6 +1717,29 @@ body {
 }
 .btn-more-inline:hover { opacity: 0.75; }
 .le-company { margin-bottom: 28px; }
+
+/* Аккордеон юрлиц: компактная строка, раскрытие кликом по строке, контакты — плавно */
+.le-acc-list { margin: 0 -12px; }
+.le-acc + .le-acc { border-top: 1px solid #f0f0f0; }
+.le-acc__row {
+  width: 100%; min-height: 44px; padding: 10px 12px; gap: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: none; border: none; border-radius: 8px; cursor: pointer; text-align: left;
+  font-family: var(--f-exp); font-size: 14px; line-height: 1.25; color: var(--black);
+  transition: background 0.15s;
+}
+.le-acc__row:hover { background: #f6f6f6; }
+.le-acc__row:focus-visible { outline: 3px solid rgba(60,131,246,0.3); }
+.le-acc.open .le-acc__name { font-weight: 600; }
+.le-acc__chev { display: grid; place-items: center; flex-shrink: 0; color: #7c7c7c; transition: transform 0.2s ease; }
+.le-acc.open .le-acc__chev { transform: rotate(180deg); }
+.le-acc__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.22s ease; }
+.le-acc.open .le-acc__body { grid-template-rows: 1fr; }
+.le-acc__inner { overflow: hidden; padding: 0 12px; }
+.le-acc.open .le-acc__inner { padding-bottom: 12px; }
+.le-acc .vm-contact-row { min-height: 36px; padding: 0 12px; }
+.le-acc .vm-contact-label { width: 150px; font-size: 12px; color: #7c7c7c; }
+.le-acc .vm-contact-val { font-size: 13px; }
 .le-company-name { font-family: var(--f-exp); font-weight: 700; font-size: 18px; margin-bottom: 12px; }
 .le-company .vm-contacts { border-radius: 10px; }
 .le-company .vm-contact-label { width: 160px; }
@@ -3143,6 +3166,20 @@ const ORG_DATA = {
     persons: withSetCards(COLS.map(c => node(c, 'Директор'))),
   };
   ORG_DATA.setlgroup.blocks.splice(1, 0, { id: 'constructionFull', name: 'Тестовый блок —\nпосмотреть', badge: 'DEMO' });
+
+  // Юрлица SetlGroup — рыба на 50 компаний (как в версии разработчиков), чтобы проверить длинный список
+  const LE_NAMES = ['Актив ООО', 'Евростройпроект', 'ИК «Сэтл»', 'ИТТ', 'МОРИТЦ ООО', 'Сэтл Сити', 'Сэтл Строй',
+    'Сэтл Девелопмент', 'Петербургская Недвижимость', 'Сэтл Групп Девелопмент', 'Строймонтаж', 'Невский берег',
+    'Северная столица', 'Балтийская жемчужина', 'Охта Девелопмент', 'Парнас Строй', 'Пулково Инвест', 'Ладога Проект',
+    'Финский залив', 'Кронштадт Строй', 'Петергоф Девелопмент', 'Сэтл УН', 'Сэтл Сервис', 'УК Сэтл', 'Сэтл Комфорт',
+    'Сэтл Инжиниринг', 'Сэтл Проект', 'Сэтл Тех', 'Архитектурное бюро Сэтл Сити', 'Сэтл Калининград', 'Янтарь Строй',
+    'Балтик Девелопмент', 'Сэтл Инвест', 'Сэтл Энерго', 'Сэтл Логистик', 'Сэтл Ремонт', 'Сэтл Фасад', 'Сэтл Лифт',
+    'Сэтл Безопасность', 'Сэтл Паркинг', 'Сэтл Медиа', 'Сэтл Финанс', 'Сэтл Консалт', 'Сэтл Право', 'Сэтл Кадры',
+    'Сэтл Снаб', 'Сэтл Транс', 'Сэтл Ландшафт', 'Сэтл Аренда', 'Сэтл Холдинг'];
+  ORG_DATA.setlgroup.legalEntities = LE_NAMES.map((name, i) => ({
+    name, director: i % 2 ? 'Влащенко И.С.' : 'Еременко И.А.', accountant: 'Климантова И.В.',
+    inn: String(7814000100 + i), phone: `+7 (812) 320-${String(10 + i).padStart(2, '0')}-${String(i % 90 + 10)}`, href: '#',
+  }));
 })();
 
 /* ====================================================================
@@ -5340,27 +5377,30 @@ function openLegalModal(companyId, blockId) {
     </div>`;
   }
 
-  entities.forEach(e => {
-    html += `<div class="le-company">
-      <div class="le-company-name">${escHtml(e.name)}</div>
-      <div class="vm-contacts">
-        <div class="vm-contact-row">
-          <div class="vm-contact-label">${_SVG_ICON5} Генеральный директор</div>
-          <div class="vm-contact-val">${escHtml(e.director)}</div>
+  // Юрлица — аккордеон: строка с названием раскрывает контакты кликом по всей строке
+  const rows = [['Генеральный директор', 'director'], ['Главный бухгалтер', 'accountant'], ['ИНН', 'inn'], ['Телефон', 'phone']];
+  html += '<div class="le-acc-list">' + entities.map(e => `
+    <div class="le-acc">
+      <button class="le-acc__row" type="button" aria-expanded="false">
+        <span class="le-acc__name">${escHtml(e.name)}</span>
+        <span class="le-acc__chev">${SVG_CHEV}</span>
+      </button>
+      <div class="le-acc__body"><div class="le-acc__inner">
+        <div class="vm-contacts">${rows.filter(([, k]) => e[k]).map(([label, k]) => `
+          <div class="vm-contact-row">
+            <div class="vm-contact-label">${label}</div>
+            <div class="vm-contact-val">${escHtml(e[k])}</div>
+          </div>`).join('')}
         </div>
-        <div class="vm-contact-row">
-          <div class="vm-contact-label">${_SVG_ICON5} ИНН</div>
-          <div class="vm-contact-val">${escHtml(e.inn)}</div>
-        </div>
-        <div class="vm-contact-row">
-          <div class="vm-contact-label">${_SVG_ICON5} Телефон</div>
-          <div class="vm-contact-val">${escHtml(e.phone)}</div>
-        </div>
-      </div>
-    </div>`;
-  });
+      </div></div>
+    </div>`).join('') + '</div>';
 
-  document.getElementById('sp-body').innerHTML = html;
+  const body = document.getElementById('sp-body');
+  body.innerHTML = html;
+  body.querySelectorAll('.le-acc__row').forEach(btn => btn.addEventListener('click', () => {
+    const open = btn.closest('.le-acc').classList.toggle('open');
+    btn.setAttribute('aria-expanded', open);
+  }));
   openPanel();
 }
 
