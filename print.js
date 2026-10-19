@@ -47,7 +47,7 @@ function ppNormalize(treeData, rootTreeId) {
   let uid = 0;
   const visitedTrees = new Set([rootTreeId]);
   const clean = s => (s || '').replace(/\s*\n\s*/g, ' ').trim();
-  const person = p => p ? {
+  const person = p => p && !p.vacant ? {   // отдел без руководителя (vacant) — без человека
     id: p.id, name: clean(p.name), fullName: clean(p.fullName || p.name),
     role: (p.role || '').replace(/\s*\n\s*/g, ' ').replace(/ \/ ?$/, '').trim(), photo: p.photo || null,
   } : null;

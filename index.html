@@ -1446,6 +1446,11 @@ body {
 /* Hover по имени и роли — синий */
 .card-v2-mh__body:hover .card-v2__name,
 .card-v2-mh__body:hover .card-v2__role { color: #3C83F6; }
+/* Отдел без руководителя */
+.card-v2__photo--vacant { background: #ececec; }
+.card-v2__name.card-v2__name--vacant { font-weight: 400; color: #9a9a9a; }
+.card-v2--vacant .card-v2-mh__body:hover .card-v2__name { color: #9a9a9a; }
+.card-v2--vacant .card-v2__body, .card-v2--vacant .card-v2-mh__body { cursor: default; }
 
 /* GroupCard: белый внешний, h=64px, скруглён снизу */
 .card-v2-multi__dept-wrap {
@@ -2297,6 +2302,7 @@ const ORG_DATA = {
       ],
       persons: [
         {
+          sub: 0,   // ветка от внутренней карточки руководителя: 0 — Кинешемцев, 1 — Баранов
           id: 'con-blinov', name: 'Блинов А.П.', fullName: 'Блинов Андрей Павлович',
           role: 'Заместитель Руководителя Дирекции', photo: null,
           phone: '', email: 'blinov.a@setl.ru', office: '',
@@ -3060,7 +3066,7 @@ const ORG_DATA = {
         ]],
       ]],
     ]],
-    ['Сэтл УН', 'Сазонов Г.В.', []],
+    ['Сэтл УН', '', []],   // без руководителя
     ['Дирекция по качеству', 'Савенко Г.Г.', [
       ['Заместитель директора по качеству', 'Сущевин В.С.'],
       ['Служба строительного контроля', 'Шилов Р.А.', [
@@ -3174,10 +3180,11 @@ const ORG_DATA = {
   const node = ([dept, name, kids], role) => {
     const id = 'full-' + (++n);
     const p = { id, name, fullName: name, role, photo: null, phone: '', email: '', office: '' };
+    if (!name) Object.assign(p, { vacant: 'label', fullName: '', role: '' });   // отдел без руководителя
     return {
       ...p,
       dept: { name: dept, link: false, id: id + '-d',
-        modal: { description: '', managers: [{ ...p, leadsAlso: [] }], deputies: [], assistants: [], subdepts: [], team: makeTeam() } },
+        modal: { description: '', managers: p.vacant ? [] : [{ ...p, leadsAlso: [] }], deputies: [], assistants: [], subdepts: [], team: makeTeam() } },
       children: (kids || []).map(k => node(k, 'Руководитель подразделения')),
     };
   };
@@ -3221,6 +3228,20 @@ const ORG_DATA = {
     persons: withSetCards(COLS.map(c => node(c, 'Директор'))),
   };
   ORG_DATA.setlgroup.blocks.splice(1, 0, { id: 'constructionFull', name: 'Тестовый блок —\nпосмотреть', badge: 'DEMO' });
+
+  // Отделы без руководителя — три варианта карточки (vacant): под Барановым в «Строительном блоке».
+  // 'label' — серый кружок и «Без руководителя»; 'dash' — серый кружок и прочерк;
+  // 'empty' — пустая белая карточка, только название отдела
+  ORG_DATA.trees.construction.persons.push(...[
+    ['vac-1', 'label', 'Отдел договорной работы', 'Договоры с подрядчиками и поставщиками производственно-коммерческого департамента.'],
+    ['vac-2', 'dash',  'Отдел снабжения',         'Снабжение объектов материалами и оборудованием.'],
+    ['vac-3', 'empty', 'Отдел логистики',         'Доставка и складирование материалов на объектах.'],
+  ].map(([id, vacant, name, description]) => ({
+    sub: 1, id, vacant, name: '', fullName: '', role: '', photo: null,
+    dept: { name, id: id + '-d', link: false,
+      modal: { description, managers: [], deputies: [], assistants: [], subdepts: [], team: [] } },
+    children: [],
+  })));
 
   // Пример длинного списка отделов: у «Строительного блока» свой набор (иконки — Icons/Stroke)
   ORG_DATA.trees.construction.backoffice = [...ORG_DATA.backoffice, ...[
@@ -4362,7 +4383,7 @@ function makeMultiHeadV2El(heads, label, onLabelClick, isLink) {
   heads.forEach(h => {
     // NameCard1 (.card-v2 — для click-wiring в buildTreeV2)
     const card = document.createElement('div');
-    card.className = 'card-v2';
+    card.className = 'card-v2' + (h.vacant ? ' card-v2--vacant' : '');
     if (h.id) card.dataset.v2Pid = h.id;
 
     // Шапка: Wrap + Surface
@@ -4372,7 +4393,8 @@ function makeMultiHeadV2El(heads, label, onLabelClick, isLink) {
     // Wrap: аватар; .card-v2__body — для click-wiring в buildTreeV2
     const wrap = document.createElement('div');
     wrap.className = 'card-v2-mh__wrap card-v2__body';
-    wrap.appendChild(makeV2Photo(h.name, h.photo, h.fullName));
+    if (!h.vacant) wrap.appendChild(makeV2Photo(h.name, h.photo, h.fullName));
+    else if (h.vacant !== 'empty') wrap.insertAdjacentHTML('beforeend', '<div class="card-v2__photo card-v2__photo--vacant"></div>');
 
     // Surface: SVG вогнутая кривая
     const surface = document.createElement('div');
@@ -4389,7 +4411,9 @@ function makeMultiHeadV2El(heads, label, onLabelClick, isLink) {
 
     const textEl = document.createElement('div');
     textEl.className = 'card-v2-mh__text';
-    textEl.innerHTML = `<div class="card-v2__name">${h.name}</div><div class="card-v2__role">${(h.role || '').replace(/\n/g, '<br>')}</div>`;
+    textEl.innerHTML = h.vacant
+      ? (h.vacant === 'empty' ? '' : `<div class="card-v2__name card-v2__name--vacant">${h.vacant === 'dash' ? '—' : 'Без руководителя'}</div>`)
+      : `<div class="card-v2__name">${h.name}</div><div class="card-v2__role">${(h.role || '').replace(/\n/g, '<br>')}</div>`;
     body.appendChild(textEl);
     card.appendChild(body);
 
@@ -4824,8 +4848,36 @@ function buildTreeV2(data) {
 
   const exts    = persons.map(personExt);
   const slots   = exts.map(e => e.L + e.R);
-  const totalW  = slots.reduce((s, w) => s + w, 0) + Math.max(0, persons.length - 1) * HG_SLOT;
-  const centerX = START_X + totalW / 2;
+
+  // Карточки 2-го уровня с полем sub висят под своей внутренней карточкой руководителя
+  // (наборная шапка «1 руководитель + отделы»). Группы встают под свою карточку с обычным
+  // зазором и при нехватке места расходятся в обе стороны. Координаты — от центра шапки
+  const bySub = data.headsDepts && heads.length === 1 && persons.some(p => Number.isInteger(p.sub));
+  let personRel = null, sourceRel = null, spanL = 0, spanR = 0;
+  if (bySub) {
+    const n = data.headsDepts.length, headW = n * 170 + (n - 1) * 4;
+    const groups = [];
+    persons.forEach((p, i) => {
+      const k = Number.isInteger(p.sub) ? p.sub : null;
+      let g = groups.find(x => x.k === k);
+      if (!g) groups.push(g = { k, idx: [], src: k === null ? 0 : k * 174 + 85 - headW / 2 });
+      g.idx.push(i);
+    });
+    groups.sort((a, b) => a.src - b.src);
+    groups.forEach(g => { g.w = g.idx.reduce((s, i) => s + slots[i], 0) + (g.idx.length - 1) * HG_SLOT; g.left = g.ideal = g.src - g.w / 2; });
+    for (let i = 1; i < groups.length; i++) groups[i].left = Math.max(groups[i].left, groups[i - 1].left + groups[i - 1].w + HG_SLOT);
+    const shift = groups.reduce((s, g) => s + g.left - g.ideal, 0) / groups.length;
+    personRel = []; sourceRel = [];
+    groups.forEach(g => {
+      let x = g.left - shift;
+      g.idx.forEach(i => { personRel[i] = x + exts[i].L; sourceRel[i] = g.src; x += slots[i] + HG_SLOT; });
+    });
+    spanL = Math.max(headW / 2, ...persons.map((p, i) => exts[i].L - personRel[i]));
+    spanR = Math.max(headW / 2, ...persons.map((p, i) => personRel[i] + exts[i].R));
+  }
+  const totalW  = bySub ? spanL + spanR
+    : slots.reduce((s, w) => s + w, 0) + Math.max(0, persons.length - 1) * HG_SLOT;
+  const centerX = START_X + (bySub ? spanL : totalW / 2);
 
   // === HEADS ===
   let headsEl;
@@ -4915,7 +4967,7 @@ function buildTreeV2(data) {
   let px = centerX - totalW / 2;
   persons.forEach((p, i) => {
     const slotW   = slots[i];
-    const slotCX  = px + exts[i].L;   // центр карточки (слот может быть несимметричным)
+    const slotCX  = bySub ? centerX + personRel[i] : px + exts[i].L;   // центр карточки (слот может быть несимметричным)
     const cardW   = personCardW(p);
     const cardX   = slotCX - cardW / 2;
 
@@ -4961,7 +5013,7 @@ function buildTreeV2(data) {
     v2AddInnerButton(personNode, p._innerFold);
     (p.nested || []).forEach((n, k) => v2AddFoldButton(personNode, n._fold, k * (170 + 4) + 85));
 
-    addConnector(svg, centerX, headsBottomY, slotCX, personsY, branchY);
+    addConnector(svg, bySub ? centerX + sourceRel[i] : centerX, headsBottomY, slotCX, personsY, branchY);
 
     // === CHILDREN ===
     const children = p.children || [];
@@ -5975,7 +6027,7 @@ function buildV2Registries(data) {
 
 // Wire person card click (top body area)
 function v2WirePersonClick(el, personData, blockData, parentDeptId) {
-  if (!personData || !personData.id) return;
+  if (!personData || !personData.id || personData.vacant) return;   // без руководителя — открывать некого
   const body = el.querySelector('.card-v2__body') || el.querySelector('.card-v2-nested__header');
   if (!body) return;
   body.style.cursor = 'pointer';
