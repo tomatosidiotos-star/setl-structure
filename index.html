@@ -710,13 +710,19 @@ body {
 }
 .tv-head__main, .tv-head__desc { flex: 1 1 0; min-width: 0; }
 .tv-head__main { display: flex; gap: 16px; align-items: flex-start; }
-.tv-back {
-  margin-top: 6px; width: 30px; height: 30px; flex-shrink: 0;
+/* Кнопка-иконка (розовая, как «назад» у названия блока): обычная — 30px, XS — 24px */
+.btn-icon {
+  width: 30px; height: 30px; flex-shrink: 0; padding: 0;
   display: grid; place-items: center;
   background: #fdf0f0; border: none; border-radius: 6px; cursor: pointer;
   transition: background 0.15s;
 }
-.tv-back:hover { background: #fad8d8; }
+.btn-icon:hover { background: #fad8d8; }
+.btn-icon img { display: block; width: 14px; height: 14px; }
+.btn-icon--xs { width: 24px; height: 24px; }
+.btn-icon--xs img { width: 12px; height: 12px; }
+.btn-icon__flip { transform: scaleX(-1); }   /* стрелка вправо — та же «влево», отражённая */
+.tv-back { margin-top: 6px; }
 .tv-head__titles { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .tv-title {
   font-family: var(--f-exp); font-weight: 600; font-size: 32px; line-height: 1.2;
@@ -769,18 +775,13 @@ body {
 .hscroll::before { left: 0;  background: linear-gradient(to right, #fff 40%, rgba(255,255,255,0)); }
 .hscroll::after  { right: 0; background: linear-gradient(to left,  #fff 40%, rgba(255,255,255,0)); }
 .hscroll.can-prev::before, .hscroll.can-next::after { opacity: 1; }
-.hscroll__btn {
+.hscroll__btn {          /* вид — .btn-icon--xs, здесь только место и появление */
   position: absolute; top: 50%; z-index: 2; transform: translateY(-50%);
-  width: 24px; height: 24px; border-radius: 50%; padding: 0;
-  display: grid; place-items: center; cursor: pointer;
-  background: #fff; border: 1px solid #ebebeb; color: #7c7c7c;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  opacity: 0; pointer-events: none; transition: opacity 0.2s, color 0.15s, border-color 0.15s;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, background 0.15s;
 }
 .hscroll__btn--prev { left: 0; }
 .hscroll__btn--next { right: 0; }
 .hscroll.can-prev .hscroll__btn--prev, .hscroll.can-next .hscroll__btn--next { opacity: 1; pointer-events: auto; }
-.hscroll__btn:hover { color: #e2221c; border-color: #f3c5c3; }
 
 /* Иконки бэк-офиса (вместо текстовых пилюль), подпись — в тултипе */
 .bo-strip-item--icon { width: 36px; height: 36px; padding: 0; }
@@ -2074,7 +2075,7 @@ body {
       <!-- Шапка блока: слева «назад» + название + кнопки, справа описание -->
       <div class="tv-head">
         <div class="tv-head__main">
-          <button class="tv-back" onclick="goTo('landing')" title="На главную" aria-label="На главную">
+          <button class="btn-icon tv-back" onclick="goTo('landing')" title="На главную" aria-label="На главную">
             <img src="Icons/header/arrow-left.svg" width="14" height="14" alt="">
           </button>
           <div class="tv-head__titles">
@@ -3765,10 +3766,10 @@ function setupHScroll(el) {
     wrap.className = 'hscroll';
     el.parentElement.insertBefore(wrap, el);
     wrap.appendChild(el);
-    const chev = d => `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="${d}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    // кнопки — .btn-icon размера XS (как «назад» у названия блока)
     wrap.insertAdjacentHTML('beforeend',
-      `<button type="button" class="hscroll__btn hscroll__btn--prev" aria-label="Прокрутить назад">${chev('M8.5 3L4.5 7l4 4')}</button>
-       <button type="button" class="hscroll__btn hscroll__btn--next" aria-label="Прокрутить вперёд">${chev('M5.5 3l4 4-4 4')}</button>`);
+      `<button type="button" class="btn-icon btn-icon--xs hscroll__btn hscroll__btn--prev" aria-label="Прокрутить назад"><img src="Icons/header/arrow-left.svg" alt=""></button>
+       <button type="button" class="btn-icon btn-icon--xs hscroll__btn hscroll__btn--next" aria-label="Прокрутить вперёд"><img class="btn-icon__flip" src="Icons/header/arrow-left.svg" alt=""></button>`);
     const step = () => Math.max(120, el.clientWidth * 0.6);
     wrap.querySelector('.hscroll__btn--prev').onclick = () => el.scrollBy({ left: -step(), behavior: 'smooth' });
     wrap.querySelector('.hscroll__btn--next').onclick = () => el.scrollBy({ left: step(), behavior: 'smooth' });
