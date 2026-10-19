@@ -419,6 +419,28 @@ body {
 }
 .lnd-co-block-item:hover { background: rgba(226,34,28,0.06); color: #e2221c; }
 .lnd-co-block-item svg { flex-shrink: 0; color: var(--red); }
+/* Руководители при наведении (компании без блоков): карточка совета директоров, компактно.
+   Размер — по ширине карточки компании */
+.lnd-co-card--leaders { cursor: default; container-type: inline-size; }
+.lnd-co-leaders { gap: 16px; inset: 24px; }
+.lnd-dir-card--compact { padding: 0; cursor: default; flex: none; }
+.lnd-dir-card--compact .lnd-dir-card__in { flex-direction: row; align-items: center; gap: 16px; }
+.lnd-dir-card--compact .lnd-dir-photo { width: 72px; height: 72px; font-size: 18px; color: rgba(0,0,0,0.5); }
+.lnd-dir-card--compact .lnd-dir-info { gap: 4px; min-width: 0; }
+.lnd-dir-card--compact .lnd-dir-name { font-size: 16px; }
+.lnd-dir-card--compact:hover .lnd-dir-name { color: var(--black); }
+@container (max-width: 360px) {
+  .lnd-co-leaders { gap: 12px; }
+  .lnd-dir-card--compact .lnd-dir-card__in { gap: 12px; }
+  .lnd-dir-card--compact .lnd-dir-photo { width: 56px; height: 56px; font-size: 15px; }
+  .lnd-dir-card--compact .lnd-dir-name { font-size: 14px; }
+  .lnd-dir-card--compact .lnd-dir-role { font-size: 12px; }
+}
+@container (max-width: 260px) {
+  .lnd-dir-card--compact .lnd-dir-photo { width: 44px; height: 44px; font-size: 13px; border-radius: 10px; }
+  .lnd-dir-card--compact .lnd-dir-photo img { border-radius: 10px; }
+  .lnd-dir-card--compact .lnd-dir-name { font-size: 13px; }
+}
 /* пока список помещается — по центру по высоте; не помещается — прокрутка с начала */
 .lnd-co-blocks > :first-child { margin-top: auto; }
 .lnd-co-blocks > :last-child { margin-bottom: auto; }
@@ -1736,7 +1758,7 @@ body {
 .le-acc__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.22s ease; }
 .le-acc.open .le-acc__body { grid-template-rows: 1fr; }
 .le-acc__inner { overflow: hidden; padding: 0 12px; }
-.le-acc.open .le-acc__inner { padding-bottom: 12px; }
+.le-acc.open .le-acc__inner { padding-top: 6px; padding-bottom: 12px; }   /* воздух между строкой (её фоном/фокусом) и контактами */
 .le-acc .vm-contact-row { min-height: 36px; padding: 0 12px; }
 .le-acc .vm-contact-label { width: 150px; font-size: 12px; color: #7c7c7c; }
 .le-acc .vm-contact-val { font-size: 13px; }
@@ -2162,7 +2184,12 @@ const ORG_DATA = {
     { id: 'setlgroup', name: 'SetlGroup',                    logo: 'Логотипы/SetlGroup-logo.svg', type: 'tree',
       description: 'Девелоперский холдинг с 1994 года. №1 по объёму строительства в Санкт-Петербурге — более 380 домов за 30 лет.' },
     { id: 'pn',        name: 'Петербургская\nНедвижимость', logo: 'Логотипы/PN-logo.svg',        type: 'external', href: '#',
-      description: 'Агентство №1 по объёму продаж в Петербурге и области. С 1994 года сопровождаем сделки с новостройками, вторичкой и коммерцией.' },
+      description: 'Агентство №1 по объёму продаж в Петербурге и области. С 1994 года сопровождаем сделки с новостройками, вторичкой и коммерцией.',
+      // руководители — показываются при наведении на карточку (у компаний без блоков)
+      leaders: [
+        { name: 'Луговская Наталья Юрьевна', role: 'Заместитель председателя правления', photo: null },
+        { name: 'Пашин Олег Валентинович',   role: 'Генеральный директор',               photo: null },
+      ] },
     { id: 'setltech',  name: 'SetlTech',                     logo: 'Логотипы/SetlTech-logo.svg',  type: 'tree',
       description: 'IT-компания холдинга, аккредитованная Минцифры РФ. Разрабатывает цифровые продукты и решения для строительной отрасли.' },
   ],
@@ -3309,6 +3336,19 @@ function renderLanding() {
         blocksEl.appendChild(item);
       });
       card.appendChild(blocksEl);
+    } else if (c.leaders && c.leaders.length) {
+      // Компания без блоков: при наведении — руководители (компонент карточки совета директоров, компактно)
+      const leadersEl = document.createElement('div');
+      leadersEl.className = 'lnd-co-blocks lnd-co-leaders';
+      leadersEl.innerHTML = c.leaders.map(l => `
+        <div class="lnd-dir-card lnd-dir-card--compact"><div class="lnd-dir-card__in">
+          ${l.photo
+            ? `<div class="lnd-dir-photo"><img src="${l.photo}" alt=""></div>`
+            : `<div class="lnd-dir-photo" style="background:${avatarColor(l.name)}">${initials(l.name)}</div>`}
+          <div class="lnd-dir-info"><div class="lnd-dir-name">${escHtml(l.name)}</div><div class="lnd-dir-role">${escHtml(l.role)}</div></div>
+        </div></div>`).join('');
+      card.classList.add('lnd-co-card--leaders');
+      card.appendChild(leadersEl);
     } else {
       card.classList.add('lnd-co-card--static');
     }
