@@ -239,7 +239,9 @@ body.pp-open { overflow: hidden; }
 }
 .pp-tiles { display: none; }
 .pp-tile { position: relative; box-sizing: border-box; background: #fff; }
-.pp-tile__view { position: relative; overflow: hidden; }
+.pp-tile__view { position: relative; overflow: hidden; contain: strict; }
+/* contain: strict — размер куска фиксирован, копия большого листа внутри не учитывается
+   при подгонке страницы: без этого браузер ужимал куски A4 до ~67% листа */
 .pp-tile__glue { position: absolute; z-index: 1; background: rgba(0,0,0,0.06); }
 .pp-tile__glue--v { top: 0; bottom: 0; border-left: 0.3mm dashed #999; }
 .pp-tile__glue--h { left: 0; right: 0; border-top: 0.3mm dashed #999; }

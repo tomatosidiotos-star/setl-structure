@@ -732,9 +732,13 @@ function ppRender() {
   content.style.marginLeft = Math.max(0, (innerW - size.w * scale) / 2) + 'px';
 
   const tiles = sh.tiles;
-  document.getElementById('pp-page-style').textContent = tiles
-    ? `@page { size: ${tiles.pw}mm ${tiles.ph}mm; margin: 0; }`
-    : `@page { size: ${wmm}mm ${hmm}mm; margin: 0; }`;
+  // Ширина печатной страницы — явно по листу: иначе браузер верстает по ширине окна
+  // и ужимает всё, чтобы влезло (на широком экране куски A4 выходили уменьшенными)
+  const pageW = tiles ? tiles.pw : wmm, pageH = tiles ? tiles.ph : hmm;
+  document.getElementById('pp-page-style').textContent =
+    `@page { size: ${pageW}mm ${pageH}mm; margin: 0; }
+     @media print { html, body.pp-open, #pp, .pp-stage, .pp-sheet-wrap, .pp-tiles {
+       width: ${pageW}mm !important; min-width: 0 !important; max-width: ${pageW}mm !important; } }`;
   ppRenderTiles(tiles, wmm, hmm);
 
   // Подсказка про читаемость
