@@ -21,6 +21,8 @@ const PP_FORMATS = {           // альбомная ориентация, мм;
   A0: [1189, 841],
 };
 const PP_PX_PER_MM = 96 / 25.4;
+const PP_TILE_MARGIN_MM  = 8;    // печать частями: поле листа, которое принтер не пропечатывает
+const PP_TILE_OVERLAP_MM = 10;   // нахлёст соседних кусков — полоса для склейки
 
 // Размер листа в мм с учётом ориентации
 function ppDims(format) {
@@ -153,6 +155,7 @@ function ppDefaults() {
     open: new Set(),      // раскрытые пункты в дереве выбора
     query: '',            // поиск по веткам
     zoom: null,           // масштаб просмотра листа; null — «лист целиком»
+    tile: 'off',          // печать частями: 'off' — целым листом | 'A4' | 'A3'
   };
 }
 
@@ -205,6 +208,13 @@ function openPrintPreview() {
             ${Object.keys(PP_FORMATS).map(f => `<button data-v="${f}">${f}</button>`).join('')}
           </div>
           <div class="pp-fit" id="pp-fit"></div>
+        </div>
+        <div class="pp-group">
+          <div class="pp-gtitle">Как печатать</div>
+          <div class="pp-seg" id="pp-tile">
+            <button data-v="off">Целым листом</button><button data-v="A4">Частями A4</button><button data-v="A3">Частями A3</button>
+          </div>
+          <div class="pp-hint pp-hint--block" id="pp-tile-info"></div>
         </div>
         <div class="pp-group">
           <div class="pp-gtitle">Уровни</div>
@@ -265,8 +275,9 @@ function openPrintPreview() {
       </div>
       <div class="pp-sheet-wrap" id="pp-sheet-wrap">
         <div class="pp-sizer" id="pp-sizer">
-          <div class="pp-sheet" id="pp-sheet"><div class="pp-content" id="pp-content"></div></div>
+          <div class="pp-sheet" id="pp-sheet"><div class="pp-content" id="pp-content"></div><div class="pp-grid" id="pp-grid"></div></div>
         </div>
+        <div class="pp-tiles" id="pp-tiles"></div>
       </div>
     </main>`;
   document.body.appendChild(root);
@@ -281,6 +292,7 @@ function openPrintPreview() {
   root.querySelector('#pp-print').onclick = () => window.print();
   ppSeg('#pp-format', v => { pp.format = v; pp.zoom = null; ppRender(); });
   ppSeg('#pp-orient', v => { pp.orient = v; pp.zoom = null; ppRender(); });
+  ppSeg('#pp-tile', v => { pp.tile = v; ppRender(); });
   ppSeg('#pp-depth', v => { pp.depth = v === 'all' ? Infinity : +v; ppRender(); });
   ppSetupZoom(root);
   root.querySelector('#pp-fullnames').onchange = e => { pp.fullNames = e.target.checked; ppRender(); };
@@ -302,7 +314,7 @@ function openPrintPreview() {
 function closePrintPreview() {
   document.getElementById('pp')?.remove();
   document.getElementById('pp-page-style')?.remove();
-  document.body.classList.remove('pp-open');
+  document.body.classList.remove('pp-open', 'pp-tiling');
   window.removeEventListener('resize', ppPlaceSheet);
   document.removeEventListener('keydown', ppOnKey);
   pp = null;
@@ -326,6 +338,7 @@ function ppSyncControls() {
   const mark = (sel, v) => document.querySelectorAll(sel + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   mark('#pp-format', pp.format);
   mark('#pp-orient', pp.orient);
+  mark('#pp-tile', pp.tile);
   mark('#pp-depth', pp.depth === Infinity ? 'all' : String(pp.depth));
 }
 
@@ -689,8 +702,11 @@ function ppRender() {
   const innerW = (wmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
   content.style.marginLeft = Math.max(0, (innerW - size.w * scale) / 2) + 'px';
 
-  document.getElementById('pp-page-style').textContent =
-    `@page { size: ${wmm}mm ${hmm}mm; margin: 0; }`;
+  const tiles = ppTilePlan(wmm, hmm);
+  document.getElementById('pp-page-style').textContent = tiles
+    ? `@page { size: ${tiles.pw}mm ${tiles.ph}mm; margin: 0; }`
+    : `@page { size: ${wmm}mm ${hmm}mm; margin: 0; }`;
+  ppRenderTiles(tiles, wmm, hmm);
 
   // Подсказка про читаемость
   const pt = ppPt(scale);
@@ -707,6 +723,78 @@ function ppRender() {
 
   ppSyncControls();
   ppPlaceSheet();
+}
+
+/* ---------- Печать частями (плакатная печать) ----------
+   Большой лист режется на куски A4/A3 с нахлёстом PP_TILE_OVERLAP_MM для склейки.
+   Ориентация кусков подбирается так, чтобы листов было меньше. В предпросмотре — сетка
+   с номерами поверх листа, в печати — по странице на кусок с метками и подписью */
+
+function ppTilePlan(wmm, hmm) {
+  if (pp.tile === 'off') return null;
+  const [a, b] = PP_FORMATS[pp.tile];
+  const plan = (pw, ph) => {
+    const vw = pw - PP_TILE_MARGIN_MM * 2, vh = ph - PP_TILE_MARGIN_MM * 2;        // видимая часть куска
+    const sx = vw - PP_TILE_OVERLAP_MM, sy = vh - PP_TILE_OVERLAP_MM;              // шаг между кусками
+    const cols = wmm <= vw ? 1 : Math.ceil((wmm - vw) / sx) + 1;
+    const rows = hmm <= vh ? 1 : Math.ceil((hmm - vh) / sy) + 1;
+    return { pw, ph, vw, vh, sx, sy, cols, rows, n: cols * rows };
+  };
+  const land = plan(a, b), port = plan(b, a);
+  const best = port.n < land.n ? port : land;
+  return best.n > 1 ? best : null;   // лист и так помещается на один кусок — частями не нужно
+}
+
+function ppRenderTiles(t, wmm, hmm) {
+  const grid = document.getElementById('pp-grid');
+  const box = document.getElementById('pp-tiles');
+  const info = document.getElementById('pp-tile-info');
+  document.body.classList.toggle('pp-tiling', !!t);
+  grid.innerHTML = '';
+  box.innerHTML = '';
+  if (!t) {
+    info.textContent = pp.tile === 'off' ? ''
+      : `Лист ${pp.format} и так помещается на ${pp.tile} — печатайте целым листом.`;
+    return;
+  }
+  const word = ppPlural(t.n, ['лист', 'листа', 'листов']);
+  info.innerHTML = `${t.n} ${word} ${pp.tile} (${t.rows} × ${t.cols}), нахлёст ${PP_TILE_OVERLAP_MM} мм для склейки.<br>`
+    + `В окне печати — масштаб 100%, без «Вписать в страницу».`;
+
+  const sheet = document.getElementById('pp-sheet');
+  let k = 0;
+  for (let r = 0; r < t.rows; r++) for (let c = 0; c < t.cols; c++) {
+    k++;
+    const x = c * t.sx, y = r * t.sy;
+    // сетка поверх листа в предпросмотре
+    grid.insertAdjacentHTML('beforeend',
+      `<div class="pp-grid__tile" style="left:${x}mm;top:${y}mm;width:${t.vw}mm;height:${t.vh}mm"><span>${k}</span></div>`);
+    // страница-кусок для печати: окно на копию листа
+    const clone = sheet.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    clone.querySelector('.pp-grid').remove();
+    clone.style.cssText += `;position:absolute;left:${-x}mm;top:${-y}mm;transform:none;`;
+    const tile = document.createElement('div');
+    tile.className = 'pp-tile';
+    tile.style.cssText = `width:${t.pw}mm;height:${t.ph - 0.5}mm;padding:${PP_TILE_MARGIN_MM}mm`;
+    const view = document.createElement('div');
+    view.className = 'pp-tile__view';
+    view.style.cssText = `width:${t.vw}mm;height:${t.vh}mm`;
+    view.appendChild(clone);
+    // линии нахлёста: совпадают на соседних кусках — по ним совмещать при склейке
+    const O = PP_TILE_OVERLAP_MM;
+    if (c < t.cols - 1) view.insertAdjacentHTML('beforeend', `<div class="pp-tile__glue pp-tile__glue--v" style="left:${t.vw - O}mm;width:${O}mm"></div>`);
+    if (c > 0)          view.insertAdjacentHTML('beforeend', `<div class="pp-tile__line pp-tile__line--v" style="left:${O}mm"></div>`);
+    if (r < t.rows - 1) view.insertAdjacentHTML('beforeend', `<div class="pp-tile__glue pp-tile__glue--h" style="top:${t.vh - O}mm;height:${O}mm"></div>`);
+    if (r > 0)          view.insertAdjacentHTML('beforeend', `<div class="pp-tile__line pp-tile__line--h" style="top:${O}mm"></div>`);
+    tile.appendChild(view);
+    tile.insertAdjacentHTML('beforeend',
+      ['tl', 'tr', 'bl', 'br'].map(p => `<i class="pp-tile__mark pp-tile__mark--${p}"></i>`).join('')
+      + `<div class="pp-tile__label">${escHtml(pp.title)} · ${pp.format} частями · лист ${k} из ${t.n} · ряд ${r + 1}, колонка ${c + 1}`
+      + `${c > 0 || r > 0 ? ' · совместите линию с краем серой полосы соседнего листа' : ''}</div>`);
+    box.appendChild(tile);
+  }
 }
 
 /* ---------- Масштаб просмотра: как на холсте страницы ----------

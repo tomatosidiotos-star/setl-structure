@@ -226,6 +226,37 @@ body.pp-open { overflow: hidden; }
 .pp-team__role { font-size: 10.5px; line-height: 1.2; color: var(--pp-text-2); }
 .pp-more { margin-top: 2px; font-size: 11px; line-height: 1.2; color: var(--pp-text-3); }
 
+/* ---------- Печать частями ---------- */
+.pp-sheet { position: relative; }
+.pp-grid { position: absolute; inset: 0; pointer-events: none; }
+.pp-grid__tile {
+  position: absolute; border: 1.5px dashed rgba(226,34,28,0.55);
+  background: rgba(226,34,28,0.03);
+}
+.pp-grid__tile span {
+  position: absolute; left: 6px; top: 4px;
+  font-family: var(--f-exp); font-weight: 600; font-size: 22px; color: rgba(226,34,28,0.6);
+}
+.pp-tiles { display: none; }
+.pp-tile { position: relative; box-sizing: border-box; background: #fff; }
+.pp-tile__view { position: relative; overflow: hidden; }
+.pp-tile__glue { position: absolute; z-index: 1; background: rgba(0,0,0,0.06); }
+.pp-tile__glue--v { top: 0; bottom: 0; border-left: 0.3mm dashed #999; }
+.pp-tile__glue--h { left: 0; right: 0; border-top: 0.3mm dashed #999; }
+.pp-tile__line { position: absolute; z-index: 1; }
+.pp-tile__line--v { top: 0; bottom: 0; border-left: 0.3mm dashed #999; }
+.pp-tile__line--h { left: 0; right: 0; border-top: 0.3mm dashed #999; }
+/* метки совмещения по углам видимой части — в поле листа */
+.pp-tile__mark { position: absolute; width: 5mm; height: 5mm; border: 0 solid #555; }
+.pp-tile__mark--tl { left: 2.5mm; top: 2.5mm; border-right-width: 0.3mm; border-bottom-width: 0.3mm; }
+.pp-tile__mark--tr { right: 2.5mm; top: 2.5mm; border-left-width: 0.3mm; border-bottom-width: 0.3mm; }
+.pp-tile__mark--bl { left: 2.5mm; bottom: 2.5mm; border-right-width: 0.3mm; border-top-width: 0.3mm; }
+.pp-tile__mark--br { right: 2.5mm; bottom: 2.5mm; border-left-width: 0.3mm; border-top-width: 0.3mm; }
+.pp-tile__label {
+  position: absolute; left: 10mm; right: 10mm; bottom: 2mm;
+  font-family: var(--f-body); font-size: 7pt; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ---------- Печать: только лист ---------- */
 @media print {
   body.pp-open { background: #fff; overflow: visible; }
@@ -236,4 +267,10 @@ body.pp-open { overflow: hidden; }
   .pp-sizer { width: auto !important; height: auto !important; margin: 0; }
   .pp-sheet { transform: none !important; box-shadow: none; }
   #pp * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pp-grid { display: none; }
+  /* печать частями: вместо листа — куски, по одному на страницу */
+  body.pp-tiling .pp-sizer { display: none !important; }
+  body.pp-tiling .pp-tiles { display: block; }
+  .pp-tile { break-after: page; overflow: hidden; }
+  .pp-tile:last-child { break-after: auto; }
 }
