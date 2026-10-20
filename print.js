@@ -801,17 +801,22 @@ function ppRenderTiles(t, wmm, hmm) {
     view.className = 'pp-tile__view';
     view.style.cssText = `width:${t.vw}mm;height:${t.vh}mm`;
     view.appendChild(clone);
-    // линии нахлёста: совпадают на соседних кусках — по ним совмещать при склейке
-    const O = PP_TILE_OVERLAP_MM;
+    // Склейка: следующий лист кладётся поверх предыдущего (правый на левый, нижний на верхний).
+    // У нижнего листа справа/снизу — серая полоса под клей, её закрывает соседний лист.
+    // Верхний лист обрезается по меткам реза и кладётся краем на начало серой полосы.
+    // На содержимом верхнего листа линий нет — на готовом плакате ничего не остаётся
+    const O = PP_TILE_OVERLAP_MM, M = PP_TILE_MARGIN_MM;
     if (c < t.cols - 1) view.insertAdjacentHTML('beforeend', `<div class="pp-tile__glue pp-tile__glue--v" style="left:${t.vw - O}mm;width:${O}mm"></div>`);
-    if (c > 0)          view.insertAdjacentHTML('beforeend', `<div class="pp-tile__line pp-tile__line--v" style="left:${O}mm"></div>`);
     if (r < t.rows - 1) view.insertAdjacentHTML('beforeend', `<div class="pp-tile__glue pp-tile__glue--h" style="top:${t.vh - O}mm;height:${O}mm"></div>`);
-    if (r > 0)          view.insertAdjacentHTML('beforeend', `<div class="pp-tile__line pp-tile__line--h" style="top:${O}mm"></div>`);
     tile.appendChild(view);
+    // метки реза — на полях, точно по краям видимой части
+    const cut = [];
+    for (const yy of [M, t.ph - M]) cut.push(`top:${yy}mm;left:1mm;width:${M - 2}mm`, `top:${yy}mm;right:1mm;width:${M - 2}mm`);
+    for (const xx of [M, t.pw - M]) cut.push(`left:${xx}mm;top:1mm;height:${M - 2}mm`, `left:${xx}mm;bottom:1mm;height:${M - 2}mm`);
     tile.insertAdjacentHTML('beforeend',
-      ['tl', 'tr', 'bl', 'br'].map(p => `<i class="pp-tile__mark pp-tile__mark--${p}"></i>`).join('')
+      cut.map(st => `<i class="pp-tile__cut ${/width/.test(st) ? 'h' : 'v'}" style="${st}"></i>`).join('')
       + `<div class="pp-tile__label">${escHtml(pp.title)} · ${pp.format} частями · лист ${k} из ${t.n} · ряд ${r + 1}, колонка ${c + 1}`
-      + `${c > 0 || r > 0 ? ' · совместите линию с краем серой полосы соседнего листа' : ''}</div>`);
+      + `${c > 0 || r > 0 ? ' · обрежьте ' + [c > 0 ? 'левое' : '', r > 0 ? 'верхнее' : ''].filter(Boolean).join(' и ') + ' поле по меткам и наложите край на серую полосу соседнего листа' : ''}</div>`);
     box.appendChild(tile);
   }
 }
