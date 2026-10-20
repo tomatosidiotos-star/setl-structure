@@ -727,11 +727,13 @@ function ppRender() {
 
 /* ---------- Печать частями (плакатная печать) ----------
    Большой лист режется на куски A4/A3 с нахлёстом PP_TILE_OVERLAP_MM для склейки.
+   Режется только содержимое — без внешних полей большого листа: у каждого куска свои поля.
    Ориентация кусков подбирается так, чтобы листов было меньше. В предпросмотре — сетка
    с номерами поверх листа, в печати — по странице на кусок с метками и подписью */
 
-function ppTilePlan(wmm, hmm) {
+function ppTilePlan(sheetW, sheetH) {
   if (pp.tile === 'off') return null;
+  const wmm = sheetW - PP_MARGIN_MM * 2, hmm = sheetH - PP_MARGIN_MM * 2;   // режем содержимое листа
   const [a, b] = PP_FORMATS[pp.tile];
   const plan = (pw, ph) => {
     const vw = pw - PP_TILE_MARGIN_MM * 2, vh = ph - PP_TILE_MARGIN_MM * 2;        // видимая часть куска
@@ -765,7 +767,7 @@ function ppRenderTiles(t, wmm, hmm) {
   let k = 0;
   for (let r = 0; r < t.rows; r++) for (let c = 0; c < t.cols; c++) {
     k++;
-    const x = c * t.sx, y = r * t.sy;
+    const x = PP_MARGIN_MM + c * t.sx, y = PP_MARGIN_MM + r * t.sy;   // от края содержимого
     // сетка поверх листа в предпросмотре
     grid.insertAdjacentHTML('beforeend',
       `<div class="pp-grid__tile" style="left:${x}mm;top:${y}mm;width:${t.vw}mm;height:${t.vh}mm"><span>${k}</span></div>`);
