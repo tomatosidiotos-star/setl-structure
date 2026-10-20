@@ -23,6 +23,7 @@ const PP_FORMATS = {           // альбомная ориентация, мм;
 const PP_PX_PER_MM = 96 / 25.4;
 const PP_TILE_MARGIN_MM  = 8;    // печать частями: поле листа, которое принтер не пропечатывает
 const PP_TILE_OVERLAP_MM = 10;   // нахлёст соседних кусков — полоса для склейки
+const PP_TILE_PAD_MM     = 8;    // отступ содержимого от края склеенного листа
 
 // Размер листа в мм с учётом ориентации
 function ppDims(format) {
@@ -30,6 +31,33 @@ function ppDims(format) {
   return pp && pp.orient === 'portrait' ? [h, w] : [w, h];
 }
 const PP_MARGIN_MM = 10;       // поля листа
+
+/* Лист, на который раскладывается структура. Целым листом — сам формат с полями.
+   Частями — ровная сетка кусков, на которую формат делится по стандарту (A1 = 2×4 A4 = 2×2 A3):
+   лист = склеенная площадь кусков за вычетом полей принтера и нахлёста, изображение чуть меньше,
+   зато сетка делит его ровно */
+function ppSheetMM(format) {
+  const [w, h] = ppDims(format);
+  const t = ppTileGrid(w, h);
+  if (!t) return { w, h, pad: PP_MARGIN_MM, tiles: null };
+  return { w: t.cols * t.vw - (t.cols - 1) * PP_TILE_OVERLAP_MM,
+           h: t.rows * t.vh - (t.rows - 1) * PP_TILE_OVERLAP_MM, pad: PP_TILE_PAD_MM, tiles: t };
+}
+
+function ppTileGrid(w, h) {
+  if (!pp || pp.tile === 'off') return null;
+  const [a, b] = PP_FORMATS[pp.tile];
+  const grid = (pw, ph) => {
+    const cols = Math.max(1, Math.round(w / pw)), rows = Math.max(1, Math.round(h / ph));
+    const vw = pw - PP_TILE_MARGIN_MM * 2, vh = ph - PP_TILE_MARGIN_MM * 2;
+    return { pw, ph, cols, rows, n: cols * rows, vw, vh,
+      sx: vw - PP_TILE_OVERLAP_MM, sy: vh - PP_TILE_OVERLAP_MM,
+      err: Math.abs(cols * pw - w) + Math.abs(rows * ph - h) };
+  };
+  const g1 = grid(a, b), g2 = grid(b, a);
+  const best = g2.err < g1.err ? g2 : g1;
+  return best.n > 1 ? best : null;   // формат и так помещается на один кусок — частями не нужно
+}
 const PP_BASE_FONT = 12;       // кегль пунктов списка в «натуральном» размере, px
 const PP_MIN_PT    = 6;        // мельче — предупреждаем
 const PP_GOOD_PT   = 7;        // «Подобрать формат» ищет первый формат не мельче этого
@@ -609,9 +637,9 @@ function ppPartition(h, k) {
 }
 
 function ppScaleFor(format, size) {
-  const [wmm, hmm] = ppDims(format);
-  const iw = (wmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
-  const ih = (hmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
+  const sh = ppSheetMM(format);
+  const iw = (sh.w - sh.pad * 2) * PP_PX_PER_MM;
+  const ih = (sh.h - sh.pad * 2) * PP_PX_PER_MM;
   return Math.min(iw / size.w, ih / size.h, PP_MAX_SCALE);
 }
 
@@ -688,21 +716,22 @@ function ppRender() {
   const html = ppContentHTML(ppLayout(model, pp.format));
   const size = ppMeasure(html);
   const scale = ppScaleFor(pp.format, size);
-  const [wmm, hmm] = ppDims(pp.format);
+  const sh = ppSheetMM(pp.format);
+  const wmm = sh.w, hmm = sh.h;
 
   const sheet = document.getElementById('pp-sheet');
   const content = document.getElementById('pp-content');
   sheet.style.width = wmm + 'mm';
   sheet.style.height = (hmm - 0.5) + 'mm';   // запас, чтобы не вылез пустой второй лист
-  sheet.style.padding = PP_MARGIN_MM + 'mm';
+  sheet.style.padding = sh.pad + 'mm';
   content.innerHTML = html;
   content.style.width = size.w + 'px';
   content.style.transform = `scale(${scale})`;
   // По центру листа по горизонтали
-  const innerW = (wmm - PP_MARGIN_MM * 2) * PP_PX_PER_MM;
+  const innerW = (wmm - sh.pad * 2) * PP_PX_PER_MM;
   content.style.marginLeft = Math.max(0, (innerW - size.w * scale) / 2) + 'px';
 
-  const tiles = ppTilePlan(wmm, hmm);
+  const tiles = sh.tiles;
   document.getElementById('pp-page-style').textContent = tiles
     ? `@page { size: ${tiles.pw}mm ${tiles.ph}mm; margin: 0; }`
     : `@page { size: ${wmm}mm ${hmm}mm; margin: 0; }`;
@@ -727,25 +756,8 @@ function ppRender() {
 
 /* ---------- Печать частями (плакатная печать) ----------
    Большой лист режется на куски A4/A3 с нахлёстом PP_TILE_OVERLAP_MM для склейки.
-   Режется только содержимое — без внешних полей большого листа: у каждого куска свои поля.
    Ориентация кусков подбирается так, чтобы листов было меньше. В предпросмотре — сетка
    с номерами поверх листа, в печати — по странице на кусок с метками и подписью */
-
-function ppTilePlan(sheetW, sheetH) {
-  if (pp.tile === 'off') return null;
-  const wmm = sheetW - PP_MARGIN_MM * 2, hmm = sheetH - PP_MARGIN_MM * 2;   // режем содержимое листа
-  const [a, b] = PP_FORMATS[pp.tile];
-  const plan = (pw, ph) => {
-    const vw = pw - PP_TILE_MARGIN_MM * 2, vh = ph - PP_TILE_MARGIN_MM * 2;        // видимая часть куска
-    const sx = vw - PP_TILE_OVERLAP_MM, sy = vh - PP_TILE_OVERLAP_MM;              // шаг между кусками
-    const cols = wmm <= vw ? 1 : Math.ceil((wmm - vw) / sx) + 1;
-    const rows = hmm <= vh ? 1 : Math.ceil((hmm - vh) / sy) + 1;
-    return { pw, ph, vw, vh, sx, sy, cols, rows, n: cols * rows };
-  };
-  const land = plan(a, b), port = plan(b, a);
-  const best = port.n < land.n ? port : land;
-  return best.n > 1 ? best : null;   // лист и так помещается на один кусок — частями не нужно
-}
 
 function ppRenderTiles(t, wmm, hmm) {
   const grid = document.getElementById('pp-grid');
@@ -756,18 +768,19 @@ function ppRenderTiles(t, wmm, hmm) {
   box.innerHTML = '';
   if (!t) {
     info.textContent = pp.tile === 'off' ? ''
-      : `Лист ${pp.format} и так помещается на ${pp.tile} — печатайте целым листом.`;
+      : `${pp.format} и так помещается на ${pp.tile} — печатайте целым листом.`;
     return;
   }
   const word = ppPlural(t.n, ['лист', 'листа', 'листов']);
-  info.innerHTML = `${t.n} ${word} ${pp.tile} (${t.rows} × ${t.cols}), нахлёст ${PP_TILE_OVERLAP_MM} мм для склейки.<br>`
+  info.innerHTML = `${t.n} ${word} ${pp.tile} (${t.rows} × ${t.cols}) — склеенные, дают ${pp.format}. `
+    + `Изображение чуть уменьшено, чтобы лист делился ровно; нахлёст ${PP_TILE_OVERLAP_MM} мм для склейки.<br>`
     + `В окне печати — масштаб 100%, без «Вписать в страницу».`;
 
   const sheet = document.getElementById('pp-sheet');
   let k = 0;
   for (let r = 0; r < t.rows; r++) for (let c = 0; c < t.cols; c++) {
     k++;
-    const x = PP_MARGIN_MM + c * t.sx, y = PP_MARGIN_MM + r * t.sy;   // от края содержимого
+    const x = c * t.sx, y = r * t.sy;   // лист = склеенная площадь, куски делят его ровно
     // сетка поверх листа в предпросмотре
     grid.insertAdjacentHTML('beforeend',
       `<div class="pp-grid__tile" style="left:${x}mm;top:${y}mm;width:${t.vw}mm;height:${t.vh}mm"><span>${k}</span></div>`);
@@ -806,7 +819,7 @@ function ppRenderTiles(t, wmm, hmm) {
 const PP_ZOOM_MAX = 3;
 
 function ppSheetPx() {
-  const [wmm, hmm] = ppDims(pp.format);
+  const { w: wmm, h: hmm } = ppSheetMM(pp.format);
   return { sw: wmm * PP_PX_PER_MM, sh: hmm * PP_PX_PER_MM };
 }
 
