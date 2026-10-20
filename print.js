@@ -195,7 +195,7 @@ function openPrintPreview() {
           Сбросить
         </button>
       </div>
-      <div class="pp-panel__body">
+      <div class="pp-panel__body scroll-xs">
         <div class="pp-group">
           <div class="pp-gtitle">Формат листа</div>
           <div class="pp-seg pp-seg--orient" id="pp-orient">

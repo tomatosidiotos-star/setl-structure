@@ -28,11 +28,12 @@ body.pp-open { overflow: hidden; }
   font-family: var(--f-body); font-size: 13px; color: #3c83f6;
 }
 .pp-reset:hover { text-decoration: underline; }
-.pp-panel__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 20px; }
+/* Прокручивается вся панель (полоса — .scroll-xs); кнопка «Сохранить PDF» закреплена внизу */
+.pp-panel__body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 0 20px; }   /* справа 8 + полоса 12 = 20 */
 .pp-panel__foot { padding: 16px 20px 20px; border-top: 1px solid #eee; }
 
 .pp-group { padding: 14px 0; border-bottom: 1px solid #f0f0f0; }
-.pp-group--grow { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: none; }
+.pp-group--grow { border-bottom: none; }
 .pp-gtitle {
   display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px;
   font-family: var(--f-exp); font-weight: 600; font-size: 13px;
@@ -68,7 +69,7 @@ body.pp-open { overflow: hidden; }
 .pp-ti__label, .pp-ti__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-ti__name { font-size: 12px; color: #8a8a8a; }
 .pp-ti mark { background: #fde68a; color: inherit; border-radius: 2px; }
-.pp-tree { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 0 8px 8px; }
+.pp-tree { margin: 0 -8px; padding: 0 8px 8px; }
 .pp-ti__row { display: flex; align-items: center; gap: 2px; }
 .pp-ti__row .pp-check { flex: 1; min-width: 0; font-size: 13px; line-height: 1.2; }
 .pp-ti__arrow {
