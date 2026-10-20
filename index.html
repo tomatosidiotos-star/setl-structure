@@ -145,8 +145,8 @@ body {
 }
 
 .org-content {
-  /* до 1568px по ширине контентной области Битрикса, уже — тянется (адаптив) */
-  flex: 1 1 auto; min-width: 0; max-width: 1568px;
+  /* тянется по ширине области контента: от узких экранов до 2К (2560 − меню ≈ 2230px) */
+  flex: 1 1 auto; min-width: 0; max-width: 2400px;
   padding: 0 24px;
   container-type: inline-size; container-name: org;
   min-height: 100vh;
@@ -911,6 +911,8 @@ body {
 .canvas-wrapper {
   margin-top: 8px;
   aspect-ratio: 1488 / 902;   /* по макету; на узких экранах уменьшается пропорционально */
+  max-height: calc(100vh - 140px);   /* на широких (2К) не выше экрана под липкой строкой управления */
+  min-height: 420px;
   background-color: var(--canvas-bg);
   background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
   background-size: 24px 24px;
@@ -5349,7 +5351,10 @@ function centerView(fitContent) {
   if (fitContent && contentW && contentH) {
     const scaleX = (wRect.width  - 80) / contentW;
     const scaleY = (wRect.height - 80) / contentH;
-    canvas.scale = Math.round(Math.max(0.25, Math.min(1, scaleX, scaleY)) * 100) / 100;   // 0.25 — как минимум ползунка
+    // 0.25 — как минимум ползунка. Сверху — 100% при полотне по макету (1488px); полотно шире
+    // (2К) — дерево крупнее пропорционально, чтобы не терялось на большом экране
+    const maxFit = Math.max(1, wRect.width / 1488);
+    canvas.scale = Math.round(Math.max(0.25, Math.min(maxFit, scaleX, scaleY)) * 100) / 100;
   }
   canvas.x = Math.round((wRect.width  - contentW * canvas.scale) / 2);
   canvas.y = Math.round((wRect.height - contentH * canvas.scale) / 4);
