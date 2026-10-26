@@ -124,6 +124,10 @@ body.pp-open { overflow: hidden; }
 /* Руководители блока и шина к карточкам */
 .pp-heads { position: relative; display: flex; gap: 12px; justify-content: center; }
 .pp-heads.has-kids { margin-bottom: 24px; }
+/* без руководителей блока: колонки сами по себе — без шины и стволов, ряды плотнее */
+.pp-chart--no-heads .pp-col::before, .pp-chart--no-heads .pp-col::after,
+.pp-chart--no-heads .pp-corridor::after { display: none; }
+.pp-chart--no-heads .pp-col { padding-top: 0; }
 .pp-heads.has-kids::after {
   content: ''; position: absolute; left: 50%; bottom: -24px; height: 24px;
   border-left: 1.5px solid var(--pp-ln);
@@ -159,7 +163,7 @@ body.pp-open { overflow: hidden; }
 .pp-card {
   position: relative; background: #fff; border: 1px solid #dcdcdc; border-radius: 14px; padding: 12px;
 }
-.pp-card--head { width: 250px; }
+.pp-card--head { width: 220px; }   /* как карточки 2-го уровня (PP_COL_W) */
 .pp-card__person { display: flex; gap: 10px; align-items: flex-start; }
 .pp-ph {
   width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
@@ -169,7 +173,6 @@ body.pp-open { overflow: hidden; }
 .pp-ph span { font-family: var(--f-exp); font-weight: 600; font-size: 11px; color: rgba(0,0,0,0.55); }
 .pp-card__text { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .pp-card__name { font-family: var(--f-exp); font-weight: 600; font-size: 12.5px; line-height: 1.2; }
-.pp-card--head .pp-card__name { font-size: 14px; }
 .pp-card__role { font-size: 12px; line-height: 1.2; color: var(--pp-text-2); }
 .pp-card__dept {
   margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: #f2f2f2;

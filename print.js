@@ -178,6 +178,7 @@ function ppDefaults() {
     fullNames: true,
     photos: true,
     team: false,          // сотрудники отделов (команда из модалки)
+    heads: true,          // верхний ряд — руководители блока
     balance: true,        // авто-раскладка: переносить карточки в ряды, делить длинные колонки
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
@@ -193,6 +194,7 @@ function ppReset() {
   document.getElementById('pp-fullnames').checked = pp.fullNames;
   document.getElementById('pp-photos').checked = pp.photos;
   document.getElementById('pp-team').checked = pp.team;
+  document.getElementById('pp-heads').checked = pp.heads;
   document.getElementById('pp-balance').checked = pp.balance;
   const search = document.getElementById('pp-search');
   search.value = '';
@@ -255,6 +257,7 @@ function openPrintPreview() {
         <div class="pp-group">
           <label class="pp-check"><input type="checkbox" id="pp-fullnames" checked> ФИО полностью</label>
           <label class="pp-check"><input type="checkbox" id="pp-photos" checked> Фото в карточках</label>
+          <label class="pp-check"><input type="checkbox" id="pp-heads" checked> Руководители блока <span class="pp-hint">верхний ряд</span></label>
           <label class="pp-check"><input type="checkbox" id="pp-team"> Сотрудники отделов</label>
           <label class="pp-check"><input type="checkbox" id="pp-balance" checked> Авто-раскладка <span class="pp-hint">ряды и подколонки</span></label>
         </div>
@@ -326,6 +329,7 @@ function openPrintPreview() {
   root.querySelector('#pp-fullnames').onchange = e => { pp.fullNames = e.target.checked; ppRender(); };
   root.querySelector('#pp-photos').onchange = e => { pp.photos = e.target.checked; ppRender(); };
   root.querySelector('#pp-team').onchange = e => { pp.team = e.target.checked; ppRender(); };
+  root.querySelector('#pp-heads').onchange = e => { pp.heads = e.target.checked; ppRender(); };
   root.querySelector('#pp-balance').onchange = e => { pp.balance = e.target.checked; ppRender(); };
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
   root.querySelector('#pp-none').onclick = () => { ppAllNodes().forEach(n => pp.excluded.add(n.uid)); ppRenderTree(); ppRender(); };
@@ -559,15 +563,16 @@ function ppContentHTML(lay) {
   const cards = pp.data.cards.filter(c => !pp.excluded.has(c.uid));
   lay = lay || { rows: [cards.map((c, i) => i)], halves: [null], splits: {} };
   const today = new Date().toLocaleDateString('ru-RU');
-  const heads = pp.data.heads.map(h => ppCardHTML({ person: h }, 'pp-card--head')).join('');
+  const showHeads = pp.heads && pp.data.heads.length;
+  const heads = showHeads ? pp.data.heads.map(h => ppCardHTML({ person: h }, 'pp-card--head')).join('') : '';
   return `
     <div class="pp-header">
       ${pp.logo ? `<img class="pp-logo" src="${pp.logo}" alt="">` : ''}
       <div class="pp-header__title">Организационная структура<br><b>${escHtml(pp.title)}</b></div>
       <div class="pp-header__date">Актуально на ${today}</div>
     </div>
-    <div class="pp-chart">
-      <div class="pp-heads${cards.length ? ' has-kids' : ''}">${heads}</div>
+    <div class="pp-chart${showHeads ? '' : ' pp-chart--no-heads'}">
+      ${showHeads ? `<div class="pp-heads${cards.length ? ' has-kids' : ''}">${heads}</div>` : ''}
       ${cards.length ? ppRowsHTML(cards, lay) : ''}
     </div>`;
 }
@@ -599,7 +604,7 @@ function ppModel() {
   const header = probe.querySelector('.pp-header');
   const model = {
     top: colsEl ? colsEl.offsetTop : probe.scrollHeight,
-    minW: Math.max(probe.querySelector('.pp-heads').offsetWidth,
+    minW: Math.max(probe.querySelector('.pp-heads') ? probe.querySelector('.pp-heads').offsetWidth : 0,
       [...header.children].reduce((s, el) => s + el.offsetWidth, 0) + 24 * 2 + 40),
     cols: [...probe.querySelectorAll('.pp-col')].map((el, i) => {
       const root = el.querySelector(':scope > .pp-list--root');
