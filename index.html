@@ -916,7 +916,7 @@ body {
 #view-tree.is-custom .tv-controls .search-wrap, #view-tree.is-custom #btn-fold-all { display: none !important; }
 #view-tree.is-custom .tv-controls-row { justify-content: flex-end; }
 #view-tree.is-custom .tv-controls { flex: none !important; margin-left: auto; }
-.fold-all-btn, #btn-print-open { margin-right: -16px; }   /* печать, развернуть все, сброс — группой с зазором 8 */
+.fold-all-btn, .zoom-btn--reset { margin-right: -16px; }   /* развернуть все, сброс, печать — группой с зазором 8 */
 .fold-all-btn[data-mode="expand"] .fold-all-btn__collapse,
 .fold-all-btn[data-mode="collapse"] .fold-all-btn__expand { display: none; }
 
@@ -2168,15 +2168,15 @@ body {
               </button>
             </div>
             <!-- иконки — Stroke/arrow-expand-round и Stroke/arrow-shrink-sharp из setl-akademiya-ui-kit -->
-            <button class="zoom-btn" id="btn-print-open" onclick="openPrintPreview()" title="Печать" aria-label="Печать">
-              <img src="Icons/header/print.svg" width="20" height="20" alt="">
-            </button>
             <button class="zoom-btn fold-all-btn" id="btn-fold-all" onclick="v2FoldAllClick()" data-mode="expand" title="Развернуть все" aria-label="Развернуть все">
               <svg class="fold-all-btn__expand" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E2221C" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(2.25 3.0)"><path vector-effect="non-scaling-stroke" d="M7.5 7.5L1 1M5.5 0.597796C5.5 0.597796 1.53374 0.241946 0.887829 0.887851C0.241914 1.53376 0.597829 5.5 0.597829 5.5"/></g><g transform="translate(2.25 14.0)"><path vector-effect="non-scaling-stroke" d="M7.5 0.5L1 7M5.5 7.4022C5.5 7.4022 1.53374 7.75805 0.887829 7.11215C0.241914 6.46624 0.597829 2.5 0.597829 2.5"/></g><g transform="translate(13.25 3.0)"><path vector-effect="non-scaling-stroke" d="M0.5 7.5L7 1M2.5 0.597796C2.5 0.597796 6.46626 0.241946 7.11217 0.887851C7.75809 1.53376 7.40217 5.5 7.40217 5.5"/></g><g transform="translate(13.25 14.0)"><path vector-effect="non-scaling-stroke" d="M0.5 0.5L7 7M2.5 7.4022C2.5 7.4022 6.46626 7.75805 7.11217 7.11215C7.75809 6.46624 7.40217 2.5 7.40217 2.5"/></g></svg>
               <svg class="fold-all-btn__collapse" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E2221C" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M3.5 21.4996L10 14.9996M10.3035 18.4996L10.4791 15.5916C10.5112 15.0601 10.5272 14.7944 10.3662 14.6334C10.2053 14.4724 9.93952 14.4884 9.40805 14.5204L6.5 14.6957"/><path vector-effect="non-scaling-stroke" d="M21.5 21.4996L15 14.9996M14.6941 18.4996L14.5205 15.5905C14.4889 15.0597 14.473 14.7942 14.6339 14.6334C14.7948 14.4726 15.0602 14.4884 15.591 14.5202L18.5 14.6942"/><path vector-effect="non-scaling-stroke" d="M21.5 3.49957L15 9.99957M18.5 10.2525L15.599 10.4713C15.0686 10.5113 14.8033 10.5314 14.6403 10.3721C14.4773 10.2128 14.4898 9.9459 14.5148 9.41207L14.6513 6.49957"/><path vector-effect="non-scaling-stroke" d="M3.5 3.49957L10 9.99957M10.3083 6.49957L10.48 9.41503C10.511 9.94031 10.5264 10.203 10.3673 10.3631C10.2082 10.5233 9.9451 10.51 9.41888 10.4833L6.5 10.3352"/></svg>
             </button>
-            <button class="zoom-btn" onclick="resetView()" title="Сброс масштаба">
+            <button class="zoom-btn zoom-btn--reset" onclick="resetView()" title="Сброс масштаба">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.0005 1.88135C14.4843 1.88157 18.1196 5.5166 18.1196 10.0005C18.1194 14.4842 14.4842 18.1194 10.0005 18.1196C5.5166 18.1196 1.88157 14.4843 1.88135 10.0005C1.88135 9.72435 2.10521 9.50049 2.38135 9.50049C2.65734 9.50066 2.88135 9.72445 2.88135 10.0005C2.88157 13.932 6.06889 17.1196 10.0005 17.1196C13.9319 17.1194 17.1194 13.9319 17.1196 10.0005C17.1196 6.06889 13.932 2.88157 10.0005 2.88135C7.68929 2.88135 5.63552 3.98301 4.33447 5.69092H7.14307C7.41914 5.69099 7.64307 5.91482 7.64307 6.19092C7.64287 6.46684 7.41902 6.69084 7.14307 6.69092H3.3335C3.0575 6.69089 2.8337 6.46687 2.8335 6.19092V2.38135C2.8335 2.10522 3.05737 1.88137 3.3335 1.88135C3.60957 1.88142 3.8335 2.10525 3.8335 2.38135V4.72021C5.32207 2.98319 7.53232 1.88135 10.0005 1.88135Z" fill="#E2221C"/></svg>
+            </button>
+            <button class="zoom-btn" id="btn-print-open" onclick="openPrintPreview()" title="Печать" aria-label="Печать">
+              <img src="Icons/header/print-plain.svg" width="20" height="20" alt="">   <!-- Stroke/print без строк: на 20px строки сливались -->
             </button>
           </div>
         </div>
