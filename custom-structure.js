@@ -240,6 +240,7 @@ function buildCustomTree() {
     node.style.top = n._y + 'px';
   });
   ctHops(lay.edges).forEach(e => {
+    e.cy += v2CardTopOffset(els.get(e.child));   // до верха низкой карточки
     const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     const key = v2NodeKey(els.get(e.child));
     if (key) { el.dataset.key = key + '<' + e.owner; el.dataset.geom = JSON.stringify(e); }

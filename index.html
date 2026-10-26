@@ -1570,16 +1570,12 @@ body {
 }
 /* Два размера карточек: низкая — как внутренние в наборной (146 = 82 + плашка 64), высокая — 196.
    В ряду выравниваются по низу: узел .tree-node--bottom высотой 196, карточка прижата к низу,
-   линия сверху дотягивается до карточки (::before за карточкой) */
+   линия SVG дотягивается до верха карточки (ctCardTop / addConnector) */
 .card-v2-multi--short .card-v2 { height: 82px; }
 .card-v2-multi--short .card-v2-mh__body { padding: 0 14px 8px; }   /* как у внутренних карточек наборной */
 .card-v2-multi--short .card-v2__role { flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-v2-multi--tall.card-v2-multi--nodept .card-v2 { height: 196px; }
 .tree-node--bottom { height: 196px; display: flex; flex-direction: column; justify-content: flex-end; }
-.tree-node--bottom::before {
-  content: ''; position: absolute; left: 50%; top: 0; bottom: 20px;
-  border-left: 1.5px solid var(--canvas-line);
-}
 /* Карточка без отдела (нет плашки снизу) — низ скруглён, как у карточек с отделом */
 .card-v2-multi--nodept .card-v2-mh__body,
 .card-v3__sub--nodept .card-v2-mh__body { border-radius: 0 0 20px 20px; box-shadow: 0 -2px 0 #fff; }   /* подкладка шва — только вверх, вниз не вылезать за карточку */
@@ -5403,7 +5399,17 @@ function addLine(svg, x1, y1, x2, y2) {
 let CONNECTOR_HSEGS = [];
 const CONNECTOR_HOP = 8;
 
+// Сколько от верха узла до верха карточки: узел .tree-node--bottom выше низкой карточки
+function v2CardTopOffset(node) {
+  if (!node || !node.classList.contains('tree-node--bottom')) return 0;
+  const card = node.firstElementChild;
+  return card ? card.offsetTop : 0;
+}
+
 function addConnector(svg, px, py, cx, cy, branchY) {
+  // линия ведёт к карточке, только что добавленной на холст: у низкой — до её верха, а не до верха узла
+  const lastNode = svg.parentNode && svg.parentNode.lastElementChild;
+  if (lastNode && lastNode.classList.contains('tree-node')) cy += v2CardTopOffset(lastNode);
   let midY = branchY !== undefined ? branchY : Math.round((py + cy) / 2);
   const dx   = cx - px;
   const owner = px + ',' + py;
