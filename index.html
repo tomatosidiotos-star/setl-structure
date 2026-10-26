@@ -1563,10 +1563,11 @@ body {
 /* Отметка зама — плашка по низу аватарки, по центру, с белой обводкой (v2PutAvatar) */
 .v2-ava { position: relative; flex-shrink: 0; }
 /* Замы стопкой у правого края (вариант на сравнение) */
-/* у правого края белой части шапки, перед вырезом (одинаково в обычной и наборной карточке),
-   по центру аватарки руководителя (14 + 30/2) */
+/* от правого края карточки: отступ = видимая ширина резного края (~35px) + 10px. Шапка — белая часть
+   (wrap) + Surface 53px, поэтому от края wrap это −8px: стопка заходит на белую часть Surface,
+   вырез начинается правее. По высоте — по центру аватарки руководителя (14 + 30/2) */
 .card-v2-mh__wrap, .card-v3__head-wrap { position: relative; }
-.v2-deps { position: absolute; right: 8px; top: 29px; transform: translateY(-50%); display: flex; }
+.v2-deps { position: absolute; right: -8px; top: 29px; transform: translateY(-50%); display: flex; z-index: 1; }
 .v2-deps .card-v2__photo { position: relative; width: 24px; height: 24px; border: 1.5px solid #fff; box-sizing: content-box; }
 .v2-deps .card-v2__photo-initials { font-size: 8px; }
 .v2-deps .card-v2__photo + .card-v2__photo { margin-left: -7px; }
