@@ -4689,7 +4689,14 @@ function v2AddInnerButton(nodeEl, fold) {
   btn.title = fold.folded ? `Показать ещё ${fold.count}` : 'Свернуть';
   btn.innerHTML = (fold.folded ? `<span>+${fold.count}</span>` : '') + SVG_FOLD_CHEVRON;
   btn.addEventListener('mousedown', e => e.stopPropagation());
-  btn.addEventListener('click', e => { e.stopPropagation(); v2ToggleFold(fold, `.tree-node[data-pid="${nodeEl.dataset.pid}"]`); });
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const sel = `.tree-node[data-pid="${nodeEl.dataset.pid}"]`;
+    const collapsing = !fold.folded;
+    v2ToggleFold(fold, sel);
+    // свернули широкую карточку — она сжимается влево и может уйти за край: плавно навести на неё камеру
+    if (collapsing) v2PanToNode(document.querySelector(sel));
+  });
   nodeEl.appendChild(btn);
 }
 
@@ -4699,6 +4706,26 @@ const FOLD_ANIM = { move: 420, enter: 360, leave: 220, ease: 'cubic-bezier(0.22,
 function v2NodeKey(n) {
   const c = n.querySelector('[data-v2-pid]');
   return c ? c.dataset.v2Pid : null;
+}
+
+// Плавно сдвинуть камеру так, чтобы карточка была по центру полотна по горизонтали
+// (по вертикали не трогаем) — в такт анимации перестройки
+function v2PanToNode(nodeEl) {
+  if (!nodeEl) return;
+  const wrap = document.getElementById('canvas-wrapper').getBoundingClientRect();
+  const cx = parseFloat(nodeEl.style.left) + nodeEl.offsetWidth / 2;
+  const from = canvas.x, to = wrap.width / 2 - cx * canvas.scale;
+  if (Math.abs(to - from) < 1) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { canvas.x = to; applyTransform(); return; }
+  const t0 = performance.now(), dur = FOLD_ANIM.move;
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur);
+    canvas.x = from + (to - from) * ease(t);
+    applyTransform();
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 // Перестроить дерево, оставив переключённую карточку на том же месте экрана
