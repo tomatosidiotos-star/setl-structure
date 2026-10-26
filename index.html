@@ -1568,6 +1568,10 @@ body {
   background: #fdf0f0; color: #e2221c; font-family: var(--f-exp); font-weight: 600; font-size: 7px; line-height: 1;
 }
 .v2-ava { position: relative; flex-shrink: 0; }
+.v2-zam-pill.v2-zam-pill--under {   /* по низу аватарки, по центру, с белой обводкой */
+  left: 50%; top: auto; bottom: -5px; transform: translateX(-50%);
+  height: 12px; padding: 0 4px; border: 1px solid #fff; font-size: 6px;
+}
 .v2-zam-dot {
   position: absolute; right: -3px; bottom: -2px; width: 13px; height: 13px; border-radius: 50%;
   display: grid; place-items: center; box-sizing: border-box; border: 1.5px solid #fff;
@@ -3267,11 +3271,12 @@ ORG_DATA.board = {
     delete ers.dept;
 
     ers.nested[0].deputyMark = 1;   // на сравнение: зам внутри наборной — вариант 1 (плашка «Зам.»)
+    ers.deputyMark = 3;             // вариант 3 — плашка по низу аватарки, в шапке наборной
     const inKrem = ['Административный департамент', 'Дирекция по качеству', 'Геодезическая лаборатория'];
     const kremCards = persons.filter(p => p.dept && inKrem.includes(p.dept.name));
     const at = persons.indexOf(kremCards[0]);
     const krem = { id: 'full-krem', name: 'Кремлёва Е.С.', fullName: 'Кремлёва Екатерина Сергеевна',
-      role: 'Заместитель генерального директора', photo: null, phone: '', email: '', office: '', nested: kremCards };
+      role: 'Заместитель генерального директора', photo: null, phone: '', email: '', office: '', nested: kremCards, deputyMark: 3 };
     kremCards[0] = { ...kremCards[0], deputyMark: 2 };   // на сравнение: вариант 2 (значок на аватарке)
     krem.nested = kremCards;
     const rest = persons.filter(p => !kremCards.some(k => k.id === p.id));
@@ -4408,14 +4413,17 @@ function makeV2Photo(name, photo, fullName) {
 }
 
 // Аватарка карточки + отметка зама (варианты на сравнение, deputyMark у человека):
-// 1 — плашка «Зам.» справа от аватарки; 2 — значок «З» на аватарке в правом нижнем углу
+// 1 — плашка «Зам.» справа от аватарки; 2 — значок «З» на аватарке в правом нижнем углу;
+// 3 — плашка «Зам.» по низу аватарки (помещается и в шапке наборной карточки)
 function v2PutAvatar(wrap, person) {
   const ph = makeV2Photo(person.name, person.photo, person.fullName);
-  if (person.deputyMark === 2) {
+  if (person.deputyMark === 2 || person.deputyMark === 3) {
     const box = document.createElement('div');
     box.className = 'v2-ava';
     box.append(ph);
-    box.insertAdjacentHTML('beforeend', '<span class="v2-zam-dot" title="Заместитель">З</span>');
+    box.insertAdjacentHTML('beforeend', person.deputyMark === 2
+      ? '<span class="v2-zam-dot" title="Заместитель">З</span>'
+      : '<span class="v2-zam-pill v2-zam-pill--under" title="Заместитель">Зам.</span>');
     wrap.appendChild(box);
   } else wrap.appendChild(ph);
   if (person.deputyMark === 1) wrap.insertAdjacentHTML('beforeend', '<span class="v2-zam-pill">Зам.</span>');
@@ -4571,7 +4579,7 @@ function makeMultiDeptV2El(head, depts) {
 
   const headWrap = document.createElement('div');
   headWrap.className = 'card-v3__head-wrap'; // click-wiring через .card-v3__head-wrap, не нужен card-v2__body
-  if (!head.noPhoto) headWrap.appendChild(makeV2Photo(head.name, head.photo, head.fullName));   // noPhoto — шапка-название (блок, а не человек)
+  if (!head.noPhoto) v2PutAvatar(headWrap, head);   // noPhoto — шапка-название (блок, а не человек)
 
   const headText = document.createElement('div');
   headText.className = 'card-v3__head-text';
@@ -5167,7 +5175,7 @@ function buildTreeV2(data) {
     const personCrumb = [...blockCrumb, { label: p.fullName || p.name, type: 'person', id: p.id }];
     let personEl;
     if (p.nested) {
-      const head = { id: p.id, name: p.name, fullName: p.fullName, role: p.role, photo: p.photo };
+      const head = { id: p.id, name: p.name, fullName: p.fullName, role: p.role, photo: p.photo, deputyMark: p.deputyMark };
       const depts = p.nested.map(n => ({
         person: { id: n.id, name: n.name, fullName: n.fullName, role: n.role, photo: n.photo, deputyMark: n.deputyMark },
         deptName: n.dept ? n.dept.name.replace(/\n/g, ' ') : null,
