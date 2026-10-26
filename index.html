@@ -1560,6 +1560,18 @@ body {
 }
 /* Каждая под-карточка (NameCard1 + GroupCard) — растягивается на всю высоту ряда */
 .card-v3__sub-heads { display: flex; gap: 4px; flex: 1; min-height: 0; }
+/* Два размера карточек: низкая — как внутренние в наборной (146 = 82 + плашка 64), высокая — 196.
+   В ряду выравниваются по низу: узел .tree-node--bottom высотой 196, карточка прижата к низу,
+   линия сверху дотягивается до карточки (::before за карточкой) */
+.card-v2-multi--short .card-v2 { height: 82px; }
+.card-v2-multi--short .card-v2-mh__body { padding: 0 14px 8px; }   /* как у внутренних карточек наборной */
+.card-v2-multi--short .card-v2__role { flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-v2-multi--tall.card-v2-multi--nodept .card-v2 { height: 196px; }
+.tree-node--bottom { height: 196px; display: flex; flex-direction: column; justify-content: flex-end; }
+.tree-node--bottom::before {
+  content: ''; position: absolute; left: 50%; top: 0; bottom: 20px;
+  border-left: 1.5px solid var(--canvas-line);
+}
 /* Карточка без отдела (нет плашки снизу) — низ скруглён, как у карточек с отделом */
 .card-v2-multi--nodept .card-v2-mh__body,
 .card-v3__sub--nodept .card-v2-mh__body { border-radius: 0 0 20px 20px; box-shadow: 0 -2px 0 #fff; }   /* подкладка шва — только вверх, вниз не вылезать за карточку */
@@ -4416,9 +4428,11 @@ function makeNestedCardV2El(managerName, managerRole, managerPhoto, nestedItems,
   return outer;
 }
 
-function makeMultiHeadV2El(heads, label, onLabelClick, isLink) {
+// size: 'short' — низкая (как внутренние карточки в наборной: руководители отделов и все, кроме замов);
+// 'tall' — высокая (замы; без отдела — без плашки, низ скруглён); не задан — как раньше (руководители блока)
+function makeMultiHeadV2El(heads, label, onLabelClick, isLink, size) {
   const group = document.createElement('div');
-  group.className = 'card-v2-multi';
+  group.className = 'card-v2-multi' + (size ? ' card-v2-multi--' + size : '');
 
   const headsRow = document.createElement('div');
   headsRow.className = 'card-v2-multi__heads';
@@ -4620,8 +4634,29 @@ function v2IsFolded(key, count) {
 }
 
 // Копия данных без свёрнутых веток; у карточек с ветками — _fold { key, count, folded }
+// Замы руководителей (deputies в данных отдела) — карточками в дереве: первыми слева в ряду
+// под руководителем. Кто уже есть на дереве карточкой, повторно не выводится
+function v2AddDeputies(persons) {
+  const onTree = new Set();
+  const mark = x => { if (x) { onTree.add(x.id); onTree.add(x.fullName || x.name); } };
+  (function walk(list) {
+    (list || []).forEach(x => {
+      mark(x); walk(x.children); walk(x.nested);
+      if (x.childBlock) { mark(x.childBlock.head); x.childBlock.depts.forEach(d => { mark(d.person); walk(d.children); }); }
+    });
+  })(persons);
+  const deps = owner => ((owner.dept && owner.dept.modal && owner.dept.modal.deputies) || [])
+    .filter(d => d && !onTree.has(d.id) && !onTree.has(d.fullName || d.name))
+    .map(d => ({ id: d.id, name: d.name, fullName: d.fullName, role: d.role, photo: d.photo || null, deputy: true }));
+  return persons.map(p => {
+    if (p.nested) return { ...p, nested: p.nested.map(n => { const d = deps(n); return d.length ? { ...n, children: [...d, ...(n.children || [])] } : n; }) };
+    const d = deps(p);
+    return d.length ? { ...p, children: [...d, ...(p.children || [])] } : p;
+  });
+}
+
 function v2ApplyFold(data) {
-  const persons = (data.persons || []).map(p => {
+  const persons = v2AddDeputies(data.persons || []).map(p => {
     const q = { ...p };
     // Внутренние карточки наборной: больше V2_FOLD_LIMIT — видны первые, остальные по боковой кнопке
     if (p.nested && p.nested.length > V2_FOLD_LIMIT) {
@@ -5118,7 +5153,7 @@ function buildTreeV2(data) {
         if (subBody) { subBody.style.cursor = 'pointer'; subBody.addEventListener('click', handler); }
       });
     } else {
-      personEl = makeMultiHeadV2El([p], p.dept ? p.dept.name : null, v2DeptClick(p.dept, null), v2IsLink(p.dept));
+      personEl = makeMultiHeadV2El([p], p.dept ? p.dept.name : null, v2DeptClick(p.dept, null), v2IsLink(p.dept), 'short');
       v2WirePersonClick(personEl, p, data, null);
     }
     const personNode = document.createElement('div');
@@ -5126,6 +5161,7 @@ function buildTreeV2(data) {
     personNode.style.top  = personsY + 'px';
     personNode.style.left = cardX + 'px';
     personNode.appendChild(personEl);
+    if (personEl.matches('.card-v2-multi--short, .card-v2-multi--tall')) personNode.classList.add('tree-node--bottom');
     inner.appendChild(personNode);
     personNode.dataset.pid = p.id;
     v2AddFoldButton(personNode, p._fold);
@@ -5149,13 +5185,14 @@ function buildTreeV2(data) {
         const cDeptLink = v2IsLink(c.dept);
         const cDeptId   = c.dept && c.dept.id;
         const childEl = makeMultiHeadV2El([c], cDeptName,
-          v2DeptClick(c.dept, childCrumbs), cDeptLink);
+          v2DeptClick(c.dept, childCrumbs), cDeptLink, c.deputy ? 'tall' : 'short');
         v2WirePersonClick(childEl, c, data, p.dept ? p.dept.id : null);
         const childNode = document.createElement('div');
         childNode.className = 'tree-node';
         childNode.style.top  = childrenY + 'px';
         childNode.style.left = cx + 'px';
         childNode.appendChild(childEl);
+        if (childEl.matches('.card-v2-multi--short, .card-v2-multi--tall')) childNode.classList.add('tree-node--bottom');
         inner.appendChild(childNode);
         v2AddFoldButton(childNode, c._fold);
         addConnector(svg, slotCX, personsY + personH, childCX, childrenY, childBranchY);
@@ -5182,7 +5219,8 @@ function buildTreeV2(data) {
             const dEl  = makeMultiHeadV2El(
               [d.person],
               d.deptName || null,
-              d.deptId ? () => openV2DeptModal(d.deptId, cbCrumbs) : null
+              d.deptId ? () => openV2DeptModal(d.deptId, cbCrumbs) : null,
+              false, 'short'
             );
             v2WirePersonClick(dEl, d.person, data, c.dept ? c.dept.id : null);
             const dNode = document.createElement('div');
@@ -5190,6 +5228,7 @@ function buildTreeV2(data) {
             dNode.style.top  = level2Y + 'px';
             dNode.style.left = dx + 'px';
             dNode.appendChild(dEl);
+            if (dEl.matches('.card-v2-multi--short, .card-v2-multi--tall')) dNode.classList.add('tree-node--bottom');
             inner.appendChild(dNode);
             addConnector(svg, childCX, childBottomY, dCX, level2Y, l2BranchY);
             dx += V2_CW + HG;
@@ -5224,13 +5263,14 @@ function buildTreeV2(data) {
             const cCX   = cLeft + Math.round(V2_CW / 2);
             const cDeptId = c.dept && c.dept.id;
             const cEl = makeMultiHeadV2El([c], c.dept ? c.dept.name : null,
-              v2DeptClick(c.dept, nChildCrumbs), v2IsLink(c.dept));
+              v2DeptClick(c.dept, nChildCrumbs), v2IsLink(c.dept), c.deputy ? 'tall' : 'short');
             v2WirePersonClick(cEl, c, data, null);
             const cNode = document.createElement('div');
             cNode.className = 'tree-node';
             cNode.style.top  = level1Y + 'px';
             cNode.style.left = cLeft + 'px';
             cNode.appendChild(cEl);
+            if (cEl.matches('.card-v2-multi--short, .card-v2-multi--tall')) cNode.classList.add('tree-node--bottom');
             inner.appendChild(cNode);
             addConnector(svg, subCX, subBottomY, cCX, level1Y, l1BranchY);
           });
@@ -5283,13 +5323,14 @@ function buildTreeV2(data) {
               const gcCX   = gcLeft + Math.round(V2_CW / 2);
               const gcDeptId = gc.dept && gc.dept.id;
               const gcEl = makeMultiHeadV2El([gc], gc.dept ? gc.dept.name : null,
-                v2DeptClick(gc.dept, gcCrumbs), v2IsLink(gc.dept));
+                v2DeptClick(gc.dept, gcCrumbs), v2IsLink(gc.dept), 'short');
               v2WirePersonClick(gcEl, gc, data, null);
               const gcNode = document.createElement('div');
               gcNode.className = 'tree-node';
               gcNode.style.top  = level2Y + 'px';
               gcNode.style.left = gcLeft + 'px';
               gcNode.appendChild(gcEl);
+              if (gcEl.matches('.card-v2-multi--short, .card-v2-multi--tall')) gcNode.classList.add('tree-node--bottom');
               inner.appendChild(gcNode);
               addConnector(svg, deptSubCX, deptSubBottomY, gcCX, level2Y, l2BranchY);
             });

@@ -218,11 +218,14 @@ function buildCustomTree() {
       el = makeMultiDeptV2El({ id: n.id, name: n.name, role: '', noPhoto: true },
         items.map(it => ({ persons: it.people && it.people.length ? it.people : [{ name: 'ФИО', role: '' }], deptName: it.name })));
     } else {
-      el = makeMultiHeadV2El(r.people, r.label || null);
+      // размеры, как в блоках: исполнительный директор — высокая без отдела, группы — низкие
+      const size = n.type === 'exec' ? 'tall' : n.type === 'board' ? undefined : 'short';
+      el = makeMultiHeadV2El(r.people, r.label || null, null, false, size);
     }
     const node = document.createElement('div');
     node.className = 'tree-node';
     node.appendChild(el);
+    if (el.matches('.card-v2-multi--short, .card-v2-multi--tall')) node.classList.add('tree-node--bottom');
     inner.appendChild(node);
     els.set(n.id, node);
     if (fold) { node.dataset.pid = n.id; v2AddInnerButton(node, fold); }
