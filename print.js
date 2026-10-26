@@ -580,13 +580,13 @@ function ppContentHTML(lay) {
   lay = lay || { rows: [cards.map((c, i) => i)], halves: [null], splits: {} };
   const today = new Date().toLocaleDateString('ru-RU');
   // Уровни над колонками: [совет директоров] → [исполнительный директор] → [руководители блока].
-  // Исполнительный директор отдельной карточкой — только если его нет среди руководителей блока
+  // Исполнительный директор под советом — всегда, даже если он же среди руководителей блока:
+  // это разные роли (он подчиняется совету, а как руководитель блока — сам себе)
   const B = pp.board && pp.data.board, heads = pp.data.heads;
   const showHeads = pp.heads && heads.length;
-  const execInHeads = B && B.executive && showHeads && heads.some(h => h.fullName === B.executive.fullName);
   const levels = [];
   if (B) levels.push({ kind: 'board', people: B.members, label: B.label });
-  if (B && B.executive && !execInHeads) levels.push({ kind: 'exec', people: [B.executive] });
+  if (B && B.executive) levels.push({ kind: 'exec', people: [B.executive] });
   if (showHeads) levels.push({ kind: 'heads', people: heads });
   return `
     <div class="pp-header">
