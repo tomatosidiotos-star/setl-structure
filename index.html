@@ -1562,6 +1562,12 @@ body {
 .card-v3__sub-heads { display: flex; gap: 4px; flex: 1; min-height: 0; }
 /* Отметка зама — плашка по низу аватарки, по центру, с белой обводкой (v2PutAvatar) */
 .v2-ava { position: relative; flex-shrink: 0; }
+/* Замы стопкой у правого края (вариант на сравнение) */
+.v2-deps { position: absolute; right: 6px; top: 14px; display: flex; }
+.v2-deps .card-v2__photo { position: relative; border: 1.5px solid #fff; box-sizing: content-box; }
+.v2-deps .card-v2__photo + .card-v2__photo { margin-left: -8px; }
+.card-v3__head-wrap { position: relative; }
+.card-v3__head-wrap .v2-deps { right: 14px; }
 .v2-zam {
   position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%);
   height: 12px; padding: 0 4px; border-radius: 6px; border: 1px solid #fff; box-sizing: border-box;
@@ -3261,8 +3267,14 @@ ORG_DATA.board = {
     const kremCards = persons.filter(p => p.dept && inKrem.includes(p.dept.name));
     const at = persons.indexOf(kremCards[0]);
     const krem = { id: 'full-krem', name: 'Кремлёва Е.С.', fullName: 'Кремлёва Екатерина Сергеевна',
-      role: 'Заместитель генерального директора', photo: null, phone: '', email: '', office: '', nested: kremCards };
+      role: 'Заместитель генерального директора', photo: null, phone: '', email: '', office: '', nested: kremCards,
+      // на сравнение: замы стопкой аватарок справа (рыба)
+      deps: [{ name: 'Соколов А.П.', fullName: 'Соколов Андрей Петрович' }, { name: 'Ильина М.С.', fullName: 'Ильина Мария Сергеевна' }] };
     krem.nested = kremCards;
+    const sav = kremCards.findIndex(k => k.dept && k.dept.name === 'Дирекция по качеству');
+    if (sav >= 0) kremCards[sav] = { ...kremCards[sav], deps: [
+      { name: 'Сущевин В.С.', fullName: 'Сущевин Виктор Степанович' }, { name: 'Шилов Р.А.', fullName: 'Шилов Роман Андреевич' },
+      { name: 'Вакуленко Д.А.', fullName: 'Вакуленко Дмитрий Андреевич' }] };
     const rest = persons.filter(p => !kremCards.some(k => k.id === p.id));
     rest.splice(at, 0, krem);
     // выдуманный зам слева от «Сэтл УН» — пример карточки зама без отдела
@@ -4398,6 +4410,7 @@ function makeV2Photo(name, photo, fullName) {
 // («Заместитель…») и флагу deputy (замы из данных отдела); метод уточнят разработчики/заказчик
 function v2IsDeputy(person) { return !!(person && (person.deputy || /^заместитель/i.test((person.role || '').trim()))); }
 function v2PutAvatar(wrap, person) {
+  if (person.deps && person.deps.length) v2PutDepsStack(wrap, person.deps);
   const ph = makeV2Photo(person.name, person.photo, person.fullName);
   if (!v2IsDeputy(person)) { wrap.appendChild(ph); return; }
   const box = document.createElement('div');
@@ -4405,6 +4418,20 @@ function v2PutAvatar(wrap, person) {
   box.append(ph);
   box.insertAdjacentHTML('beforeend', '<span class="v2-zam" title="Заместитель">Зам.</span>');
   wrap.appendChild(box);
+}
+
+// Вариант на сравнение: замы — стопкой аватарок у правого края карточки руководителя (deps у человека).
+// Имена — в подсказке при наведении
+function v2PutDepsStack(wrap, deps) {
+  const st = document.createElement('div');
+  st.className = 'v2-deps';
+  st.title = 'Заместители: ' + deps.map(d => d.fullName || d.name).join(', ');
+  deps.forEach((d, i) => {   // левый — сверху, следующие подкладываются под него
+    const ph = makeV2Photo(d.name, d.photo, d.fullName || d.name);
+    ph.style.zIndex = deps.length - i;
+    st.appendChild(ph);
+  });
+  wrap.appendChild(st);
 }
 
 function makeCardV2El(name, role, photo, deptName, deptIsLink, onDeptClick, fullName) {
@@ -5153,9 +5180,9 @@ function buildTreeV2(data) {
     const personCrumb = [...blockCrumb, { label: p.fullName || p.name, type: 'person', id: p.id }];
     let personEl;
     if (p.nested) {
-      const head = { id: p.id, name: p.name, fullName: p.fullName, role: p.role, photo: p.photo, deputy: p.deputy };
+      const head = { id: p.id, name: p.name, fullName: p.fullName, role: p.role, photo: p.photo, deputy: p.deputy, deps: p.deps };
       const depts = p.nested.map(n => ({
-        person: { id: n.id, name: n.name, fullName: n.fullName, role: n.role, photo: n.photo, deputy: n.deputy },
+        person: { id: n.id, name: n.name, fullName: n.fullName, role: n.role, photo: n.photo, deputy: n.deputy, deps: n.deps },
         deptName: n.dept ? n.dept.name.replace(/\n/g, ' ') : null,
         isLink: !!(n.dept && n.dept.link),
         onDeptClick: n.dept
