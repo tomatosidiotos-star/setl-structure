@@ -150,7 +150,7 @@ function ctLayout(roots, size, o) {
 // и дальше вниз к ребёнку — мимо карточек промежуточного ряда
 function ctEdge(a, b, VG) {
   const skip = b._level > a._level + 1 || b._parent !== a;
-  return { owner: a.id, px: a._x, py: a._y + a._h, cx: b._x, cy: b._y,
+  return { owner: a.id, child: b.id, px: a._x, py: a._y + a._h, cx: b._x, cy: b._y,
     midY: skip ? a._y + a._h + VG / 2 : b._y - VG / 2 };
 }
 
@@ -188,6 +188,7 @@ function openCustomStructure() {
   document.getElementById('btn-block-more').style.display = 'none';
   document.getElementById('btn-print-open').style.display = '';
   canvas = { scale: 1, x: 0, y: 0 };
+  V2_FOLD = new Map();
   buildCustomTree();
   centerView(true);
   setupCanvas();
@@ -205,9 +206,17 @@ function buildCustomTree() {
     n._kids = n.children || [];
     const r = csResolve(n);
     let el;
+    let fold = null;
     if (n.type === 'set') {
+      // больше V2_FOLD_LIMIT внутренних карточек — видны первые, остальные по боковой кнопке (как у наборных в блоках)
+      let items = n.items || [];
+      if (items.length > V2_FOLD_LIMIT) {
+        const key = 'inner:' + n.id;
+        fold = { key, count: items.length - V2_FOLD_LIMIT, folded: v2IsFolded(key, items.length) };
+        if (fold.folded) items = items.slice(0, V2_FOLD_LIMIT);
+      }
       el = makeMultiDeptV2El({ id: n.id, name: n.name, role: '', noPhoto: true },
-        (n.items || []).map(it => ({ persons: it.people && it.people.length ? it.people : [{ name: 'ФИО', role: '' }], deptName: it.name })));
+        items.map(it => ({ persons: it.people && it.people.length ? it.people : [{ name: 'ФИО', role: '' }], deptName: it.name })));
     } else {
       el = makeMultiHeadV2El(r.people, r.label || null);
     }
@@ -216,6 +225,7 @@ function buildCustomTree() {
     node.appendChild(el);
     inner.appendChild(node);
     els.set(n.id, node);
+    if (fold) { node.dataset.pid = n.id; v2AddInnerButton(node, fold); }
     n._kids.forEach(mk);
   };
   mk(CUSTOM_STRUCTURE.root);
@@ -228,6 +238,8 @@ function buildCustomTree() {
   });
   ctHops(lay.edges).forEach(e => {
     const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const key = v2NodeKey(els.get(e.child));
+    if (key) { el.dataset.key = key + '<' + e.owner; el.dataset.geom = JSON.stringify(e); }
     el.setAttribute('stroke', 'var(--canvas-line)');
     el.setAttribute('stroke-width', '1.5');
     el.setAttribute('fill', 'none');

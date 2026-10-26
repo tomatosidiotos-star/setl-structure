@@ -4719,7 +4719,7 @@ function v2Rebuild(mutate, sel) {
   document.querySelectorAll('#tree-svg path[data-key]').forEach(l => lines.set(l.dataset.key, JSON.parse(l.dataset.geom)));
 
   mutate();
-  buildTreeV2(V2_BLOCK_DATA);
+  if (state.blockId === 'custom') buildCustomTree(); else buildTreeV2(V2_BLOCK_DATA);   // «Структура» — своя отрисовка
 
   const after = document.querySelector(sel);
   let dX = 0, dY = 0;   // сдвиг системы координат холста (якорная карточка стоит на месте)
