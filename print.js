@@ -36,7 +36,8 @@ const PP_MARGIN_MM = 10;       // поля листа
    у разных блоков на одном формате она одинаковая. Размеры заданы для A4, каждый следующий
    формат крупнее в √2 раза — как сами листы */
 const PP_HEAD_SCALE = { A4: 1, A3: Math.SQRT2, A2: 2, A1: 2 * Math.SQRT2, A0: 4 };
-const PP_HEAD_MM = 18;         // высота шапки на вертикальном A4 вместе с отступом до структуры
+const PP_HEAD_MM = 20;         // высота шапки на вертикальном A4 вместе с отступом до структуры (12 + 8)
+const PP_TOP_MM  = 6;          // поле над шапкой — меньше обычного поля, чтобы шапка не «опускалась»
 // Шапка — по высоте листа: горизонтальный лист ниже, и на нём шапка на ступень меньше
 // (горизонтальный A3 = как вертикальный A4), иначе она выглядит огромной
 function ppHeadK(format) { return (PP_HEAD_SCALE[format] || 1) / (pp && pp.orient === 'landscape' ? Math.SQRT2 : 1); }
@@ -711,7 +712,7 @@ function ppPartition(h, k) {
 function ppScaleFor(format, size) {
   const sh = ppSheetMM(format);
   const iw = (sh.w - sh.pad * 2) * PP_PX_PER_MM;
-  const ih = (sh.h - 0.5 - sh.pad * 2 - ppHeadMM(format)) * PP_PX_PER_MM;   // под шапкой; 0.5 — запас высоты листа
+  const ih = (sh.h - 0.5 - PP_TOP_MM - sh.pad - ppHeadMM(format)) * PP_PX_PER_MM;   // под шапкой; 0.5 — запас высоты листа
   return Math.min(iw / size.w, ih / size.h, PP_MAX_SCALE);
 }
 
@@ -795,7 +796,7 @@ function ppRender() {
   const content = document.getElementById('pp-content');
   sheet.style.width = wmm + 'mm';
   sheet.style.height = (hmm - 0.5) + 'mm';   // запас, чтобы не вылез пустой второй лист
-  sheet.style.padding = sh.pad + 'mm';
+  sheet.style.padding = `${PP_TOP_MM}mm ${sh.pad}mm ${sh.pad}mm`;
   content.innerHTML = html;
   content.style.width = size.w + 'px';
   content.style.transform = `scale(${scale})`;

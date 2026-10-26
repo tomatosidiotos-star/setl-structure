@@ -117,11 +117,11 @@ body.pp-open { overflow: hidden; }
 .pp-content { transform-origin: 0 0; }
 /* Шапка листа: размеры в мм для вертикального A4, --hk — множитель формата (A3 ×√2, A2 ×2,
    A1 ×2√2, A0 ×4); у горизонтального листа — на ступень меньше (÷√2).
-   Высота шапки с отступом = PP_HEAD_MM × --hk (18 мм на A4) — держать в согласии с print.js */
+   Высота шапки с отступом = PP_HEAD_MM × --hk (12 + 8 = 20 мм на A4) — держать в согласии с print.js */
 .pp-sheet__head {
   --hk: 1;
   display: flex; align-items: center; gap: calc(6mm * var(--hk));
-  height: calc(12mm * var(--hk)); margin-bottom: calc(6mm * var(--hk));
+  height: calc(12mm * var(--hk)); margin-bottom: calc(8mm * var(--hk));
   min-width: max-content; box-sizing: border-box;
 }
 .pp-sheet__head .pp-logo { height: calc(9mm * var(--hk)); }
