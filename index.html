@@ -273,7 +273,8 @@ body {
 .lnd-label { font-size: 14px; color: var(--red); line-height: 1.2; margin-bottom: 6px; }
 .lnd-title { font-family: var(--f-exp); font-weight: 600; font-size: 40px; color: var(--black); line-height: 1.2; }
 .lnd-header__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
-.lnd-custom-btn { flex-shrink: 0; margin-top: 4px; font-family: var(--f-exp); color: #e2221c; }
+.btn-legal.lnd-custom-btn { flex-shrink: 0; margin-top: 4px; font-family: var(--f-exp); background: #e2221c; color: #fff; }   /* праймари; .btn-legal ниже по файлу — поэтому двойной класс */
+.btn-legal.lnd-custom-btn:hover { background: #c81d18; color: #fff; }
 .lnd-search-block { display: flex; flex-direction: column; gap: 8px; }
 .lnd-search-label { font-size: 14px; color: #7c7c7c; line-height: 1.2; }
 .lnd-search-wrap {
