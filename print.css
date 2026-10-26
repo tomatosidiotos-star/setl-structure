@@ -121,14 +121,44 @@ body.pp-open { overflow: hidden; }
 
 .pp-chart { display: flex; flex-direction: column; align-items: center; }
 
-/* Руководители блока и шина к карточкам */
-.pp-heads { position: relative; display: flex; gap: 12px; justify-content: center; }
-.pp-heads.has-kids { margin-bottom: 24px; }
+/* Уровни над колонками (совет → исполнительный → руководители блока) и шина к карточкам */
+.pp-lvl-wrap { display: flex; flex-direction: column; align-items: stretch; }
+.pp-lvl { position: relative; display: flex; gap: 12px; justify-content: center; }
+.pp-lvl__label {
+  margin-bottom: 12px; padding: 10px 16px; text-align: center;
+  border: 1px solid #dcdcdc; border-radius: 14px; background: #fff;
+  font-family: var(--f-exp); font-weight: 600; font-size: 13px;
+}
+.pp-lvl .pp-card--head { position: relative; }
+/* шина снизу: короткие отводы от карточек вниз + горизонталь между крайними центрами */
+.pp-lvl.bus-bottom::after {
+  content: ''; position: absolute; left: 110px; right: 110px; bottom: -12px;
+  border-top: 1.5px solid var(--pp-ln);
+}
+.pp-lvl.bus-bottom .pp-card--head::after {
+  content: ''; position: absolute; left: 50%; bottom: -13px; height: 12px; border-left: 1.5px solid var(--pp-ln);
+}
+/* шина сверху */
+.pp-lvl.bus-top::before {
+  content: ''; position: absolute; left: 110px; right: 110px; top: -12px;
+  border-top: 1.5px solid var(--pp-ln);
+}
+.pp-lvl.bus-top .pp-card--head::before {
+  content: ''; position: absolute; left: 50%; top: -13px; height: 12px; border-left: 1.5px solid var(--pp-ln);
+}
+/* вертикальная связь между уровнями (24px); у шины — от неё / до неё */
+.pp-link { position: relative; height: 24px; }
+.pp-link::after {
+  content: ''; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1.5px solid var(--pp-ln);
+}
+.pp-link.from-bus::after { top: 12px; }
+.pp-link.to-bus::after { bottom: 12px; }
+.pp-lvl.has-kids { margin-bottom: 24px; }
 /* без руководителей блока: колонки сами по себе — без шины и стволов, ряды плотнее */
 .pp-chart--no-heads .pp-col::before, .pp-chart--no-heads .pp-col::after,
 .pp-chart--no-heads .pp-corridor::after { display: none; }
 .pp-chart--no-heads .pp-col { padding-top: 0; }
-.pp-heads.has-kids::after {
+.pp-lvl.has-kids::after {
   content: ''; position: absolute; left: 50%; bottom: -24px; height: 24px;
   border-left: 1.5px solid var(--pp-ln);
 }

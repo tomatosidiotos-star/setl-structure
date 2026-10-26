@@ -135,8 +135,20 @@ function ppNormalize(treeData, rootTreeId) {
 
   return {
     heads: (treeData.heads || []).map(person),   // у руководителей блока команды нет — node() не нужен
+    board: ppBoardData(),
     cards: treeChildren(treeData),
   };
+}
+
+// Совет директоров и исполнительный директор — из ORG_DATA.board (тот же состав, что на главной)
+function ppBoardData() {
+  const b = typeof ORG_DATA !== 'undefined' && ORG_DATA.board;
+  if (!b || !b.members || !b.members.length) return null;
+  const full = p => (p.displayName || p.fullName || p.name || '').replace(/\s*\n\s*/g, ' ').trim();
+  const short = f => { const [s, n, m] = f.split(' '); return s + (n ? ` ${n[0]}.` : '') + (m ? `${m[0]}.` : ''); };
+  const pers = p => ({ id: p.id, fullName: full(p), name: p.displayName ? short(full(p)) : (p.name || short(full(p))),
+    role: (p.role || '').replace(/\s*\n\s*/g, ' '), photo: p.photo || null });
+  return { label: b.label || 'Совет директоров', members: b.members.map(pers), executive: b.executive ? pers(b.executive) : null };
 }
 
 /* ---------- Подсчёты ---------- */
@@ -179,6 +191,7 @@ function ppDefaults() {
     photos: true,
     team: false,          // сотрудники отделов (команда из модалки)
     heads: true,          // верхний ряд — руководители блока
+    board: false,         // над руководителями — совет директоров и исполнительный директор
     balance: true,        // авто-раскладка: переносить карточки в ряды, делить длинные колонки
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
@@ -195,6 +208,7 @@ function ppReset() {
   document.getElementById('pp-photos').checked = pp.photos;
   document.getElementById('pp-team').checked = pp.team;
   document.getElementById('pp-heads').checked = pp.heads;
+  if (document.getElementById('pp-board')) document.getElementById('pp-board').checked = pp.board;
   document.getElementById('pp-balance').checked = pp.balance;
   const search = document.getElementById('pp-search');
   search.value = '';
@@ -257,6 +271,7 @@ function openPrintPreview() {
         <div class="pp-group">
           <label class="pp-check"><input type="checkbox" id="pp-fullnames" checked> ФИО полностью</label>
           <label class="pp-check"><input type="checkbox" id="pp-photos" checked> Фото в карточках</label>
+          ${data.board ? `<label class="pp-check"><input type="checkbox" id="pp-board"> Совет директоров <span class="pp-hint">над руководителями</span></label>` : ''}
           <label class="pp-check"><input type="checkbox" id="pp-heads" checked> Руководители блока <span class="pp-hint">верхний ряд</span></label>
           <label class="pp-check"><input type="checkbox" id="pp-team"> Сотрудники отделов</label>
           <label class="pp-check"><input type="checkbox" id="pp-balance" checked> Авто-раскладка <span class="pp-hint">ряды и подколонки</span></label>
@@ -330,6 +345,7 @@ function openPrintPreview() {
   root.querySelector('#pp-photos').onchange = e => { pp.photos = e.target.checked; ppRender(); };
   root.querySelector('#pp-team').onchange = e => { pp.team = e.target.checked; ppRender(); };
   root.querySelector('#pp-heads').onchange = e => { pp.heads = e.target.checked; ppRender(); };
+  if (root.querySelector('#pp-board')) root.querySelector('#pp-board').onchange = e => { pp.board = e.target.checked; ppRender(); };
   root.querySelector('#pp-balance').onchange = e => { pp.balance = e.target.checked; ppRender(); };
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
   root.querySelector('#pp-none').onclick = () => { ppAllNodes().forEach(n => pp.excluded.add(n.uid)); ppRenderTree(); ppRender(); };
@@ -563,18 +579,41 @@ function ppContentHTML(lay) {
   const cards = pp.data.cards.filter(c => !pp.excluded.has(c.uid));
   lay = lay || { rows: [cards.map((c, i) => i)], halves: [null], splits: {} };
   const today = new Date().toLocaleDateString('ru-RU');
-  const showHeads = pp.heads && pp.data.heads.length;
-  const heads = showHeads ? pp.data.heads.map(h => ppCardHTML({ person: h }, 'pp-card--head')).join('') : '';
+  // Уровни над колонками: [совет директоров] → [исполнительный директор] → [руководители блока].
+  // Исполнительный директор отдельной карточкой — только если его нет среди руководителей блока
+  const B = pp.board && pp.data.board, heads = pp.data.heads;
+  const showHeads = pp.heads && heads.length;
+  const execInHeads = B && B.executive && showHeads && heads.some(h => h.fullName === B.executive.fullName);
+  const levels = [];
+  if (B) levels.push({ kind: 'board', people: B.members, label: B.label });
+  if (B && B.executive && !execInHeads) levels.push({ kind: 'exec', people: [B.executive] });
+  if (showHeads) levels.push({ kind: 'heads', people: heads });
   return `
     <div class="pp-header">
       ${pp.logo ? `<img class="pp-logo" src="${pp.logo}" alt="">` : ''}
       <div class="pp-header__title">Организационная структура<br><b>${escHtml(pp.title)}</b></div>
       <div class="pp-header__date">Актуально на ${today}</div>
     </div>
-    <div class="pp-chart${showHeads ? '' : ' pp-chart--no-heads'}">
-      ${showHeads ? `<div class="pp-heads${cards.length ? ' has-kids' : ''}">${heads}</div>` : ''}
+    <div class="pp-chart${levels.length ? '' : ' pp-chart--no-heads'}">
+      ${ppLevelsHTML(levels, cards.length > 0)}
       ${cards.length ? ppRowsHTML(cards, lay) : ''}
     </div>`;
+}
+
+// Уровни над колонками, соединённые вертикальными линиями. У уровня из нескольких карточек —
+// шина: снизу, если от него линия идёт дальше вниз (совет), сверху — если в него приходит линия
+// (руководители блока под советом). Последний уровень ведёт к шине колонок (has-kids)
+function ppLevelsHTML(levels, hasCols) {
+  return levels.map((lv, i) => {
+    const multi = lv.people.length > 1;
+    const busTop = multi && i > 0, busBottom = multi && i < levels.length - 1;
+    const prevBus = i > 0 && levels[i - 1].people.length > 1;
+    const cls = ['pp-lvl', `pp-lvl--${lv.kind}`, busTop ? 'bus-top' : '', busBottom ? 'bus-bottom' : '',
+      i === levels.length - 1 && hasCols ? 'has-kids' : ''].filter(Boolean).join(' ');
+    const link = i > 0 ? `<div class="pp-link${prevBus ? ' from-bus' : ''}${busTop ? ' to-bus' : ''}"></div>` : '';
+    const label = lv.label ? `<div class="pp-lvl__label">${escHtml(lv.label)}</div>` : '';
+    return `${link}<div class="pp-lvl-wrap">${label}<div class="${cls}">${lv.people.map(h => ppCardHTML({ person: h }, 'pp-card--head')).join('')}</div></div>`;
+  }).join('');
 }
 
 /* ---------- Раскладка и масштаб ---------- */
@@ -604,7 +643,7 @@ function ppModel() {
   const header = probe.querySelector('.pp-header');
   const model = {
     top: colsEl ? colsEl.offsetTop : probe.scrollHeight,
-    minW: Math.max(probe.querySelector('.pp-heads') ? probe.querySelector('.pp-heads').offsetWidth : 0,
+    minW: Math.max(0, ...[...probe.querySelectorAll('.pp-lvl-wrap')].map(e => e.offsetWidth),
       [...header.children].reduce((s, el) => s + el.offsetWidth, 0) + 24 * 2 + 40),
     cols: [...probe.querySelectorAll('.pp-col')].map((el, i) => {
       const root = el.querySelector(':scope > .pp-list--root');
