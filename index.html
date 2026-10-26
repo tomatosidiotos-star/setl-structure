@@ -3233,7 +3233,7 @@ ORG_DATA.board = {
   const node = ([dept, name, kids], role) => {
     const id = 'full-' + (++n);
     const p = { id, name, fullName: name, role, photo: null, phone: '', email: '', office: '' };
-    if (!name) Object.assign(p, { vacant: 'label', fullName: '', role: '' });   // отдел без руководителя
+    if (!name) Object.assign(p, { vacant: 'circle', fullName: '', role: '' });   // отдел без руководителя — серый кружок без надписей
     return {
       ...p,
       dept: { name: dept, link: false, id: id + '-d',
