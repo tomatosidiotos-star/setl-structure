@@ -183,6 +183,7 @@ function ppBuildChain(data) {
 // звенья цепочки раскрыты в «Ветках»
 function ppInitTop() {
   pp.data.chain.forEach(n => { pp.open.add(n.uid); if (n.kind !== 'heads') pp.excluded.add(n.uid); });
+  if (pp.data.custom) ppAllNodes().forEach(n => pp.open.add(n.uid));   // «Структура» небольшая — «Ветки» раскрыты целиком
 }
 
 // Что печатать: отмеченные уровни-звенья над колонками и отмеченные карточки 2-го уровня
@@ -192,6 +193,55 @@ function ppTop() {
     n.kind === 'board' ? { kind: 'board', people: n.members, label: n.label }
     : n.kind === 'exec' ? { kind: 'exec', people: [n.person] } : { kind: 'heads', people: n.heads });
   return { levels, cols: ppVisibleKids(pp.data.cards) };   // верхние из отмеченных: группа без дирекции — сама колонка
+}
+
+/* ---------- «Структура» (custom-structure.js): та же раскладка, что на экране ----------
+   Узлы печати — по узлам CUSTOM_STRUCTURE; «Ветки» — каскадом, снятый узел пропускается,
+   отмеченное под ним поднимается (ppVisibleKids). Совет — плашкой и карточками, как в основной печати */
+function ppCustomData() {
+  const map = n => {
+    const r = csResolve(n);
+    const label = n.type === 'board' ? r.label
+      : n.type === 'exec' ? (r.people[0] ? `${r.people[0].fullName} — исполнительный директор` : 'Исполнительный директор') : r.label;
+    return { uid: 'c-' + n.id, src: n, type: n.type || 'group', treeLabel: label, dept: r.label, person: null,
+      persons: r.people.map(p => ({ ...p, fullName: p.fullName || p.name, name: p.name || p.fullName })),
+      items: n.items || [], people: [], team: [], children: (n.children || []).map(map) };
+  };
+  const root = map(CUSTOM_STRUCTURE.root);
+  return { custom: true, heads: [], board: null, cards: [], chain: [], roots: [root] };
+}
+
+function ppCustomCard(n) {
+  const person = p => ppCardHTML({ person: p }, 'pp-card--head');
+  if (n.type === 'board') return `<div class="pp-lvl-wrap"><div class="pp-lvl__label">${escHtml(n.dept)}</div>`
+    + `<div class="pp-lvl">${n.persons.map(person).join('')}</div></div>`;
+  if (n.type === 'set') return `<div class="pp-card pp-card--set"><div class="pp-card__name pp-card__name--block">${escHtml(n.dept)}</div>`
+    + n.items.map(it => `<div class="pp-card__dept">${escHtml(it.name)}${(it.people || []).map(p =>
+      `<div class="pp-card__role">${escHtml(ppPersonName({ fullName: p.fullName || p.name, name: p.name || p.fullName }))}</div>`).join('')}</div>`).join('') + `</div>`;
+  return `<div class="pp-card pp-card--group">${n.persons.map(p => `<div class="pp-card__person">${ppPhotoHTML(p)}
+      <div class="pp-card__text"><div class="pp-card__name">${escHtml(ppPersonName(p))}</div>
+      ${p.role ? `<div class="pp-card__role">${escHtml(p.role)}</div>` : ''}</div></div>`).join('')}
+    ${n.type !== 'exec' && n.dept ? `<div class="pp-card__dept">${escHtml(n.dept)}</div>` : ''}</div>`;
+}
+
+function ppCustomHTML() {
+  // узлы раскладки: только отмеченные; снятый — пропускается, его отмеченные дети поднимаются
+  const wrap = n => ({ id: n.uid, row: n.src.row, alsoFrom: (n.src.alsoFrom || []).map(id => 'c-' + id), node: n,
+    _kids: ppVisibleKids(n.children).map(wrap) });
+  const roots = ppVisibleKids(pp.data.roots).map(wrap);
+  if (!roots.length) return '<div class="pp-custom"></div>';
+  const all = [];
+  (function collect(list) { list.forEach(w => { all.push(w); collect(w._kids); }); })(roots);
+  // размеры карточек — в невидимом замере
+  const probe = ppProbe(all.map(w => `<div class="pp-custom__probe" data-id="${w.id}">${ppCustomCard(w.node)}</div>`).join(''));
+  const size = new Map([...probe.querySelectorAll('.pp-custom__probe')].map(el => [el.dataset.id, { w: el.offsetWidth, h: el.offsetHeight }]));
+  probe.remove();
+  const lay = ctLayout(roots, w => size.get(w.id), { hg: 32, vg: 56, pad: 0 });
+  const paths = ctHops(lay.edges).map(e => `<path d="${ctPathD(e)}"/>`).join('');
+  return `<div class="pp-custom" style="width:${lay.width}px;height:${lay.height}px">
+    <svg class="pp-custom__lines" width="${lay.width}" height="${lay.height}">${paths}</svg>
+    ${lay.nodes.map(w => `<div class="pp-custom__node" style="left:${w._x - w._w / 2}px;top:${w._y}px">${ppCustomCard(w.node)}</div>`).join('')}
+  </div>`;
 }
 
 /* ---------- Подсчёты ---------- */
@@ -258,12 +308,14 @@ function ppReset() {
 }
 
 function openPrintPreview() {
-  const treeData = ORG_DATA.trees && ORG_DATA.trees[state.blockId];
-  if (!treeData || treeData.version !== 2) return;
-  const company = (ORG_DATA.companies || []).find(c => c.id === state.companyId);
-  const data = ppNormalize(treeData, state.blockId);
+  const custom = state.blockId === 'custom' && typeof CUSTOM_STRUCTURE !== 'undefined';
+  const treeData = custom ? { blockName: CUSTOM_STRUCTURE.title } : ORG_DATA.trees && ORG_DATA.trees[state.blockId];
+  if (!custom && (!treeData || treeData.version !== 2)) return;
+  const company = custom ? { logo: 'Логотипы/SetlGroup-logo.svg' }
+    : (ORG_DATA.companies || []).find(c => c.id === state.companyId);
+  const data = custom ? ppCustomData() : ppNormalize(treeData, state.blockId);
 
-  ppBuildChain(data);
+  if (!custom) ppBuildChain(data);   // у «Структуры» иерархия уже своя
   pp = {
     data,
     title: treeData.blockName || state.blockName || '',
@@ -616,6 +668,7 @@ function ppRowsHTML(cards, lay) {
 }
 
 function ppContentHTML(lay) {
+  if (pp.data.custom) return ppCustomHTML();
   const { levels, cols: cards } = ppTop();
   lay = lay || { rows: [cards.map((c, i) => i)], halves: [null], splits: {} };
   // Уровни над колонками — отмеченные звенья: [совет директоров] → [исполнительный директор] →
@@ -668,6 +721,7 @@ function ppMeasure(html) {
 // Замер для раскладки: высота «шапки» листа и по каждой колонке —
 // карточка и высоты пунктов верхнего уровня (вместе с их поддеревьями)
 function ppModel() {
+  if (pp.data.custom) return { top: 0, minW: 0, cols: [] };   // у «Структуры» своя раскладка (ctLayout)
   const cards = ppTop().cols;
   const probe = ppProbe(ppContentHTML());
   const colsEl = probe.querySelector('.pp-cols');
@@ -780,6 +834,10 @@ function ppPt(scale) { return PP_BASE_FONT * scale * 0.75; }
 
 // Первый формат, на котором текст не мельче PP_GOOD_PT
 function ppAutoFormat(model) {
+  if (pp.data.custom) {   // своя раскладка — подбираем по реальному размеру
+    const size = ppMeasure(ppContentHTML());
+    return Object.keys(PP_FORMATS).find(f => ppPt(ppScaleFor(f, size)) >= PP_GOOD_PT) || null;
+  }
   model = model || ppModel();
   return Object.keys(PP_FORMATS).find(f => ppPt(ppLayout(model, f).scale) >= PP_GOOD_PT) || null;
 }

@@ -272,6 +272,17 @@ body.pp-open { overflow: hidden; }
 .pp-team__role { font-size: 10.5px; line-height: 1.2; color: var(--pp-text-2); }
 .pp-more { margin-top: 2px; font-size: 11px; line-height: 1.2; color: var(--pp-text-3); }
 
+/* ---------- «Структура» (своя раскладка) ---------- */
+.pp-custom { position: relative; }
+.pp-custom__lines { position: absolute; left: 0; top: 0; overflow: visible; }
+.pp-custom__lines path { fill: none; stroke: var(--pp-ln); stroke-width: 1.5; stroke-linecap: round; }
+.pp-custom__node { position: absolute; }
+.pp-custom__probe { position: absolute; left: 0; top: 0; width: max-content; }
+.pp-card--group, .pp-card--set { width: 220px; display: flex; flex-direction: column; gap: 10px; }
+.pp-card--group .pp-card__dept, .pp-card--set .pp-card__dept { margin-top: 0; }
+.pp-card__name--block { font-size: 13px; }
+.pp-card--set .pp-card__dept .pp-card__role { margin-top: 3px; font-family: var(--f-body); font-weight: 400; }
+
 /* ---------- Печать частями ---------- */
 .pp-sheet { position: relative; }
 .pp-grid { position: absolute; inset: 0; pointer-events: none; }
