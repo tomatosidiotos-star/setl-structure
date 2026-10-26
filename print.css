@@ -114,11 +114,22 @@ body.pp-open { overflow: hidden; }
   --pp-text-3: #777;   /* «ещё N подразделений» */
 }
 
-.pp-header { display: flex; align-items: center; gap: 24px; margin-bottom: 36px; }
-.pp-logo { height: 40px; }
-.pp-header__title { font-family: var(--f-exp); font-size: 18px; line-height: 1.25; color: #41484a; }
-.pp-header__title b { font-weight: 600; color: var(--black); }
-.pp-header__date { margin-left: auto; padding-left: 40px; font-size: 13px; color: var(--pp-text-2); white-space: nowrap; }
+.pp-content { transform-origin: 0 0; }
+/* Шапка листа: размеры в мм для A4, --hk — множитель формата (A3 ×√2, A2 ×2, A1 ×2√2, A0 ×4).
+   Высота шапки с отступом = PP_HEAD_MM × --hk (18 мм на A4) — держать в согласии с print.js */
+.pp-sheet__head {
+  --hk: 1;
+  display: flex; align-items: center; gap: calc(6mm * var(--hk));
+  height: calc(12mm * var(--hk)); margin-bottom: calc(6mm * var(--hk));
+  min-width: max-content; box-sizing: border-box;
+}
+.pp-sheet__head .pp-logo { height: calc(9mm * var(--hk)); }
+.pp-sheet__title { font-family: var(--f-exp); font-size: calc(3.6mm * var(--hk)); line-height: 1.25; color: #41484a; }
+.pp-sheet__title b { font-weight: 600; color: var(--black); }
+.pp-sheet__date {
+  margin-left: auto; padding-left: calc(8mm * var(--hk)); white-space: nowrap;
+  font-family: var(--f-body); font-size: calc(2.6mm * var(--hk)); color: #555;
+}
 
 .pp-chart { display: flex; flex-direction: column; align-items: center; }
 

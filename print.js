@@ -32,6 +32,13 @@ function ppDims(format) {
 }
 const PP_MARGIN_MM = 10;       // поля листа
 
+/* Шапка листа — фиксированного размера по формату, не масштабируется вместе со структурой:
+   у разных блоков на одном формате она одинаковая. Размеры заданы для A4, каждый следующий
+   формат крупнее в √2 раза — как сами листы */
+const PP_HEAD_SCALE = { A4: 1, A3: Math.SQRT2, A2: 2, A1: 2 * Math.SQRT2, A0: 4 };
+const PP_HEAD_MM = 18;         // высота шапки на A4 вместе с отступом до структуры
+function ppHeadMM(format) { return PP_HEAD_MM * (PP_HEAD_SCALE[format] || 1); }
+
 /* Лист, на который раскладывается структура. Целым листом — сам формат с полями.
    Частями — ровная сетка кусков, на которую формат делится по стандарту (A1 = 2×4 A4 = 2×2 A3):
    лист = склеенная площадь кусков за вычетом полей принтера и нахлёста, изображение чуть меньше,
@@ -350,7 +357,7 @@ function openPrintPreview() {
       </div>
       <div class="pp-sheet-wrap" id="pp-sheet-wrap">
         <div class="pp-sizer" id="pp-sizer">
-          <div class="pp-sheet" id="pp-sheet"><div class="pp-content" id="pp-content"></div><div class="pp-grid" id="pp-grid"></div></div>
+          <div class="pp-sheet" id="pp-sheet"><div class="pp-sheet__head" id="pp-sheet-head"></div><div class="pp-content" id="pp-content"></div><div class="pp-grid" id="pp-grid"></div></div>
         </div>
         <div class="pp-tiles" id="pp-tiles"></div>
       </div>
@@ -606,16 +613,10 @@ function ppRowsHTML(cards, lay) {
 function ppContentHTML(lay) {
   const { levels, cols: cards } = ppTop();
   lay = lay || { rows: [cards.map((c, i) => i)], halves: [null], splits: {} };
-  const today = new Date().toLocaleDateString('ru-RU');
   // Уровни над колонками — отмеченные звенья: [совет директоров] → [исполнительный директор] →
   // [руководители блока]. Исполнительный директор под советом — даже если он же среди руководителей
   // блока: это разные роли
   return `
-    <div class="pp-header">
-      ${pp.logo ? `<img class="pp-logo" src="${pp.logo}" alt="">` : ''}
-      <div class="pp-header__title">Организационная структура<br><b>${escHtml(pp.title)}</b></div>
-      <div class="pp-header__date">Актуально на ${today}</div>
-    </div>
     <div class="pp-chart${levels.length ? '' : ' pp-chart--no-heads'}">
       ${ppLevelsHTML(levels, cards.length > 0)}
       ${cards.length ? ppRowsHTML(cards, lay) : ''}
@@ -665,11 +666,9 @@ function ppModel() {
   const cards = ppTop().cols;
   const probe = ppProbe(ppContentHTML());
   const colsEl = probe.querySelector('.pp-cols');
-  const header = probe.querySelector('.pp-header');
   const model = {
     top: colsEl ? colsEl.offsetTop : probe.scrollHeight,
-    minW: Math.max(0, ...[...probe.querySelectorAll('.pp-lvl-wrap')].map(e => e.offsetWidth),
-      [...header.children].reduce((s, el) => s + el.offsetWidth, 0) + 24 * 2 + 40),
+    minW: Math.max(0, ...[...probe.querySelectorAll('.pp-lvl-wrap')].map(e => e.offsetWidth)),
     cols: [...probe.querySelectorAll('.pp-col')].map((el, i) => {
       const root = el.querySelector(':scope > .pp-list--root');
       return {
@@ -708,7 +707,7 @@ function ppPartition(h, k) {
 function ppScaleFor(format, size) {
   const sh = ppSheetMM(format);
   const iw = (sh.w - sh.pad * 2) * PP_PX_PER_MM;
-  const ih = (sh.h - sh.pad * 2) * PP_PX_PER_MM;
+  const ih = (sh.h - 0.5 - sh.pad * 2 - ppHeadMM(format)) * PP_PX_PER_MM;   // под шапкой; 0.5 — запас высоты листа
   return Math.min(iw / size.w, ih / size.h, PP_MAX_SCALE);
 }
 
@@ -799,6 +798,14 @@ function ppRender() {
   // По центру листа по горизонтали
   const innerW = (wmm - sh.pad * 2) * PP_PX_PER_MM;
   content.style.marginLeft = Math.max(0, (innerW - size.w * scale) / 2) + 'px';
+  // Шапка: размер — от формата (мм), ширина и положение — по структуре (как раньше)
+  const head = document.getElementById('pp-sheet-head');
+  head.style.setProperty('--hk', PP_HEAD_SCALE[pp.format] || 1);
+  head.style.width = Math.min(innerW, size.w * scale) + 'px';
+  head.style.marginLeft = content.style.marginLeft;
+  head.innerHTML = `${pp.logo ? `<img class="pp-logo" src="${pp.logo}" alt="">` : ''}
+    <div class="pp-sheet__title">Организационная структура<br><b>${escHtml(pp.title)}</b></div>
+    <div class="pp-sheet__date">Актуально на ${new Date().toLocaleDateString('ru-RU')}</div>`;
 
   const tiles = sh.tiles;
   // Ширина печатной страницы — явно по листу: иначе браузер верстает по ширине окна
