@@ -151,9 +151,10 @@ function ppBoardData() {
   return { label: b.label || 'Совет директоров', members: b.members.map(pers), executive: b.executive ? pers(b.executive) : null };
 }
 
-/* Одна иерархия для «Веток»: совет директоров → исполнительный директор → руководители блока →
-   департаменты… Верхние звенья — узлы-цепочка (kind), их дети — следующее звено, у последнего —
-   карточки 2-го уровня. Лист начинается с выбранной строки («Начать отсюда»), всё выше — не печатается */
+/* Одна иерархия для «Веток» с вложенностью: совет директоров → исполнительный директор →
+   руководители блока → департаменты → отделы. Верхние звенья — узлы-цепочка (kind): их галочка
+   убирает только саму карточку-уровень, всё ниже остаётся (сняли совет — лист начинается ниже).
+   Департаменты и ниже — ветки: галочка каскадом */
 function ppBuildChain(data) {
   const chain = [], B = data.board, heads = data.heads;
   if (B) chain.push({ uid: 'top-board', kind: 'board', label: B.label, members: B.members,
@@ -167,30 +168,19 @@ function ppBuildChain(data) {
   data.roots = chain.length ? [chain[0]] : data.cards;
 }
 
-// По умолчанию лист начинается с руководителей блока (как раньше); звенья цепочки — раскрыты в «Ветках»
-function ppInitStart() {
-  const heads = pp.data.chain.find(n => n.kind === 'heads');
-  pp.start = heads ? heads.uid : null;
-  pp.data.chain.forEach(n => pp.open.add(n.uid));
+// По умолчанию — как раньше: руководители блока и структура, совет и исполнительный директор сняты;
+// звенья цепочки раскрыты в «Ветках»
+function ppInitTop() {
+  pp.data.chain.forEach(n => { pp.open.add(n.uid); if (n.kind !== 'heads') pp.excluded.add(n.uid); });
 }
 
-// Что печатать: уровни над колонками (от строки-начала) и сами колонки
+// Что печатать: отмеченные уровни-звенья над колонками и отмеченные карточки 2-го уровня
 function ppTop() {
   const ex = id => pp.excluded.has(id);
-  const chain = pp.data.chain, ci = chain.findIndex(n => n.uid === pp.start);
-  if (ci >= 0 || pp.start === null) {
-    const levels = [];
-    for (let i = ci; ci >= 0 && i < chain.length; i++) {
-      const n = chain[i];
-      if (ex(n.uid)) return { levels, cols: [] };
-      levels.push(n.kind === 'board' ? { kind: 'board', people: n.members, label: n.label }
-        : n.kind === 'exec' ? { kind: 'exec', people: [n.person] } : { kind: 'heads', people: n.heads });
-    }
-    return { levels, cols: pp.data.cards.filter(c => !ex(c.uid)) };
-  }
-  const node = ppAllNodes().find(n => n.uid === pp.start);
-  if (!node || ex(node.uid)) return { levels: [], cols: [] };
-  return { levels: [{ kind: 'dept', node }], cols: node.children.filter(c => !ex(c.uid)) };
+  const levels = pp.data.chain.filter(n => !ex(n.uid)).map(n =>
+    n.kind === 'board' ? { kind: 'board', people: n.members, label: n.label }
+    : n.kind === 'exec' ? { kind: 'exec', people: [n.person] } : { kind: 'heads', people: n.heads });
+  return { levels, cols: pp.data.cards.filter(c => !ex(c.uid)) };
 }
 
 /* ---------- Подсчёты ---------- */
@@ -232,7 +222,6 @@ function ppDefaults() {
     fullNames: true,
     photos: true,
     team: false,          // сотрудники отделов (команда из модалки)
-    start: null,          // с чего начинается лист (uid строки в «Ветках»); null — по умолчанию
     balance: true,        // авто-раскладка: переносить карточки в ряды, делить длинные колонки
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
@@ -244,7 +233,7 @@ function ppDefaults() {
 
 function ppReset() {
   Object.assign(pp, ppDefaults());
-  ppInitStart();
+  ppInitTop();
   pp.format = ppAutoFormat() || 'A1';
   document.getElementById('pp-fullnames').checked = pp.fullNames;
   document.getElementById('pp-photos').checked = pp.photos;
@@ -270,7 +259,7 @@ function openPrintPreview() {
     logo: company ? company.logo : null,
     ...ppDefaults(),
   };
-  ppInitStart();
+  ppInitTop();
   pp.format = ppAutoFormat() || 'A1';
 
   const root = document.createElement('div');
@@ -455,10 +444,11 @@ function ppAncestors(n) {
   return path;
 }
 function ppSetChecked(n, on) {
+  if (n.kind) { on ? pp.excluded.delete(n.uid) : pp.excluded.add(n.uid); return; }   // звено — только своя карточка
   const all = [n, ...ppDescendants(n)];
   if (on) {
     all.forEach(x => pp.excluded.delete(x.uid));
-    ppAncestors(n).forEach(a => pp.excluded.delete(a.uid));
+    ppAncestors(n).filter(a => !a.kind).forEach(a => pp.excluded.delete(a.uid));
   } else {
     all.forEach(x => pp.excluded.add(x.uid));
   }
@@ -479,8 +469,6 @@ function ppRenderTree() {
   const q = ppNorm(pp.query.trim());
   const labelOf = n => n.treeLabel || n.dept || (n.person ? n.person.fullName : '');
   const nameHit = n => q && n.dept && n.person && ppNorm(n.person.fullName).includes(q);
-  const startNode = ppAllNodes().find(n => n.uid === pp.start);
-  const above = new Set(startNode ? ppAncestors(startNode).map(a => a.uid) : []);
   const selfHit = n => !!q && (ppNorm(labelOf(n)).includes(q) || nameHit(n));
 
   // При поиске показываем совпадения и путь к ним (раскрытым)
@@ -497,10 +485,9 @@ function ppRenderTree() {
     const kidsShown = q ? n.children.some(c => shown.has(c.uid)) : hasKids;
     const isOpen = q ? kidsShown : pp.open.has(n.uid);
     const off = pp.excluded.has(n.uid);
-    const partial = !off && ppDescendants(n).some(d => pp.excluded.has(d.uid));
+    const partial = !n.kind && !off && ppDescendants(n).some(d => pp.excluded.has(d.uid));
     const item = document.createElement('div');
-    const isStart = n.uid === pp.start;
-    item.className = 'pp-ti' + (isStart ? ' pp-ti--start' : '') + (above.has(n.uid) ? ' pp-ti--above' : '') + (n.kind ? ' pp-ti--chain' : '');
+    item.className = 'pp-ti' + (n.kind ? ' pp-ti--chain' : '');
     item.innerHTML = `
       <div class="pp-ti__row" style="padding-left:${(level - 2) * 16}px">
         <button class="pp-ti__arrow${kidsShown ? '' : ' empty'}${isOpen ? ' open' : ''}" tabindex="${kidsShown ? 0 : -1}">
@@ -509,21 +496,9 @@ function ppRenderTree() {
         <label class="pp-check"><input type="checkbox" ${off ? '' : 'checked'}>
           <span class="pp-ti__text"><span class="pp-ti__label">${ppMark(labelOf(n), q)}</span>
           ${nameHit(n) ? `<span class="pp-ti__name">${ppMark(n.person.fullName, q)}</span>` : ''}</span></label>
-        ${isStart ? '<span class="pp-ti__badge">верх листа</span>'
-          : `<button class="pp-ti__start" title="Начать лист отсюда — всё выше не печатается" aria-label="Начать лист отсюда">
-               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2h9M7 12V5M4 8l3-3 3 3"/></svg>
-             </button>`}
       </div>`;
     item.querySelector('input').onchange = e => {
       ppSetChecked(n, e.target.checked);
-      ppRenderTree();
-      ppRender();
-    };
-    const startBtn = item.querySelector('.pp-ti__start');
-    if (startBtn) startBtn.onclick = () => {
-      pp.start = n.uid;
-      if (pp.excluded.has(n.uid)) ppSetChecked(n, true);
-      pp.zoom = null;
       ppRenderTree();
       ppRender();
     };
@@ -534,8 +509,7 @@ function ppRenderTree() {
     };
     box.appendChild(item);
     item.querySelector('input').indeterminate = partial;
-    // звенья цепочки (совет → исполнительный → руководители) — без отступа, чтобы дерево не уезжало вправо
-    if (kidsShown && isOpen) n.children.forEach(c => walk(c, n.kind ? level : level + 1));
+    if (kidsShown && isOpen) n.children.forEach(c => walk(c, level + 1));
   };
   pp.data.roots.forEach(c => walk(c, 2));
   if (q && !shown.size) box.innerHTML = '<div class="pp-tree__empty">Ничего не нашлось</div>';
@@ -633,9 +607,9 @@ function ppContentHTML(lay) {
   const { levels, cols: cards } = ppTop();
   lay = lay || { rows: [cards.map((c, i) => i)], halves: [null], splits: {} };
   const today = new Date().toLocaleDateString('ru-RU');
-  // Уровни над колонками — от строки-начала: [совет директоров] → [исполнительный директор] →
-  // [руководители блока] или одна карточка подразделения. Исполнительный директор под советом —
-  // всегда, даже если он же среди руководителей блока: это разные роли
+  // Уровни над колонками — отмеченные звенья: [совет директоров] → [исполнительный директор] →
+  // [руководители блока]. Исполнительный директор под советом — даже если он же среди руководителей
+  // блока: это разные роли
   return `
     <div class="pp-header">
       ${pp.logo ? `<img class="pp-logo" src="${pp.logo}" alt="">` : ''}
