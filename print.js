@@ -36,8 +36,11 @@ const PP_MARGIN_MM = 10;       // поля листа
    у разных блоков на одном формате она одинаковая. Размеры заданы для A4, каждый следующий
    формат крупнее в √2 раза — как сами листы */
 const PP_HEAD_SCALE = { A4: 1, A3: Math.SQRT2, A2: 2, A1: 2 * Math.SQRT2, A0: 4 };
-const PP_HEAD_MM = 18;         // высота шапки на A4 вместе с отступом до структуры
-function ppHeadMM(format) { return PP_HEAD_MM * (PP_HEAD_SCALE[format] || 1); }
+const PP_HEAD_MM = 18;         // высота шапки на вертикальном A4 вместе с отступом до структуры
+// Шапка — по высоте листа: горизонтальный лист ниже, и на нём шапка на ступень меньше
+// (горизонтальный A3 = как вертикальный A4), иначе она выглядит огромной
+function ppHeadK(format) { return (PP_HEAD_SCALE[format] || 1) / (pp && pp.orient === 'landscape' ? Math.SQRT2 : 1); }
+function ppHeadMM(format) { return PP_HEAD_MM * ppHeadK(format); }
 
 /* Лист, на который раскладывается структура. Целым листом — сам формат с полями.
    Частями — ровная сетка кусков, на которую формат делится по стандарту (A1 = 2×4 A4 = 2×2 A3):
@@ -187,7 +190,7 @@ function ppTop() {
   const levels = pp.data.chain.filter(n => !ex(n.uid)).map(n =>
     n.kind === 'board' ? { kind: 'board', people: n.members, label: n.label }
     : n.kind === 'exec' ? { kind: 'exec', people: [n.person] } : { kind: 'heads', people: n.heads });
-  return { levels, cols: pp.data.cards.filter(c => !ex(c.uid)) };
+  return { levels, cols: ppVisibleKids(pp.data.cards) };   // верхние из отмеченных: группа без дирекции — сама колонка
 }
 
 /* ---------- Подсчёты ---------- */
@@ -450,15 +453,16 @@ function ppAncestors(n) {
   })(pp.data.roots, []);
   return path;
 }
+// Галочка ветки — она и всё внутри; тех, кто выше, не трогает: отмеченная группа без своей
+// дирекции сама становится карточкой на листе
 function ppSetChecked(n, on) {
   if (n.kind) { on ? pp.excluded.delete(n.uid) : pp.excluded.add(n.uid); return; }   // звено — только своя карточка
-  const all = [n, ...ppDescendants(n)];
-  if (on) {
-    all.forEach(x => pp.excluded.delete(x.uid));
-    ppAncestors(n).filter(a => !a.kind).forEach(a => pp.excluded.delete(a.uid));
-  } else {
-    all.forEach(x => pp.excluded.add(x.uid));
-  }
+  [n, ...ppDescendants(n)].forEach(x => on ? pp.excluded.delete(x.uid) : pp.excluded.add(x.uid));
+}
+
+// Видимые дети узла: снятый ребёнок пропускается, а отмеченное под ним поднимается на его место
+function ppVisibleKids(children) {
+  return children.flatMap(c => pp.excluded.has(c.uid) ? ppVisibleKids(c.children) : [c]);
 }
 
 // Поиск по веткам: без учёта регистра и ё/е, по названию подразделения и ФИО руководителя
@@ -492,7 +496,7 @@ function ppRenderTree() {
     const kidsShown = q ? n.children.some(c => shown.has(c.uid)) : hasKids;
     const isOpen = q ? kidsShown : pp.open.has(n.uid);
     const off = pp.excluded.has(n.uid);
-    const partial = !n.kind && !off && ppDescendants(n).some(d => pp.excluded.has(d.uid));
+    const partial = !n.kind && ppDescendants(n).some(d => pp.excluded.has(d.uid) !== off);
     const item = document.createElement('div');
     item.className = 'pp-ti' + (n.kind ? ' pp-ti--chain' : '');
     item.innerHTML = `
@@ -557,7 +561,7 @@ function ppCardHTML(n, extraClass) {
 }
 
 function ppItemsHTML(children, level) {
-  const kids = children.filter(c => !pp.excluded.has(c.uid));
+  const kids = ppVisibleKids(children);
   if (level > pp.depth) return [];
   return kids.map(c => {
     const label = c.dept || (c.person ? ppPersonName(c.person) : '');
@@ -800,12 +804,15 @@ function ppRender() {
   content.style.marginLeft = Math.max(0, (innerW - size.w * scale) / 2) + 'px';
   // Шапка: размер — от формата (мм), ширина и положение — по структуре (как раньше)
   const head = document.getElementById('pp-sheet-head');
-  head.style.setProperty('--hk', PP_HEAD_SCALE[pp.format] || 1);
-  head.style.width = Math.min(innerW, size.w * scale) + 'px';
-  head.style.marginLeft = content.style.marginLeft;
+  head.style.setProperty('--hk', ppHeadK(pp.format));
   head.innerHTML = `${pp.logo ? `<img class="pp-logo" src="${pp.logo}" alt="">` : ''}
     <div class="pp-sheet__title">Организационная структура<br><b>${escHtml(pp.title)}</b></div>
     <div class="pp-sheet__date">Актуально на ${new Date().toLocaleDateString('ru-RU')}</div>`;
+  // по ширине структуры; если структура уже шапки (одна группа) — шапка своей ширины, по центру
+  head.style.width = 'auto';
+  const headW = Math.min(innerW, Math.max(size.w * scale, head.scrollWidth));
+  head.style.width = headW + 'px';
+  head.style.marginLeft = Math.max(0, (innerW - headW) / 2) + 'px';
 
   const tiles = sh.tiles;
   // Ширина печатной страницы — явно по листу: иначе браузер верстает по ширине окна
