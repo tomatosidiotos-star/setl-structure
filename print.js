@@ -216,8 +216,12 @@ function ppCustomCard(n) {
   if (n.type === 'board') return `<div class="pp-lvl-wrap"><div class="pp-lvl__label">${escHtml(n.dept)}</div>`
     + `<div class="pp-lvl">${n.persons.map(person).join('')}</div></div>`;
   if (n.type === 'set') return `<div class="pp-card pp-card--set"><div class="pp-card__name pp-card__name--block">${escHtml(n.dept)}</div>`
-    + n.items.map(it => `<div class="pp-card__dept">${escHtml(it.name)}${(it.people || []).map(p =>
-      `<div class="pp-card__role">${escHtml(ppPersonName({ fullName: p.fullName || p.name, name: p.name || p.fullName }))}</div>`).join('')}</div>`).join('') + `</div>`;
+    + n.items.map(it => {
+      const names = (it.people || []).map(p => ppPersonName({ fullName: p.fullName || p.name, name: p.name || p.fullName }));
+      return it.name   // без подразделения — человек и его должность вместо названия
+        ? `<div class="pp-card__dept">${escHtml(it.name)}${names.map(nm => `<div class="pp-card__role">${escHtml(nm)}</div>`).join('')}</div>`
+        : `<div class="pp-card__dept">${(it.people || []).map((p, i) => `${escHtml(names[i])}<div class="pp-card__role">${escHtml(p.role || '')}</div>`).join('')}</div>`;
+    }).join('') + `</div>`;
   return `<div class="pp-card pp-card--group">${n.persons.map(p => `<div class="pp-card__person">${ppPhotoHTML(p)}
       <div class="pp-card__text"><div class="pp-card__name">${escHtml(ppPersonName(p))}</div>
       ${p.role ? `<div class="pp-card__role">${escHtml(p.role)}</div>` : ''}</div></div>`).join('')}

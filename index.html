@@ -1560,6 +1560,9 @@ body {
 }
 /* Каждая под-карточка (NameCard1 + GroupCard) — растягивается на всю высоту ряда */
 .card-v3__sub-heads { display: flex; gap: 4px; flex: 1; min-height: 0; }
+/* Карточка без отдела (нет плашки снизу) — низ скруглён, как у карточек с отделом */
+.card-v2-multi--nodept .card-v2-mh__body,
+.card-v3__sub--nodept .card-v2-mh__body { border-radius: 0 0 20px 20px; box-shadow: 0 -2px 0 #fff; }   /* подкладка шва — только вверх, вниз не вылезать за карточку */
 .card-v3__sub { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; width: 170px; min-height: 0; filter: drop-shadow(0 0 15px rgba(23,137,190,0.1)); }
 /* В под-карточках убираем отрицательный margin и даём 5px сверху —
    Surface SVG в под-карточках делаем 50px (как wrap), body margin-top: 0, gap 4px */
@@ -4461,6 +4464,7 @@ function makeMultiHeadV2El(heads, label, onLabelClick, isLink) {
   });
 
   group.appendChild(headsRow);
+  if (!label) group.classList.add('card-v2-multi--nodept');   // без отдела — низ карточки скруглён
 
   if (label) {
     const deptWrap = document.createElement('div');
@@ -4541,6 +4545,7 @@ function makeMultiDeptV2El(head, depts) {
     const persons = d.persons && d.persons.length ? d.persons : [d.person];
     const subW = persons.length * 170 + (persons.length - 1) * 4;
     if (persons.length > 1) sub.style.width = subW + 'px';
+    if (!d.deptName) sub.classList.add('card-v3__sub--nodept');   // без отдела — низ карточки скруглён
     const row = document.createElement('div');
     row.className = 'card-v3__sub-heads';
 
