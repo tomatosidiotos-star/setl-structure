@@ -1559,6 +1559,7 @@ body {
   margin-top: -1px;
 }
 /* Каждая под-карточка (NameCard1 + GroupCard) — растягивается на всю высоту ряда */
+.card-v3__sub-heads { display: flex; gap: 4px; flex: 1; min-height: 0; }
 .card-v3__sub { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; width: 170px; min-height: 0; filter: drop-shadow(0 0 15px rgba(23,137,190,0.1)); }
 /* В под-карточках убираем отрицательный margin и даём 5px сверху —
    Surface SVG в под-карточках делаем 50px (как wrap), body margin-top: 0, gap 4px */
@@ -4503,7 +4504,9 @@ function makeMultiDeptV2El(head, depts) {
   group.className = 'card-v3';
   if (head.id) group.dataset.v2Pid = head.id;
 
-  const totalW = depts.length * 170 + Math.max(0, depts.length - 1) * 4;
+  // ширина — по всем внутренним карточкам (у отдела может быть несколько руководителей: d.persons)
+  const nCards = depts.reduce((sum, d) => sum + Math.max(1, (d.persons || []).length), 0);
+  const totalW = nCards * 170 + Math.max(0, nCards - 1) * 4;
 
   // === Общий header (text=true): аватар + имя/должность + Surface ===
   const headerEl = document.createElement('div');
@@ -4534,19 +4537,26 @@ function makeMultiDeptV2El(head, depts) {
   depts.forEach(d => {
     const sub = document.createElement('div');
     sub.className = 'card-v3__sub';
+    // d.persons — несколько руководителей над одним отделом: карточки в ряд, плашка отдела на всю ширину
+    const persons = d.persons && d.persons.length ? d.persons : [d.person];
+    const subW = persons.length * 170 + (persons.length - 1) * 4;
+    if (persons.length > 1) sub.style.width = subW + 'px';
+    const row = document.createElement('div');
+    row.className = 'card-v3__sub-heads';
 
+    persons.forEach(person => {
     // NameCard1: inline-стили чтобы надёжно переопределить base .card-v2
     const card = document.createElement('div');
     card.className = 'card-v2';
-    if (d.person && d.person.id) card.dataset.v2Pid = d.person.id;
-    card.style.cssText = 'flex:1;min-height:0;height:auto;clip-path:none;filter:none;padding-top:0;justify-content:flex-start;background:transparent;'; // flex:1 — высота от .card-v3__sub (146-64=82px)
+    if (person && person.id) card.dataset.v2Pid = person.id;
+    card.style.cssText = 'flex:1;min-height:0;height:auto;clip-path:none;filter:none;padding-top:0;justify-content:flex-start;background:transparent;width:170px;'; // flex:1 — высота от .card-v3__sub (146-64=82px)
 
     const cardHeader = document.createElement('div');
     cardHeader.className = 'card-v2-mh__header';
 
     const wrap = document.createElement('div');
     wrap.className = 'card-v2-mh__wrap card-v2__body'; // click-wiring
-    wrap.appendChild(makeV2Photo(d.person.name, d.person.photo, d.person.fullName));
+    wrap.appendChild(makeV2Photo(person.name, person.photo, person.fullName));
 
     const surface = document.createElement('div');
     surface.className = 'card-v2-mh__surface';
@@ -4560,16 +4570,18 @@ function makeMultiDeptV2El(head, depts) {
     body.className = 'card-v2-mh__body';
     const textEl = document.createElement('div');
     textEl.className = 'card-v2-mh__text';
-    textEl.innerHTML = `<div class="card-v2__name">${d.person.name}</div><div class="card-v2__role">${(d.person.role || '').replace(/\n/g, ' ')}</div>`;
+    textEl.innerHTML = `<div class="card-v2__name">${person.name}</div><div class="card-v2__role">${(person.role || '').replace(/\n/g, ' ')}</div>`;
     body.appendChild(textEl);
     card.appendChild(body);
-    sub.appendChild(card);
+    row.appendChild(card);
+    });
+    sub.appendChild(row);
 
     // GroupCard
     if (d.deptName) {
       const deptWrap = document.createElement('div');
       deptWrap.className = 'card-v2-multi__dept-wrap';
-      deptWrap.style.width = '170px';
+      deptWrap.style.width = subW + 'px';
       const dept = document.createElement('div');
       dept.className = 'card-v2-multi__dept';
       const deptText2 = document.createElement('span');
