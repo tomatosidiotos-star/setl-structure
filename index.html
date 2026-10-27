@@ -1558,11 +1558,9 @@ body {
 }
 .card-v3__head-wrap--title .card-v3__role { display: none; }
 
-/* «Структура»: карточки только для чтения — без наведения и кликов, название группы крупнее */
+/* «Структура»: карточки только для чтения — без наведения и кликов */
 #view-tree.is-custom .card-v2-multi, #view-tree.is-custom .card-v3 { pointer-events: none; }
-#view-tree.is-custom .card-v3__head-wrap--title .card-v3__name { font-size: 20px; line-height: 1.1; }   /* размер подбирается в buildCustomTree */
-#view-tree.is-custom .card-v3__head-wrap--title .card-v3__head-text { height: 44px; }
-#view-tree.is-custom .card-v3__head-wrap--title { padding-top: 12px; }
+
 .card-v3__role {
   font-family: var(--f-exp); font-weight: 400; font-size: 6.75px; color: #7c7c7c;
   line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
