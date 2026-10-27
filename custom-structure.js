@@ -237,6 +237,15 @@ function buildCustomTree() {
     inner.appendChild(node);
     els.set(n.id, node);
     if (fold) { node.dataset.pid = n.id; v2AddInnerButton(node, fold); }
+    // название группы — крупно (20px); если не помещается в шапку (узкая карточка) — мельче, до 12px
+    const title = node.querySelector('.card-v3__head-wrap--title .card-v3__name');
+    if (title) for (const fs of [20, 17, 15, 13, 12, 11]) {
+      title.style.fontSize = fs + 'px';
+      title.style.webkitLineClamp = 'unset';
+      const fits = title.scrollHeight <= 38 && title.scrollWidth <= title.clientWidth + 1;   // шапка 50px − отступ 12; длинное слово целиком
+      title.style.webkitLineClamp = '';
+      if (fits) break;
+    }
     n._kids.forEach(mk);
   };
   mk(CUSTOM_STRUCTURE.root);
