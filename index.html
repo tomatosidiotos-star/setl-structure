@@ -1551,6 +1551,12 @@ body {
   line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   flex-shrink: 0; width: 100%; transition: color 0.13s;
 }
+/* шапка-название (блок, а не человек): название до двух строк, чтобы не обрезалось в узкой карточке */
+.card-v3__head-wrap--title .card-v3__head-text { height: 36px; justify-content: flex-start; }
+.card-v3__head-wrap--title .card-v3__name {
+  white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-v3__head-wrap--title .card-v3__role { display: none; }
 .card-v3__role {
   font-family: var(--f-exp); font-weight: 400; font-size: 6.75px; color: #7c7c7c;
   line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -4597,7 +4603,8 @@ function makeMultiDeptV2El(head, depts) {
 
   const headWrap = document.createElement('div');
   headWrap.className = 'card-v3__head-wrap'; // click-wiring через .card-v3__head-wrap, не нужен card-v2__body
-  if (!head.noPhoto) v2PutAvatar(headWrap, head);   // noPhoto — шапка-название (блок, а не человек)
+  if (!head.noPhoto) v2PutAvatar(headWrap, head);
+  else headWrap.classList.add('card-v3__head-wrap--title');   // шапка-название: длинное — в две строки   // noPhoto — шапка-название (блок, а не человек)
 
   const headText = document.createElement('div');
   headText.className = 'card-v3__head-text';

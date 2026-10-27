@@ -203,9 +203,10 @@ function ppCustomData() {
     const r = csResolve(n);
     const label = n.type === 'board' ? r.label
       : n.type === 'exec' ? (r.people[0] ? `${r.people[0].fullName} — исполнительный директор` : 'Исполнительный директор') : r.label;
-    return { uid: 'c-' + n.id, src: n, type: n.type || 'group', treeLabel: label, dept: r.label, person: null,
+    const items = csItems(n);   // группы — как наборные карточки, как на экране
+    return { uid: 'c-' + n.id, src: n, type: items ? 'set' : n.type, treeLabel: label, dept: r.label, person: null,
       persons: r.people.map(p => ({ ...p, fullName: p.fullName || p.name, name: p.name || p.fullName })),
-      items: n.items || [], people: [], team: [], children: (n.children || []).map(map) };
+      items: items || [], people: [], team: [], children: (n.children || []).map(map) };
   };
   const root = map(CUSTOM_STRUCTURE.root);
   return { custom: true, heads: [], board: null, cards: [], chain: [], roots: [root] };

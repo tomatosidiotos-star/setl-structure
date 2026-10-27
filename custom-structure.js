@@ -91,6 +91,14 @@ function csPerson(p) {
   return { id: p.id, fullName: full, name: p.displayName ? s + (a ? ` ${a[0]}.` : '') + (b ? `${b[0]}.` : '') : (p.name || full),
     role: (p.role || '').replace(/\s*\n\s*/g, ' '), photo: p.photo || null };
 }
+// Группы в «Структуре» оформлены как наборные карточки: название сверху, внутри — по карточке
+// на каждого руководителя (без плашки отдела). Совет и исполнительный директор — как были
+function csItems(node) {
+  if (node.type === 'set') return node.items || [];
+  if (!node.type || node.type === 'group') return (node.people || []).map(p => ({ name: '', people: [p] }));
+  return null;
+}
+
 function csResolve(node) {
   const B = (typeof ORG_DATA !== 'undefined' && ORG_DATA.board) || {};
   if (node.type === 'board') return { label: B.label || 'Совет директоров', people: (B.members || []).map(csPerson) };
@@ -207,9 +215,9 @@ function buildCustomTree() {
     const r = csResolve(n);
     let el;
     let fold = null;
-    if (n.type === 'set') {
+    if (csItems(n)) {
       // больше V2_FOLD_LIMIT внутренних карточек — видны первые, остальные по боковой кнопке (как у наборных в блоках)
-      let items = n.items || [];
+      let items = csItems(n);
       if (items.length > V2_FOLD_LIMIT) {
         const key = 'inner:' + n.id;
         fold = { key, count: items.length - V2_FOLD_LIMIT, folded: v2IsFolded(key, items.length) };
