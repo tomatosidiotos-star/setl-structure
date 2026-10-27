@@ -91,12 +91,12 @@ function csPerson(p) {
   return { id: p.id, fullName: full, name: p.displayName ? s + (a ? ` ${a[0]}.` : '') + (b ? `${b[0]}.` : '') : (p.name || full),
     role: (p.role || '').replace(/\s*\n\s*/g, ' '), photo: p.photo || null };
 }
-// Группы в «Структуре» оформлены как наборные карточки: название сверху, внутри — по карточке
-// на каждого руководителя (без плашки отдела). Совет и исполнительный директор — как были
+// Группы и совет директоров в «Структуре» — наборные карточки: название сверху, внутри — по карточке
+// на каждого человека (без плашки отдела). Исполнительный директор — одиночная карточка
 function csItems(node) {
   if (node.type === 'set') return node.items || [];
-  if (!node.type || node.type === 'group') return (node.people || []).map(p => ({ name: '', people: [p] }));
-  return null;
+  if (node.type === 'exec') return null;
+  return csResolve(node).people.map(p => ({ name: '', people: [p] }));
 }
 
 function csResolve(node) {
@@ -223,7 +223,7 @@ function buildCustomTree() {
         fold = { key, count: items.length - V2_FOLD_LIMIT, folded: v2IsFolded(key, items.length) };
         if (fold.folded) items = items.slice(0, V2_FOLD_LIMIT);
       }
-      el = makeMultiDeptV2El({ id: n.id, name: n.name, role: '', noPhoto: true },
+      el = makeMultiDeptV2El({ id: n.id, name: n.name || csResolve(n).label, role: '', noPhoto: true },
         items.map(it => ({ persons: it.people && it.people.length ? it.people : [{ name: 'ФИО', role: '' }], deptName: it.name })));
     } else {
       // размеры, как в блоках: исполнительный директор — высокая без отдела, группы — низкие
