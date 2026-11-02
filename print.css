@@ -359,8 +359,14 @@ body.pp-open { overflow: hidden; }
 /* Карточка ветки над колонками (лист на ветку): сотрудники — в несколько колонок (--tc) */
 .pp-card--branch { width: auto; min-width: 220px; }
 .pp-card--branch .pp-team { display: grid; grid-template-columns: repeat(var(--tc, 1), 196px); column-gap: 12px; }
-/* Сотрудники самой карточки колонки — в начале списка под ней */
-.pp-list--root > .pp-team { margin: 0 0 6px; }
+/* Сотрудники самой карточки колонки — в начале списка под ней; линия от карточки идёт вдоль
+   списка: до последнего сотрудника или дальше, к подразделениям */
+.pp-list--root > .pp-team { position: relative; margin: 0 0 6px; }
+.pp-list--root > .pp-team::before {
+  content: ''; position: absolute; left: -12px; top: 0; bottom: 14px;
+  border-left: 1.5px solid var(--pp-ln);
+}
+.pp-list--root > .pp-team:not(:last-child)::before { bottom: -6px; }
 /* Отдел, начатый в соседней подколонке */
 .pp-item--cont > .pp-row > .pp-label { color: var(--pp-text-2); }
 .pp-cont { font-family: var(--f-body); font-size: 11px; font-style: italic; color: var(--pp-text-3); white-space: nowrap; }

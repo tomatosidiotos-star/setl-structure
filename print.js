@@ -1009,19 +1009,39 @@ function ppArrange(model, k, r, format) {
   return { rows, halves, splits, scale: ppScaleFor(format, { w, h }) };
 }
 
-// Перебираем число рядов; в каждом варианте делим колонки, пока от этого растёт масштаб.
-// Больше рядов берём, только если это заметно крупнее
+// Перебираем число рядов; в каждом варианте ищем деления колонок двумя способами и берём лучший:
+// 1) целевая высота H — каждая колонка сразу делится на столько подколонок, чтобы стать не выше H
+//    (перебор H от самой низкой возможной до самой высокой колонки);
+// 2) по одной — делим колонку, пока от этого растёт масштаб (добирает то, что пропустил перебор).
+// Только второй способ застревал, когда несколько колонок одной высоты: деление любой одной
+// ничего не даёт. Больше рядов берём, только если это заметно крупнее
 function ppLayout(model, format) {
   const n = model.cols.length;
+  const maxK = c => Math.max(1, Math.min(c.n, PP_MAX_SPLIT));
+  const height = (c, k) => c.base + ppFlowSplit(c, k).max;
   let best = null;
   for (let r = 1; r <= Math.min(PP_MAX_ROWS, Math.max(1, n)); r++) {
     if (r > 1 && !pp.balance) break;
-    const k = model.cols.map(() => 1);
-    let cur = ppArrange(model, k, r, format);
+    let cur = ppArrange(model, model.cols.map(() => 1), r, format);
+    if (pp.balance && n) {
+      const lo = Math.max(...model.cols.map(c => height(c, maxK(c))));
+      const hi = Math.max(...model.cols.map(c => height(c, 1)));
+      for (let s = 0; s <= 40 && hi > lo; s++) {
+        const H = lo * Math.pow(hi / lo, s / 40);
+        const k = model.cols.map(c => {
+          let j = 1;
+          while (j < maxK(c) && height(c, j) > H) j++;
+          return j;
+        });
+        const lay = ppArrange(model, k, r, format);
+        if (lay.scale > cur.scale) { cur = lay; cur.k = k; }
+      }
+    }
+    const k = cur.k ? [...cur.k] : model.cols.map(() => 1);
     while (pp.balance) {
       let pick = -1, pickLay = null;
       model.cols.forEach((c, i) => {
-        if (k[i] >= Math.min(c.n, PP_MAX_SPLIT)) return;
+        if (k[i] >= maxK(c)) return;
         k[i]++;
         const lay = ppArrange(model, k, r, format);
         k[i]--;
