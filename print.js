@@ -181,8 +181,13 @@ function ppFromPayload(P) {
     const add = p => { if (p && !ids.has(p.id)) { ids.add(p.id); team.push(p); } };
     (m.participants || []).filter(x => x.role !== 'Руководитель').forEach(x => add(person(x)));
     (m.team || []).forEach(x => add(person(x)));
+    const dept = ppClean(m.label);
+    // Узел-должность: в базе название — сама должность, у нескольких одинаковое («Заместитель
+    // генерального директора»). В «Ветках» — с ФИО, как исполнительный директор, иначе не найти
+    const treeLabel = m.isAPosition && heads[0] && dept
+      ? `${heads[0].fullName} — ${dept[0].toLowerCase()}${dept.slice(1)}` : null;
     return {
-      uid: 'd-' + id, dept: ppClean(m.label), person: heads[0] || null, persons: heads.slice(1),
+      uid: 'd-' + id, dept, treeLabel, person: heads[0] || null, persons: heads.slice(1),
       people: team.map(p => p.id), team, position: !!m.isAPosition,
       children: (kidsOf.get(id) || []).filter(k => !seen.has(k)).map(node),
     };
@@ -674,7 +679,8 @@ function ppRenderTree() {
   box.innerHTML = '';
   const q = ppNorm(pp.query.trim());
   const labelOf = n => n.treeLabel || n.dept || (n.person ? n.person.fullName : '');
-  const nameHit = n => q && n.dept && n.person && ppNorm(n.person.fullName).includes(q);
+  // ФИО строкой под названием — когда нашлось по руководителю, а в подписи ветки его нет
+  const nameHit = n => q && n.dept && n.person && !n.treeLabel && ppNorm(n.person.fullName).includes(q);
   const selfHit = n => !!q && (ppNorm(labelOf(n)).includes(q) || nameHit(n));
 
   // При поиске показываем совпадения и путь к ним (раскрытым)
