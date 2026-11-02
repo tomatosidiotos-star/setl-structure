@@ -13,7 +13,12 @@
    ES-модуль, от страницы не зависит (стили — print.css):
      import { openPrintPreview } from './print.js';
      openPrintPreview(window.STRUCTURE_PRINT, { onClose });
-   payload — данные component.php: { graph, head, title, description, logo }.
+   payload — данные component.php: { graph, head, title, description, logo, board? }.
+   board — необязательно: совет директоров и исполнительный директор, уровни над руководителями
+   блока (в «Ветках» есть всегда, по умолчанию сняты):
+     { label: 'Совет директоров', members: [человек…], executive: человек }
+   человек — как sup в graph: { guid, name, fullName, pos, photo, inits }; role — подпись
+   вместо должности (например «Председатель совета директоров»).
    Без payload — демо-сайт: данные со страницы (ORG_DATA, state, CUSTOM_STRUCTURE).
 
    Данные сначала приводятся к одному виду:
@@ -190,7 +195,12 @@ function ppFromPayload(P) {
   if (roots.length === 1 && kidsOf.has(roots[0])) cards = node(roots[0]).children;
   else cards = roots.map(node);
   const heads = ((P.head && P.head.sup) || []).map(u => person(u)).filter(Boolean);
-  return { heads, board: null, cards };
+  // Совет директоров — если пришёл в данных (role — подпись в совете, иначе должность)
+  const B = P.board;
+  const boardMembers = B ? (B.members || []).map(u => person(u, u.role)).filter(Boolean) : [];
+  const board = boardMembers.length ? { label: B.label || 'Совет директоров', members: boardMembers,
+    executive: B.executive ? person(B.executive, B.executive.role) : null } : null;
+  return { heads, board, cards };
 }
 
 /* ---------- Демо-сайт: данные со страницы (ORG_DATA, state) ----------
