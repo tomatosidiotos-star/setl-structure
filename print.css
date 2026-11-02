@@ -1,9 +1,99 @@
 /* ====================================================================
    ПЕЧАТЬ СТРУКТУРЫ — стили предпросмотра и листа (см. print.js)
    Размеры листа — в «натуральных» px, на листе всё масштабируется целиком.
+   Файл самодостаточный: шрифты, токены и компоненты страницы, которые использует
+   предпросмотр (поиск, масштаб, крестик, полоса прокрутки), — здесь же, внутри #pp.
 ==================================================================== */
 
+/* Шрифты. Пути — относительно этого файла; при встраивании поменять на свои */
+@font-face { font-family: 'TT Commons Pro'; src: url('Fonts/TT_Commons_Pro_Regular.otf') format('opentype'); font-weight: 400; }
+@font-face { font-family: 'TT Commons Pro'; src: url('Fonts/TT_Commons_Pro_Bold.otf') format('opentype'); font-weight: 700; }
+@font-face { font-family: 'TT Commons Pro Expanded'; src: url('Fonts/TT_Commons_Pro_Expanded_Regular.otf') format('opentype'); font-weight: 400; }
+@font-face { font-family: 'TT Commons Pro Expanded'; src: url('Fonts/TT_Commons_Pro_Expanded_DemiBold.otf') format('opentype'); font-weight: 600; }
+@font-face { font-family: 'TT Commons Pro Expanded'; src: url('Fonts/TT_Commons_Pro_Expanded_Bold.otf') format('opentype'); font-weight: 700; }
+
+/* Токены — на предпросмотре и на невидимом замере (.pp-probe — вне #pp, прямо в body) */
+#pp, .pp-probe {
+  --red: #ED1C24;
+  --black: #000000;
+  --f-body: 'TT Commons Pro', sans-serif;
+  --f-exp: 'TT Commons Pro Expanded', sans-serif;
+  --scrollbar-track: #f4f3f3;
+  --scrollbar-thumb: #dedcdc;
+  --scrollbar-thumb-hover: #bdb9b8;
+  line-height: 1.2;
+}
+/* Сброс отступов, как на странице; :where — нулевая специфичность, правила ниже его перекрывают */
+:where(#pp, .pp-probe), :where(#pp, .pp-probe) *, :where(#pp, .pp-probe) *::before, :where(#pp, .pp-probe) *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+}
+
 body.pp-open { overflow: hidden; }
+
+/* ---------- Компоненты страницы (копии из index.html) ---------- */
+/* Полоса прокрутки xs (setl-akademiya-ui-kit) */
+:where(#pp) .scroll-xs { overflow: auto; }
+@supports not selector(::-webkit-scrollbar) {
+  :where(#pp) .scroll-xs { scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); scrollbar-width: thin; }
+}
+:where(#pp) .scroll-xs::-webkit-scrollbar { width: 12px; height: 12px; }
+:where(#pp) .scroll-xs::-webkit-scrollbar-button { display: none; }
+:where(#pp) .scroll-xs::-webkit-scrollbar-corner { background: transparent; }
+:where(#pp) .scroll-xs::-webkit-scrollbar-track,
+:where(#pp) .scroll-xs::-webkit-scrollbar-thumb { border-radius: 100px; border: 4px solid transparent; background-clip: padding-box; }
+:where(#pp) .scroll-xs::-webkit-scrollbar-track { background-color: var(--scrollbar-track); }
+:where(#pp) .scroll-xs::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); }
+:where(#pp) .scroll-xs::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
+/* Поле поиска */
+:where(#pp) .search-wrap { position: relative; flex: 1 0 0; }
+:where(#pp) .search-input {
+  width: 100%; height: 36px; padding: 0 40px 0 12px; border: none; border-radius: 12px;
+  font-family: var(--f-exp); font-size: 16px; letter-spacing: 0.02em; outline: none;
+  background: #f6f6f6; color: var(--black); transition: background 0.15s;
+}
+:where(#pp) .search-input:focus { background: #eeeeee; }
+:where(#pp) .search-input::placeholder { color: #7c7c7c; }
+:where(#pp) .search-icon {
+  position: absolute; right: 14px; left: auto; top: 50%; transform: translateY(-50%);
+  color: rgba(0,0,0,0.32); pointer-events: none;
+}
+:where(#pp) .search-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; border: none; border-radius: 6px; background: none;
+  display: none; place-items: center; cursor: pointer;
+  color: rgba(0,0,0,0.45); transition: color 0.15s, background 0.15s;
+}
+:where(#pp) .search-clear:hover { color: var(--black); background: rgba(0,0,0,0.05); }
+:where(#pp) .search-wrap.has-value .search-icon { display: none; }
+:where(#pp) .search-wrap.has-value .search-clear { display: grid; }
+/* Масштаб */
+:where(#pp) .zoom-group { display: flex; align-items: center; gap: 8px; }
+:where(#pp) .zoom-slider {
+  -webkit-appearance: none; appearance: none; width: 140px; height: 6px;
+  border-radius: 4px; outline: none; border: none; cursor: pointer; background: #f6f6f6;
+}
+:where(#pp) .zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.22); cursor: pointer;
+}
+:where(#pp) .zoom-slider::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%; border: none;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.22); cursor: pointer;
+}
+:where(#pp) .zoom-btn {
+  width: 36px; height: 36px; background: #fdf0f0; border: none; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s;
+}
+:where(#pp) .zoom-btn:hover { background: #fad8d8; }
+/* Крестик закрытия (как в модалках) */
+:where(#pp) .vm-close {
+  background: none; border: none; cursor: pointer; padding: 2px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 28px; height: 28px; color: #282828; border-radius: 4px; transition: color 0.13s;
+}
+:where(#pp) .vm-close:hover { color: #1A68E8; }
+:where(#pp) .vm-close:active { color: #0958D9; }
+:where(#pp) .vm-close:focus-visible { outline: 3px solid rgba(60,131,246,0.3); border-radius: 6px; }
 
 #pp {
   position: fixed; inset: 0; z-index: 10000;
@@ -61,6 +151,7 @@ body.pp-open { overflow: hidden; }
 
 .pp-check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 3px 0; }
 .pp-check input { width: 15px; height: 15px; accent-color: var(--red); flex-shrink: 0; cursor: pointer; }
+.pp-check--top { margin-top: 10px; }
 
 /* Поиск — компонент страницы .search-wrap; в колонке панели он не должен растягиваться по высоте */
 .pp-group--grow .search-wrap { flex: none; margin-bottom: 8px; }
@@ -99,11 +190,13 @@ body.pp-open { overflow: hidden; }
 .pp-sheet-wrap { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 32px; cursor: grab; }
 .pp-sheet-wrap.dragging { cursor: grabbing; user-select: none; }
 .pp-sizer { margin: auto; flex-shrink: 0; }
+/* Листы — столбиком; масштаб просмотра — на всю стопку (print.js: ppPlaceSheet) */
+.pp-pages { transform-origin: 0 0; display: flex; flex-direction: column; width: max-content; }
 .pp-sheet {
-  transform-origin: 0 0; background: #fff; overflow: hidden;
+  flex-shrink: 0; background: #fff; overflow: hidden;
   box-shadow: 0 4px 24px rgba(0,0,0,0.12);
 }
-.pp-content { transform-origin: 0 0; width: max-content; }
+.pp-content { transform-origin: 0 0; width: max-content; font-family: var(--f-body); color: var(--black); }
 .pp-probe { position: absolute; left: -100000px; top: 0; visibility: hidden; }
 
 /* ---------- Содержимое листа ---------- */
@@ -208,6 +301,7 @@ body.pp-open { overflow: hidden; }
 }
 .pp-card--head { width: 220px; }   /* как карточки 2-го уровня (PP_COL_W) */
 .pp-card__person { display: flex; gap: 10px; align-items: flex-start; }
+.pp-card__person + .pp-card__person { margin-top: 8px; }   /* второй руководитель отдела */
 .pp-ph {
   width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
   display: grid; place-items: center;
@@ -262,6 +356,14 @@ body.pp-open { overflow: hidden; }
   display: flex; flex-direction: column; gap: 5px;
 }
 .pp-card .pp-team { margin-top: 10px; }
+/* Карточка ветки над колонками (лист на ветку): сотрудники — в несколько колонок (--tc) */
+.pp-card--branch { width: auto; min-width: 220px; }
+.pp-card--branch .pp-team { display: grid; grid-template-columns: repeat(var(--tc, 1), 196px); column-gap: 12px; }
+/* Сотрудники самой карточки колонки — в начале списка под ней */
+.pp-list--root > .pp-team { margin: 0 0 6px; }
+/* Отдел, начатый в соседней подколонке */
+.pp-item--cont > .pp-row > .pp-label { color: var(--pp-text-2); }
+.pp-cont { font-family: var(--f-body); font-size: 11px; font-style: italic; color: var(--pp-text-3); white-space: nowrap; }
 .pp-team__row { display: flex; gap: 6px; align-items: flex-start; }
 .pp-team__ava {
   width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
@@ -314,12 +416,15 @@ body.pp-open { overflow: hidden; }
 /* ---------- Печать: только лист ---------- */
 @media print {
   body.pp-open { background: #fff; overflow: visible; }
+  html:has(body.pp-open), body.pp-open { margin: 0 !important; padding: 0 !important; }   /* отступы страницы сайта — не в печать */
   body.pp-open > *:not(#pp) { display: none !important; }
   #pp { position: static; display: block; background: none; }
   .pp-panel, .pp-viewbar { display: none !important; }
   .pp-stage, .pp-sheet-wrap { display: block; overflow: visible; padding: 0; }
   .pp-sizer { width: auto !important; height: auto !important; margin: 0; }
-  .pp-sheet { transform: none !important; box-shadow: none; }
+  .pp-pages { transform: none !important; gap: 0 !important; display: block; }
+  .pp-sheet { box-shadow: none; break-after: page; }
+  .pp-sheet:last-child { break-after: auto; }
   #pp * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pp-grid { display: none; }
   /* печать частями: вместо листа — куски, по одному на страницу */

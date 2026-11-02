@@ -1,16 +1,24 @@
 /* ====================================================================
    ПЕЧАТЬ СТРУКТУРЫ — предпросмотр и сохранение в PDF
 
-   Вся структура на одном альбомном листе: руководители блока сверху,
-   карточки 2-го уровня в ряд, под каждой карточкой — дерево-список
-   (кружки и линии, как «Место в структуре» в модалке).
+   Вся структура на одном листе: руководители блока сверху, карточки
+   2-го уровня в ряд, под каждой карточкой — дерево-список (кружки и линии,
+   как «Место в структуре» в модалке). Длинный список переливается в соседние
+   подколонки в любом месте — с пометкой «продолжение» у разрезанного отдела.
+   Опция «Каждая ветка — на своём листе»: первый лист — общая схема,
+   дальше по листу на каждую ветку, у каждого своя раскладка.
    Слева в предпросмотре: формат листа, глубина, выбор веток.
    Печать — системная (window.print), «Сохранить как PDF» в диалоге.
 
-   Зависит от: ORG_DATA, state, initials(), avatarColor(), escHtml()
-   из index.html. Данные v2-дерева сначала приводятся к одному виду:
-   { uid, dept, person, people, children } — раскладка от исходного
-   формата не зависит, при переносе достаточно переписать normalize.
+   ES-модуль, от страницы не зависит (стили — print.css):
+     import { openPrintPreview } from './print.js';
+     openPrintPreview(window.STRUCTURE_PRINT, { onClose });
+   payload — данные component.php: { graph, head, title, description, logo }.
+   Без payload — демо-сайт: данные со страницы (ORG_DATA, state, CUSTOM_STRUCTURE).
+
+   Данные сначала приводятся к одному виду:
+   { uid, dept, person, persons, people, team, children } — раскладка
+   от исходного формата не зависит.
 ==================================================================== */
 
 const PP_FORMATS = {           // альбомная ориентация, мм; книжная — те же стороны наоборот
@@ -79,17 +87,120 @@ const PP_SPLIT_GAP = 16;       // между подколонками длинн
 const PP_ROW_GAP   = 32;       // между рядами карточек — как .pp-cols + .pp-cols в print.css
 const PP_CORRIDOR  = 40;       // проход для ствола в центре ряда — как .pp-corridor
 const PP_MAX_ROWS  = 4;
+const PP_MAX_SPLIT = 16;       // подколонок у одной колонки — не больше
+const PP_CONT_H    = 20;       // высота строки «… продолжение» над началом подколонки, px
+const PP_SHEET_GAP = 32;       // между листами в предпросмотре (на экране), px
 
 let pp = null;   // состояние открытого предпросмотра
 
-/* ---------- Приведение данных v2 к одному виду ---------- */
+/* ---------- Помощники: свои, модуль не зависит от страницы ---------- */
+
+function ppEsc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Инициалы: из данных (inits), иначе — первые буквы двух слов ФИО
+function ppInitials(p) {
+  if (p.inits) return p.inits.toUpperCase();
+  const parts = (p.fullName || p.name || '').trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+const PP_AVATAR_COLORS = ['#F2D9D4', '#D4EAE2', '#D4DEF0', '#E0D8F0', '#F0E8D4', '#D0E8E4', '#EDD8E8', '#E0EAD0'];
+function ppAvatarColor(name) {
+  const key = (name || '').toLowerCase().replace(/[\s\n]+/g, '');
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = key.charCodeAt(i) + ((h << 5) - h);
+  return PP_AVATAR_COLORS[Math.abs(h) % PP_AVATAR_COLORS.length];
+}
+
+// Поле поиска: с введённым текстом лупа меняется на крестик сброса
+function ppSearchClear(wrap) {
+  const input = wrap.querySelector('.search-input');
+  const btn = wrap.querySelector('.search-clear');
+  const sync = () => wrap.classList.toggle('has-value', !!input.value);
+  input.addEventListener('input', sync);
+  btn.addEventListener('mousedown', e => e.preventDefault());   // не отнимать фокус у поля
+  btn.addEventListener('click', () => {
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+  });
+  sync();
+}
+
+const ppClean = s => String(s || '').replace(/\s*\n\s*/g, ' ').trim();
+
+/* ---------- Данные с прода (component.php → window.STRUCTURE_PRINT) ----------
+   graph.nodes — контейнеры, в каждом members — подразделения (контейнер из нескольких —
+   «рядом», TWO_NEARBY_GROUP); graph.edges — связи родитель → ребёнок между подразделениями.
+   head — сама группа: sup — её руководители, tree — порядок подразделений (ORDER_IN_GROUP).
+   Узел-должность (isAPosition, «Заместитель генерального директора») печатается такой же
+   карточкой: человек + серая плашка с названием узла */
+function ppFromPayload(P) {
+  const lc = s => String(s ?? '').toLowerCase();   // GUID в разных таблицах — в разном регистре
+  const person = (u, role) => u ? {
+    id: lc(u.guid) || ppClean(u.fullName || u.name),
+    name: ppClean(u.name || u.shortName || u.fullName),
+    fullName: ppClean(u.fullName || u.name),
+    role: ppClean(role != null ? role : (u.pos || u.position)),
+    photo: u.displayPhoto === false ? null : (u.photo || null),
+    inits: u.inits || '',
+  } : null;
+
+  const members = new Map();
+  ((P.graph && P.graph.nodes) || []).forEach(c => (c.members || []).forEach(m => members.set(lc(m.id), m)));
+  const parentOf = new Map(), kidsOf = new Map();
+  ((P.graph && P.graph.edges) || []).forEach(e => {
+    const s = lc(e.source), t = lc(e.target);
+    if (!members.has(s) || !members.has(t) || parentOf.has(t) || s === t) return;
+    parentOf.set(t, s);
+    if (!kidsOf.has(s)) kidsOf.set(s, []);
+    kidsOf.get(s).push(t);
+  });
+  // порядок — как в head.tree (там ORDER_IN_GROUP); чего там нет — в порядке связей, в конце
+  const order = new Map();
+  (function walk(list) { (list || []).forEach(t => { order.set(lc(t.id), order.size); walk(t.children); }); })(P.head && P.head.tree);
+  const ord = id => order.has(id) ? order.get(id) : 1e9;
+  kidsOf.forEach(list => list.sort((a, b) => ord(a) - ord(b)));
+
+  const seen = new Set();   // защита от петель в связях
+  function node(id) {
+    seen.add(id);
+    const m = members.get(id);
+    const heads = [];
+    [m.sup, m.subSup].forEach(u => { const p = person(u); if (p && !heads.some(h => h.id === p.id)) heads.push(p); });
+    const ids = new Set(heads.map(h => h.id));
+    // команда отдела: помощники и заместители из участников, потом сотрудники; без повторов
+    const team = [];
+    const add = p => { if (p && !ids.has(p.id)) { ids.add(p.id); team.push(p); } };
+    (m.participants || []).filter(x => x.role !== 'Руководитель').forEach(x => add(person(x)));
+    (m.team || []).forEach(x => add(person(x)));
+    return {
+      uid: 'd-' + id, dept: ppClean(m.label), person: heads[0] || null, persons: heads.slice(1),
+      people: team.map(p => p.id), team, position: !!m.isAPosition,
+      children: (kidsOf.get(id) || []).filter(k => !seen.has(k)).map(node),
+    };
+  }
+
+  const roots = [...members.keys()].filter(id => !parentOf.has(id)).sort((a, b) => ord(a) - ord(b));
+  // Как в component.php: у группы один ребёнок («Управление») — его дети идут верхним уровнем,
+  // а его руководители — руководители блока (head.sup)
+  let cards;
+  if (roots.length === 1 && kidsOf.has(roots[0])) cards = node(roots[0]).children;
+  else cards = roots.map(node);
+  const heads = ((P.head && P.head.sup) || []).map(u => person(u)).filter(Boolean);
+  return { heads, board: null, cards };
+}
+
+/* ---------- Демо-сайт: данные со страницы (ORG_DATA, state) ----------
+   На проде не используется — там данные приходят в openPrintPreview(payload) */
 
 function ppNormalize(treeData, rootTreeId) {
   let uid = 0;
   const visitedTrees = new Set([rootTreeId]);
-  const clean = s => (s || '').replace(/\s*\n\s*/g, ' ').trim();
   const person = p => p && !p.vacant ? {   // отдел без руководителя (vacant) — без человека
-    id: p.id, name: clean(p.name), fullName: clean(p.fullName || p.name),
+    id: p.id, name: ppClean(p.name), fullName: ppClean(p.fullName || p.name),
     role: (p.role || '').replace(/\s*\n\s*/g, ' ').replace(/ \/ ?$/, '').trim(), photo: p.photo || null,
   } : null;
   const modalPeople = m => m ? [...(m.managers || []), ...(m.deputies || []), ...(m.assistants || []), ...(m.team || [])]
@@ -98,7 +209,7 @@ function ppNormalize(treeData, rootTreeId) {
   const team = m => ((m && m.team) || []).map(person);
 
   function node(dept, p, extraPeople, teamList) {
-    return { uid: 'n' + (++uid), dept: clean(dept), person: person(p), people: extraPeople || [],
+    return { uid: 'n' + (++uid), dept: ppClean(dept), person: person(p), persons: [], people: extraPeople || [],
       team: teamList || [], children: [] };
   }
 
@@ -195,7 +306,25 @@ function ppTop() {
   return { levels, cols: ppVisibleKids(pp.data.cards) };   // верхние из отмеченных: группа без дирекции — сама колонка
 }
 
-/* ---------- «Структура» (custom-structure.js): та же раскладка, что на экране ----------
+/* Листы. Обычно один — вся структура. «Каждая ветка — на своём листе»: первый лист — общая схема
+   (руководители, карточки и первый уровень списков, без сотрудников), дальше по листу на каждую отмеченную карточку 2-го уровня:
+   сверху её карточка, её подразделения — колонками со своими списками */
+function ppSheets() {
+  const { levels, cols } = ppTop();
+  const main = { title: pp.title, levels, cols, base: 3 };
+  let sheets = [main];
+  if (pp.perBranch && !pp.data.custom && cols.length) {
+    sheets = [...(cols.length > 1 ? [{ ...main, overview: true }] : []), ...cols.map(c => ({   // одна ветка — общая схема не нужна
+      title: pp.title, sub: c.dept || (c.person ? c.person.fullName : ''),
+      levels: [{ kind: 'node', node: c }],
+      cols: pp.depth >= 3 ? ppVisibleKids(c.children) : [], base: 4,
+    }))];
+  }
+  sheets.forEach(s => { s.flows = s.cols.map(c => ppFlow(c, s.base, s.overview)); });
+  return sheets;
+}
+
+/* ---------- «Структура» (custom-structure.js, демо): та же раскладка, что на экране ----------
    Узлы печати — по узлам CUSTOM_STRUCTURE; «Ветки» — каскадом, снятый узел пропускается,
    отмеченное под ним поднимается (ppVisibleKids). Совет — плашкой и карточками, как в основной печати */
 function ppCustomData() {
@@ -214,19 +343,17 @@ function ppCustomData() {
 
 function ppCustomCard(n) {
   const person = p => ppCardHTML({ person: p }, 'pp-card--head');
-  if (n.type === 'board') return `<div class="pp-lvl-wrap"><div class="pp-lvl__label">${escHtml(n.dept)}</div>`
+  if (n.type === 'board') return `<div class="pp-lvl-wrap"><div class="pp-lvl__label">${ppEsc(n.dept)}</div>`
     + `<div class="pp-lvl">${n.persons.map(person).join('')}</div></div>`;
-  if (n.type === 'set') return `<div class="pp-card pp-card--set"><div class="pp-card__name pp-card__name--block">${escHtml(n.dept)}</div>`
+  if (n.type === 'set') return `<div class="pp-card pp-card--set"><div class="pp-card__name pp-card__name--block">${ppEsc(n.dept)}</div>`
     + n.items.map(it => {
       const names = (it.people || []).map(p => ppPersonName({ fullName: p.fullName || p.name, name: p.name || p.fullName }));
       return it.name   // без подразделения — человек и его должность вместо названия
-        ? `<div class="pp-card__dept">${escHtml(it.name)}${names.map(nm => `<div class="pp-card__role">${escHtml(nm)}</div>`).join('')}</div>`
-        : `<div class="pp-card__dept">${(it.people || []).map((p, i) => `${escHtml(names[i])}<div class="pp-card__role">${escHtml(p.role || '')}</div>`).join('')}</div>`;
+        ? `<div class="pp-card__dept">${ppEsc(it.name)}${names.map(nm => `<div class="pp-card__role">${ppEsc(nm)}</div>`).join('')}</div>`
+        : `<div class="pp-card__dept">${(it.people || []).map((p, i) => `${ppEsc(names[i])}<div class="pp-card__role">${ppEsc(p.role || '')}</div>`).join('')}</div>`;
     }).join('') + `</div>`;
-  return `<div class="pp-card pp-card--group">${n.persons.map(p => `<div class="pp-card__person">${ppPhotoHTML(p)}
-      <div class="pp-card__text"><div class="pp-card__name">${escHtml(ppPersonName(p))}</div>
-      ${p.role ? `<div class="pp-card__role">${escHtml(p.role)}</div>` : ''}</div></div>`).join('')}
-    ${n.type !== 'exec' && n.dept ? `<div class="pp-card__dept">${escHtml(n.dept)}</div>` : ''}</div>`;
+  return `<div class="pp-card pp-card--group">${n.persons.map(ppPersonHTML).join('')}
+    ${n.type !== 'exec' && n.dept ? `<div class="pp-card__dept">${ppEsc(n.dept)}</div>` : ''}</div>`;
 }
 
 function ppCustomHTML() {
@@ -263,7 +390,7 @@ function ppStats(n) {
   const people = new Set();
   (function walk(x, isRoot) {
     if (!isRoot && x.dept) depts++;
-    if (x.person) people.add(x.person.id || x.person.fullName);
+    [x.person, ...(x.persons || [])].forEach(p => { if (p) people.add(p.id || p.fullName); });
     x.people.forEach(id => people.add(id));
     x.children.forEach(c => walk(c, false));
   })(n, true);
@@ -287,8 +414,9 @@ function ppDefaults() {
     depth: Infinity,      // уровней: 1 — руководители, 2 — карточки, 3+ — списки
     fullNames: true,
     photos: true,
-    team: false,          // сотрудники отделов (команда из модалки)
+    team: false,          // сотрудники отделов
     balance: true,        // авто-раскладка: переносить карточки в ряды, делить длинные колонки
+    perBranch: false,     // каждая ветка — на своём листе
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
     query: '',            // поиск по веткам
@@ -305,6 +433,7 @@ function ppReset() {
   document.getElementById('pp-photos').checked = pp.photos;
   document.getElementById('pp-team').checked = pp.team;
   document.getElementById('pp-balance').checked = pp.balance;
+  document.getElementById('pp-branch').checked = pp.perBranch;
   const search = document.getElementById('pp-search');
   search.value = '';
   search.dispatchEvent(new Event('input'));
@@ -312,23 +441,29 @@ function ppReset() {
   ppRender();
 }
 
-function openPrintPreview() {
+// Демо-сайт: что открыто на странице — блок из ORG_DATA или «Структура»
+function ppDemoSource() {
   const custom = state.blockId === 'custom' && typeof CUSTOM_STRUCTURE !== 'undefined';
-  const treeData = custom ? { blockName: CUSTOM_STRUCTURE.title } : ORG_DATA.trees && ORG_DATA.trees[state.blockId];
-  if (!custom && (!treeData || treeData.version !== 2)) return;
-  const company = custom ? { logo: 'Логотипы/SetlGroup-logo.svg' }
-    : (ORG_DATA.companies || []).find(c => c.id === state.companyId);
-  const data = custom ? ppCustomData() : ppNormalize(treeData, state.blockId);
+  if (custom) return { data: ppCustomData(), title: CUSTOM_STRUCTURE.title, logo: 'Логотипы/SetlGroup-logo.svg' };
+  const treeData = ORG_DATA.trees && ORG_DATA.trees[state.blockId];
+  if (!treeData || treeData.version !== 2) return null;
+  const company = (ORG_DATA.companies || []).find(c => c.id === state.companyId);
+  return { data: ppNormalize(treeData, state.blockId), title: treeData.blockName || state.blockName || '',
+    logo: company ? company.logo : null };
+}
 
-  if (!custom) ppBuildChain(data);   // у «Структуры» иерархия уже своя
-  pp = {
-    data,
-    title: treeData.blockName || state.blockName || '',
-    logo: company ? company.logo : null,
-    ...ppDefaults(),
-  };
+/* Открыть предпросмотр.
+   payload — данные страницы печати (window.STRUCTURE_PRINT): { graph, head, title, logo };
+   без него — демо-сайт, данные со страницы. opts.onClose — после закрытия */
+export function openPrintPreview(payload, opts = {}) {
+  if (pp) closePrintPreview();
+  const src = payload && payload.graph
+    ? { data: ppFromPayload(payload), title: payload.title || (payload.head && payload.head.label) || '', logo: payload.logo || null }
+    : ppDemoSource();
+  if (!src) return;
+  if (!src.data.custom) ppBuildChain(src.data);   // у «Структуры» иерархия уже своя
+  pp = { data: src.data, title: src.title, logo: src.logo, onClose: opts.onClose || null, ...ppDefaults() };
   ppInitTop();
-  pp.format = ppAutoFormat() || 'A1';
 
   const root = document.createElement('div');
   root.id = 'pp';
@@ -358,6 +493,8 @@ function openPrintPreview() {
             <button data-v="off">Целым листом</button><button data-v="A4">Частями A4</button><button data-v="A3">Частями A3</button>
           </div>
           <div class="pp-hint pp-hint--block" id="pp-tile-info"></div>
+          <label class="pp-check pp-check--top"${pp.data.custom ? ' hidden' : ''}><input type="checkbox" id="pp-branch"> Каждая ветка — на своём листе</label>
+          <div class="pp-hint pp-hint--block" id="pp-branch-info"${pp.data.custom ? ' hidden' : ''}></div>
         </div>
         <div class="pp-group">
           <div class="pp-gtitle">Уровни</div>
@@ -377,7 +514,6 @@ function openPrintPreview() {
           <div class="pp-gtitle">Ветки
             <span class="pp-links"><button id="pp-all">все</button> · <button id="pp-none">ни одной</button></span>
           </div>
-          <!-- Поле поиска страницы (.search-wrap / .search-input / .search-icon из index.html) -->
           <div class="search-wrap">
             <input type="text" class="search-input" id="pp-search" placeholder="Подразделение или ФИО" autocomplete="off">
             <!-- иконки — Stroke/search 02 и Stroke/close из setl-akademiya-ui-kit -->
@@ -396,7 +532,6 @@ function openPrintPreview() {
       </div>
     </aside>
     <main class="pp-stage" id="pp-stage">
-      <!-- Масштаб — компонент страницы (.zoom-group / .zoom-btn / .zoom-slider), закрытие — .vm-close из модалок -->
       <div class="pp-viewbar">
         <div class="pp-viewbar__left">
           <div class="pp-seg" id="pp-view">
@@ -417,9 +552,7 @@ function openPrintPreview() {
         </button>
       </div>
       <div class="pp-sheet-wrap" id="pp-sheet-wrap">
-        <div class="pp-sizer" id="pp-sizer">
-          <div class="pp-sheet" id="pp-sheet"><div class="pp-sheet__head" id="pp-sheet-head"></div><div class="pp-content" id="pp-content"></div><div class="pp-grid" id="pp-grid"></div></div>
-        </div>
+        <div class="pp-sizer" id="pp-sizer"><div class="pp-pages" id="pp-pages"></div></div>
         <div class="pp-tiles" id="pp-tiles"></div>
       </div>
     </main>`;
@@ -429,6 +562,8 @@ function openPrintPreview() {
   const style = document.createElement('style');
   style.id = 'pp-page-style';
   document.head.appendChild(style);
+
+  pp.format = ppAutoFormat() || 'A1';
 
   root.querySelector('#pp-close').onclick = closePrintPreview;
   root.querySelector('#pp-reset').onclick = ppReset;
@@ -442,11 +577,12 @@ function openPrintPreview() {
   root.querySelector('#pp-photos').onchange = e => { pp.photos = e.target.checked; ppRender(); };
   root.querySelector('#pp-team').onchange = e => { pp.team = e.target.checked; ppRender(); };
   root.querySelector('#pp-balance').onchange = e => { pp.balance = e.target.checked; ppRender(); };
+  root.querySelector('#pp-branch').onchange = e => { pp.perBranch = e.target.checked; pp.zoom = null; ppRender(); };
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
   root.querySelector('#pp-none').onclick = () => { ppAllNodes().forEach(n => pp.excluded.add(n.uid)); ppRenderTree(); ppRender(); };
   const search = root.querySelector('#pp-search');
   search.oninput = () => { pp.query = search.value; ppRenderTree(); };
-  setupSearchClear(search.closest('.search-wrap'));
+  ppSearchClear(search.closest('.search-wrap'));
   window.addEventListener('resize', ppPlaceSheet);
   document.addEventListener('keydown', ppOnKey);
 
@@ -454,13 +590,15 @@ function openPrintPreview() {
   ppRender();
 }
 
-function closePrintPreview() {
+export function closePrintPreview() {
+  const onClose = pp && pp.onClose;
   document.getElementById('pp')?.remove();
   document.getElementById('pp-page-style')?.remove();
   document.body.classList.remove('pp-open', 'pp-tiling');
   window.removeEventListener('resize', ppPlaceSheet);
   document.removeEventListener('keydown', ppOnKey);
   pp = null;
+  if (onClose) onClose();
 }
 
 function ppOnKey(e) {
@@ -500,17 +638,6 @@ function ppDescendants(n) {
   (function walk(list) { list.forEach(c => { out.push(c); walk(c.children); }); })(n.children);
   return out;
 }
-function ppAncestors(n) {
-  const path = [];
-  (function find(list, trail) {
-    for (const c of list) {
-      if (c === n) { path.push(...trail); return true; }
-      if (find(c.children, [...trail, c])) return true;
-    }
-    return false;
-  })(pp.data.roots, []);
-  return path;
-}
 // Галочка ветки — она и всё внутри; тех, кто выше, не трогает: отмеченная группа без своей
 // дирекции сама становится карточкой на листе
 function ppSetChecked(n, on) {
@@ -528,8 +655,8 @@ function ppNorm(t) { return (t || '').toLowerCase().replace(/ё/g, 'е'); }
 
 function ppMark(text, q) {
   const i = q ? ppNorm(text).indexOf(q) : -1;
-  if (i < 0) return escHtml(text);
-  return escHtml(text.slice(0, i)) + '<mark>' + escHtml(text.slice(i, i + q.length)) + '</mark>' + escHtml(text.slice(i + q.length));
+  if (i < 0) return ppEsc(text);
+  return ppEsc(text.slice(0, i)) + '<mark>' + ppEsc(text.slice(i, i + q.length)) + '</mark>' + ppEsc(text.slice(i + q.length));
 }
 
 function ppRenderTree() {
@@ -591,77 +718,105 @@ function ppPersonName(p) { return pp.fullNames ? p.fullName : p.name; }
 function ppPhotoHTML(p) {
   if (!pp.photos) return '';
   return p.photo
-    ? `<div class="pp-ph"><img src="${p.photo}" alt=""></div>`
-    : `<div class="pp-ph" style="background:${avatarColor(p.fullName)}"><span>${escHtml(initials(p.fullName))}</span></div>`;
+    ? `<div class="pp-ph"><img src="${ppEsc(p.photo)}" alt=""></div>`
+    : `<div class="pp-ph" style="background:${ppAvatarColor(p.fullName)}"><span>${ppEsc(ppInitials(p))}</span></div>`;
 }
 
-// Команда отдела: аватар + ФИО + должность, как строка «Команды» в модалке, только компактно
-function ppTeamHTML(n) {
-  if (!pp.team || !n.team || !n.team.length) return '';
-  return `<div class="pp-team">${n.team.map(p => `
-    <div class="pp-team__row">${pp.photos ? `<div class="pp-team__ava" style="background:${avatarColor(p.fullName)}">${escHtml(initials(p.fullName))}</div>` : ''}
-      <div class="pp-team__text"><div class="pp-team__name">${escHtml(ppPersonName(p))}</div>
-      ${p.role ? `<div class="pp-team__role">${escHtml(p.role)}</div>` : ''}</div>
-    </div>`).join('')}</div>`;
+function ppPersonHTML(p) {
+  return `<div class="pp-card__person">${ppPhotoHTML(p)}
+    <div class="pp-card__text"><div class="pp-card__name">${ppEsc(ppPersonName(p))}</div>
+    ${p.role ? `<div class="pp-card__role">${ppEsc(p.role)}</div>` : ''}</div></div>`;
 }
 
-function ppCardHTML(n, extraClass) {
-  const p = n.person;
+// Сотрудник отдела: аватар + ФИО + должность, как строка «Команды» в модалке, только компактно.
+// e — номер строки в потоке колонки (для замера)
+function ppMemberHTML(p, e) {
+  return `<div class="pp-team__row"${e != null ? ` data-e="${e}"` : ''}>${pp.photos ? `<div class="pp-team__ava" style="background:${ppAvatarColor(p.fullName)}">${ppEsc(ppInitials(p))}</div>` : ''}
+    <div class="pp-team__text"><div class="pp-team__name">${ppEsc(ppPersonName(p))}</div>
+    ${p.role ? `<div class="pp-team__role">${ppEsc(p.role)}</div>` : ''}</div></div>`;
+}
+
+// Карточка: руководитель (и второй руководитель), серая плашка с названием, счётчик.
+// withTeam — сотрудники внутри карточки (карточки над колонками); у карточек колонок
+// сотрудники идут в поток списка, чтобы длинная команда переливалась в подколонки
+function ppCardHTML(n, extraClass, withTeam) {
+  const people = [n.person, ...(n.persons || [])].filter(Boolean);
   const stats = n.children ? ppStatsText(ppStats(n)) : '';
+  const team = withTeam && pp.team && n.team && n.team.length ? n.team : null;
   return `<div class="pp-card ${extraClass || ''}">
-    ${p ? `<div class="pp-card__person">${ppPhotoHTML(p)}
-      <div class="pp-card__text"><div class="pp-card__name">${escHtml(ppPersonName(p))}</div>
-      ${p.role ? `<div class="pp-card__role">${escHtml(p.role)}</div>` : ''}</div></div>` : ''}
-    ${n.dept ? `<div class="pp-card__dept">${escHtml(n.dept)}</div>` : ''}
+    ${people.map(ppPersonHTML).join('')}
+    ${n.dept ? `<div class="pp-card__dept">${ppEsc(n.dept)}</div>` : ''}
     ${stats ? `<div class="pp-card__stats">${stats}</div>` : ''}
-    ${ppTeamHTML(n)}
+    ${team ? `<div class="pp-team" style="--tc:${Math.min(6, Math.ceil(team.length / 12))}">${team.map(p => ppMemberHTML(p)).join('')}</div>` : ''}
   </div>`;
 }
 
-function ppItemsHTML(children, level) {
-  const kids = ppVisibleKids(children);
-  if (level > pp.depth) return [];
-  return kids.map(c => {
+/* Колонка под карточкой — поток строк: пункты списка и сотрудники отделов по порядку.
+   E[i] = { kind: 'row' | 'member', parent — номер строки-отдела, в который входит (−1 — карточка),
+   level }. Поток режется в любом месте, кроме как сразу после названия отдела: длинный отдел
+   переливается в соседнюю подколонку, а разрезанные отделы повторяются сверху с пометкой «продолжение» */
+function ppFlow(col, base, overview) {
+  const E = [];
+  const depth = overview ? Math.min(pp.depth, base) : pp.depth;   // общая схема — только первый уровень
+  const members = (list, parent, level) => { if (pp.team && !overview) (list || []).forEach(p => E.push({ kind: 'member', p, parent, level })); };
+  members(col.team, -1, base);
+  (function walk(children, level, parent) {
+    if (level > depth) return;
+    ppVisibleKids(children).forEach(c => {
+      const i = E.length;
+      const more = level + 1 > depth && c.children.length ? ppStats(c).depts : 0;
+      E.push({ kind: 'row', node: c, parent, level, more });
+      members(c.team, i, level);
+      walk(c.children, level + 1, i);
+    });
+  })(col.children, base, -1);
+  return E;
+}
+
+// Кусок потока [a, b) — дерево-список; отделы, начатые в прошлой подколонке, — с пометкой «продолжение»
+function ppFlowHTML(E, a, b, base) {
+  const cont = new Set();
+  for (let p = E[a].parent; p >= 0; p = E[p].parent) cont.add(p);
+  const rows = new Map(), mem = new Map();
+  const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+  [...cont].sort((x, y) => x - y).forEach(i => push(rows, E[i].parent, i));
+  for (let i = a; i < b; i++) push(E[i].kind === 'row' ? rows : mem, E[i].parent, i);
+
+  const team = owner => mem.has(owner) ? `<div class="pp-team">${mem.get(owner).map(i => ppMemberHTML(E[i].p, i)).join('')}</div>` : '';
+  const items = parent => (rows.get(parent) || []).map(i => {
+    const e = E[i], c = e.node, isCont = cont.has(i);
     const label = c.dept || (c.person ? ppPersonName(c.person) : '');
-    const sub = c.dept ? (c.person ? ppPersonName(c.person) : '') : (c.person ? c.person.role : '');
-    const nested = ppListHTML(c.children, level + 1);
-    const hidden = !nested && c.children.length && level + 1 > pp.depth ? ppStats(c).depts : 0;
-    return `<div class="pp-item${nested ? ' has-kids' : ''}${level === 3 ? ' pp-item--top' : ''}">
-      <div class="pp-row"><span class="pp-dot"></span>
-        <div class="pp-label">${escHtml(label)}</div>
-        ${sub ? `<div class="pp-sub">${escHtml(sub)}</div>` : ''}
-        ${hidden ? `<div class="pp-more">ещё ${hidden} ${ppPlural(hidden, ['подразделение', 'подразделения', 'подразделений'])}</div>` : ''}
-        ${ppTeamHTML(c)}
+    const sub = c.dept ? [c.person, ...(c.persons || [])].filter(Boolean).map(ppPersonName).join(', ') : (c.person ? c.person.role : '');
+    const kids = items(i);
+    const nested = kids ? `<div class="pp-list">${kids}</div>` : '';
+    return `<div class="pp-item${nested ? ' has-kids' : ''}${e.level === base ? ' pp-item--top' : ''}${isCont ? ' pp-item--cont' : ''}">
+      <div class="pp-row"${isCont ? '' : ` data-e="${i}"`}><span class="pp-dot"></span>
+        <div class="pp-label">${ppEsc(label)}${isCont ? ' <span class="pp-cont">продолжение</span>' : ''}</div>
+        ${!isCont && sub ? `<div class="pp-sub">${ppEsc(sub)}</div>` : ''}
+        ${!isCont && e.more ? `<div class="pp-more">ещё ${e.more} ${ppPlural(e.more, ['подразделение', 'подразделения', 'подразделений'])}</div>` : ''}
+        ${team(i)}
       </div>${nested}</div>`;
-  });
+  }).join('');
+  return `<div class="pp-list pp-list--root">${team(-1)}${items(-1)}</div>`;
 }
 
-function ppListHTML(children, level) {
-  const items = ppItemsHTML(children, level);
-  return items.length ? `<div class="pp-list">${items.join('')}</div>` : '';
-}
-
-// Колонка: карточка + список; groups — сколько пунктов верхнего уровня в каждой подколонке
-function ppColHTML(c, groups) {
-  const items = ppItemsHTML(c.children, 3);
-  const k = groups ? groups.length : 1;
+// Колонка: карточка + список; cuts — где поток разрезан на подколонки
+function ppColHTML(c, E, cuts, base) {
+  const bounds = [0, ...(cuts || []), E.length];
+  const k = bounds.length - 1;
   let list = '';
-  if (items.length && k > 1) {
-    let i = 0;
-    list = `<div class="pp-split">${groups.map(g => {
-      const part = items.slice(i, i += g);
-      return `<div class="pp-list pp-list--root">${part.join('')}</div>`;
-    }).join('')}</div>`;
-  } else if (items.length) {
-    list = `<div class="pp-list pp-list--root">${items.join('')}</div>`;
+  if (E.length) {
+    const parts = [];
+    for (let j = 0; j < k; j++) parts.push(ppFlowHTML(E, bounds[j], bounds[j + 1], base));
+    list = k > 1 ? `<div class="pp-split">${parts.join('')}</div>` : parts[0];
   }
   return `<div class="pp-col" style="width:${k * PP_COL_W + (k - 1) * PP_SPLIT_GAP}px">${ppCardHTML(c)}${list}</div>`;
 }
 
 // Ряды карточек. Во всех рядах, кроме последнего, по центру проход, через него ствол идёт к следующему ряду
-function ppRowsHTML(cards, lay) {
+function ppRowsHTML(sheet, lay) {
   return lay.rows.map((row, ri) => {
-    const cols = row.map(i => ppColHTML(cards[i], lay.splits[cards[i].uid]));
+    const cols = row.map(i => ppColHTML(sheet.cols[i], sheet.flows[i], lay.splits[i], sheet.base));
     const hv = lay.halves[ri];
     if (hv) return `<div class="pp-cols pp-cols--pass">
         <div class="pp-half pp-half--l" style="width:${hv.half}px">${cols.slice(0, hv.left).join('')}</div>
@@ -672,17 +827,17 @@ function ppRowsHTML(cards, lay) {
   }).join('');
 }
 
-function ppContentHTML(lay) {
+function ppContentHTML(sheet, lay) {
   if (pp.data.custom) return ppCustomHTML();
-  const { levels, cols: cards } = ppTop();
-  lay = lay || { rows: [cards.map((c, i) => i)], halves: [null], splits: {} };
+  const { levels, cols } = sheet;
+  lay = lay || { rows: [cols.map((c, i) => i)], halves: [null], splits: {} };
   // Уровни над колонками — отмеченные звенья: [совет директоров] → [исполнительный директор] →
   // [руководители блока]. Исполнительный директор под советом — даже если он же среди руководителей
   // блока: это разные роли
   return `
     <div class="pp-chart${levels.length ? '' : ' pp-chart--no-heads'}">
-      ${ppLevelsHTML(levels, cards.length > 0)}
-      ${cards.length ? ppRowsHTML(cards, lay) : ''}
+      ${ppLevelsHTML(levels, cols.length > 0)}
+      ${cols.length ? ppRowsHTML(sheet, lay) : ''}
     </div>`;
 }
 
@@ -698,8 +853,8 @@ function ppLevelsHTML(levels, hasCols) {
     const cls = ['pp-lvl', `pp-lvl--${lv.kind}`, busTop ? 'bus-top' : '', busBottom ? 'bus-bottom' : '',
       i === levels.length - 1 && hasCols ? 'has-kids' : ''].filter(Boolean).join(' ');
     const link = i > 0 ? `<div class="pp-link${prevBus ? ' from-bus' : ''}${busTop ? ' to-bus' : ''}"></div>` : '';
-    const label = lv.label ? `<div class="pp-lvl__label">${escHtml(lv.label)}</div>` : '';
-    const cardsHTML = lv.node ? ppCardHTML(lv.node, 'pp-card--head')   // подразделение-начало: со своим отделом и счётчиком
+    const label = lv.label ? `<div class="pp-lvl__label">${ppEsc(lv.label)}</div>` : '';
+    const cardsHTML = lv.node ? ppCardHTML(lv.node, 'pp-card--head pp-card--branch', true)   // ветка: со своим отделом, счётчиком и сотрудниками
       : lv.people.map(h => ppCardHTML({ person: h }, 'pp-card--head')).join('');
     return `${link}<div class="pp-lvl-wrap">${label}<div class="${cls}">${cardsHTML}</div></div>`;
   }).join('');
@@ -723,23 +878,33 @@ function ppMeasure(html) {
   return size;
 }
 
-// Замер для раскладки: высота «шапки» листа и по каждой колонке —
-// карточка и высоты пунктов верхнего уровня (вместе с их поддеревьями)
-function ppModel() {
+/* Замер для раскладки: высота «шапки» листа и по каждой колонке — карточка и положение
+   каждой строки потока от верха списка. Высота куска потока [a, b) = top[b] − top[a]
+   плюс строки «продолжение» над ним (cont[a]) */
+function ppModel(sheet) {
   if (pp.data.custom) return { top: 0, minW: 0, cols: [] };   // у «Структуры» своя раскладка (ctLayout)
-  const cards = ppTop().cols;
-  const probe = ppProbe(ppContentHTML());
+  const probe = ppProbe(ppContentHTML(sheet));
   const colsEl = probe.querySelector('.pp-cols');
   const model = {
     top: colsEl ? colsEl.offsetTop : probe.scrollHeight,
     minW: Math.max(0, ...[...probe.querySelectorAll('.pp-lvl-wrap')].map(e => e.offsetWidth)),
     cols: [...probe.querySelectorAll('.pp-col')].map((el, i) => {
       const root = el.querySelector(':scope > .pp-list--root');
-      return {
-        uid: cards[i].uid,
-        base: el.offsetHeight - (root ? root.offsetHeight : 0) + (root ? 10 : 0),
-        items: root ? [...root.children].map(x => x.offsetHeight) : [],
-      };
+      const E = sheet.flows[i], n = E.length;
+      const top = new Float64Array(n + 1);
+      if (root) {
+        const rt = root.getBoundingClientRect().top;
+        root.querySelectorAll('[data-e]').forEach(x => { top[+x.dataset.e] = x.getBoundingClientRect().top - rt; });
+        top[n] = root.offsetHeight;
+      }
+      const depth = new Int32Array(n), cont = new Float64Array(n), ok = new Uint8Array(n);
+      E.forEach((e, j) => {
+        depth[j] = e.parent < 0 ? 0 : depth[e.parent] + 1;
+        cont[j] = depth[j] * PP_CONT_H + (e.kind === 'member' && j > 0 && E[j - 1].kind === 'member' ? 12 : 0);
+        // не резать сразу после названия отдела и не оставлять под ним одного сотрудника
+        ok[j] = j > 0 && e.parent !== j - 1 && !(j > 1 && E[j - 1].kind === 'member' && E[j - 1].parent === j - 2 && e.parent === j - 2) ? 1 : 0;
+      });
+      return { base: el.offsetHeight - (root ? root.offsetHeight : 0) + (root ? 10 : 0), n, top, cont, ok, memo: new Map() };
     }),
   };
   probe.remove();
@@ -768,6 +933,41 @@ function ppPartition(h, k) {
   return { max: dp[k][n], groups };
 }
 
+/* Переливание колонки в k подколонок: минимальная высота самой высокой подколонки.
+   Подбор высоты H делением пополам; при заданной H поток раскладывается жадно — в подколонку
+   столько строк, сколько влезает. Результат запоминается (раскладка перебирает много вариантов) */
+function ppFlowSplit(col, k) {
+  if (col.memo.has(k)) return col.memo.get(k);
+  const { n, top, cont, ok } = col;
+  const cost = (a, b) => top[b] - top[a] + cont[a];
+  const pack = H => {
+    const cuts = [];
+    let a = 0, max = 0;
+    while (a < n) {
+      let b = a + 1;
+      while (b < n && cost(a, b + 1) <= H) b++;
+      while (b < n && b > a + 1 && !ok[b]) b--;
+      max = Math.max(max, cost(a, b));
+      if (b < n) cuts.push(b);
+      a = b;
+    }
+    return { cuts, max };
+  };
+  let res;
+  if (k <= 1 || n <= 1) res = { max: top[n], cuts: [], k: 1 };
+  else {
+    let lo = 0, hi = top[n];
+    for (let it = 0; it < 32 && hi - lo > 1; it++) {
+      const mid = (lo + hi) / 2;
+      if (pack(mid).cuts.length < k) hi = mid; else lo = mid;
+    }
+    const p = pack(hi);
+    res = { max: p.max, cuts: p.cuts, k: p.cuts.length + 1 };
+  }
+  col.memo.set(k, res);
+  return res;
+}
+
 function ppScaleFor(format, size) {
   const sh = ppSheetMM(format);
   const iw = (sh.w - sh.pad * 2) * PP_PX_PER_MM;
@@ -778,8 +978,9 @@ function ppScaleFor(format, size) {
 // Раскладка при заданных делениях колонок (k) и числе рядов (r): ряды — подряд идущие
 // колонки примерно равной ширины; в рядах с проходом колонки делятся на левую и правую половины
 function ppArrange(model, k, r, format) {
-  const colW = i => k[i] * PP_COL_W + (k[i] - 1) * PP_SPLIT_GAP;
-  const colH = i => model.cols[i].base + ppPartition(model.cols[i].items, k[i]).max;
+  const sp = model.cols.map((c, i) => ppFlowSplit(c, k[i]));
+  const colW = i => sp[i].k * PP_COL_W + (sp[i].k - 1) * PP_SPLIT_GAP;
+  const colH = i => model.cols[i].base + sp[i].max;
   const rowW = ws => ws.reduce((a, b) => a + b, 0) + Math.max(0, ws.length - 1) * PP_COL_GAP;
   const n = model.cols.length;
   const rows = [];
@@ -804,7 +1005,7 @@ function ppArrange(model, k, r, format) {
     return hv;
   });
   const splits = {};
-  model.cols.forEach((c, i) => { if (k[i] > 1) splits[c.uid] = ppPartition(c.items, k[i]).groups; });
+  sp.forEach((s, i) => { if (s.cuts.length) splits[i] = s.cuts; });
   return { rows, halves, splits, scale: ppScaleFor(format, { w, h }) };
 }
 
@@ -820,7 +1021,7 @@ function ppLayout(model, format) {
     while (pp.balance) {
       let pick = -1, pickLay = null;
       model.cols.forEach((c, i) => {
-        if (k[i] >= c.items.length) return;
+        if (k[i] >= Math.min(c.n, PP_MAX_SPLIT)) return;
         k[i]++;
         const lay = ppArrange(model, k, r, format);
         k[i]--;
@@ -837,46 +1038,72 @@ function ppLayout(model, format) {
 
 function ppPt(scale) { return PP_BASE_FONT * scale * 0.75; }
 
-// Первый формат, на котором текст не мельче PP_GOOD_PT
-function ppAutoFormat(model) {
+// Первый формат, на котором текст на всех листах не мельче PP_GOOD_PT
+function ppAutoFormat(sheets, models) {
+  sheets = sheets || ppSheets();
   if (pp.data.custom) {   // своя раскладка — подбираем по реальному размеру
-    const size = ppMeasure(ppContentHTML());
+    const size = ppMeasure(ppContentHTML(sheets[0]));
     return Object.keys(PP_FORMATS).find(f => ppPt(ppScaleFor(f, size)) >= PP_GOOD_PT) || null;
   }
-  model = model || ppModel();
-  return Object.keys(PP_FORMATS).find(f => ppPt(ppLayout(model, f).scale) >= PP_GOOD_PT) || null;
+  models = models || sheets.map(ppModel);
+  return Object.keys(PP_FORMATS).find(f => models.every(m => ppPt(ppLayout(m, f).scale) >= PP_GOOD_PT)) || null;
+}
+
+function ppHeadHTML(sheet, i, n) {
+  const title = sheet.sub
+    ? `${ppEsc(sheet.title)}<br><b>${ppEsc(sheet.sub)}</b>`
+    : `Организационная структура<br><b>${ppEsc(sheet.title)}</b>`;
+  return `${pp.logo ? `<img class="pp-logo" src="${ppEsc(pp.logo)}" alt="">` : ''}
+    <div class="pp-sheet__title">${title}</div>
+    <div class="pp-sheet__date">Актуально на ${new Date().toLocaleDateString('ru-RU')}${n > 1 ? ` · лист ${i + 1} из ${n}` : ''}</div>`;
 }
 
 function ppRender() {
-  const model = ppModel();
-  const html = ppContentHTML(ppLayout(model, pp.format));
-  const size = ppMeasure(html);
-  const scale = ppScaleFor(pp.format, size);
+  const sheets = ppSheets();
+  const models = sheets.map(ppModel);
   const sh = ppSheetMM(pp.format);
   const wmm = sh.w, hmm = sh.h;
-
-  const sheet = document.getElementById('pp-sheet');
-  const content = document.getElementById('pp-content');
-  sheet.style.width = wmm + 'mm';
-  sheet.style.height = (hmm - 0.5) + 'mm';   // запас, чтобы не вылез пустой второй лист
-  sheet.style.padding = `${PP_TOP_MM}mm ${sh.pad}mm ${sh.pad}mm`;
-  content.innerHTML = html;
-  content.style.width = size.w + 'px';
-  content.style.transform = `scale(${scale})`;
-  // По центру листа по горизонтали
   const innerW = (wmm - sh.pad * 2) * PP_PX_PER_MM;
-  content.style.marginLeft = Math.max(0, (innerW - size.w * scale) / 2) + 'px';
-  // Шапка: размер — от формата (мм), ширина и положение — по структуре (как раньше)
-  const head = document.getElementById('pp-sheet-head');
-  head.style.setProperty('--hk', ppHeadK(pp.format));
-  head.innerHTML = `${pp.logo ? `<img class="pp-logo" src="${pp.logo}" alt="">` : ''}
-    <div class="pp-sheet__title">Организационная структура<br><b>${escHtml(pp.title)}</b></div>
-    <div class="pp-sheet__date">Актуально на ${new Date().toLocaleDateString('ru-RU')}</div>`;
-  // по ширине структуры; если структура уже шапки (одна группа) — шапка своей ширины, по центру
-  head.style.width = 'auto';
-  const headW = Math.min(innerW, Math.max(size.w * scale, head.scrollWidth));
-  head.style.width = headW + 'px';
-  head.style.marginLeft = Math.max(0, (innerW - headW) / 2) + 'px';
+  const pages = document.getElementById('pp-pages');
+  pages.innerHTML = '';
+  // Раскладка и масштаб каждого листа. Листов несколько — у всех один масштаб, по самому плотному:
+  // текст во всём комплекте одного размера, маленькая ветка не раздувается на весь лист
+  const parts = sheets.map((s, si) => {
+    const html = ppContentHTML(s, models[si].cols.length ? ppLayout(models[si], pp.format) : null);
+    const size = ppMeasure(html);
+    return { html, size, scale: ppScaleFor(pp.format, size) };
+  });
+  const common = Math.min(...parts.map(x => x.scale));
+  const minPt = ppPt(common);
+
+  sheets.forEach((s, si) => {
+    const { html, size } = parts[si];
+    const scale = common;
+
+    const sheet = document.createElement('div');
+    sheet.className = 'pp-sheet';
+    sheet.style.width = wmm + 'mm';
+    sheet.style.height = (hmm - 0.5) + 'mm';   // запас, чтобы не вылез пустой лишний лист
+    sheet.style.padding = `${PP_TOP_MM}mm ${sh.pad}mm ${sh.pad}mm`;
+    sheet.innerHTML = '<div class="pp-sheet__head"></div><div class="pp-content"></div><div class="pp-grid"></div>';
+    pages.appendChild(sheet);
+
+    const content = sheet.querySelector('.pp-content');
+    content.innerHTML = html;
+    content.style.width = size.w + 'px';
+    content.style.transform = `scale(${scale})`;
+    // По центру листа по горизонтали
+    content.style.marginLeft = Math.max(0, (innerW - size.w * scale) / 2) + 'px';
+    // Шапка: размер — от формата (мм), ширина и положение — по структуре
+    const head = sheet.querySelector('.pp-sheet__head');
+    head.style.setProperty('--hk', ppHeadK(pp.format));
+    head.innerHTML = ppHeadHTML(s, si, sheets.length);
+    // по ширине структуры; если структура уже шапки (одна группа) — шапка своей ширины, по центру
+    head.style.width = 'auto';
+    const headW = Math.min(innerW, Math.max(size.w * scale, head.scrollWidth));
+    head.style.width = headW + 'px';
+    head.style.marginLeft = Math.max(0, (innerW - headW) / 2) + 'px';
+  });
 
   const tiles = sh.tiles;
   // Ширина печатной страницы — явно по листу: иначе браузер верстает по ширине окна
@@ -886,20 +1113,23 @@ function ppRender() {
     `@page { size: ${pageW}mm ${pageH}mm; margin: 0; }
      @media print { html, body.pp-open, #pp, .pp-stage, .pp-sheet-wrap, .pp-tiles {
        width: ${pageW}mm !important; min-width: 0 !important; max-width: ${pageW}mm !important; } }`;
-  ppRenderTiles(tiles, wmm, hmm);
+  ppRenderTiles(tiles);
 
   // Подсказка про читаемость
-  const pt = ppPt(scale);
-  const best = ppAutoFormat(model);
+  const pt = minPt;
+  const best = ppAutoFormat(sheets, models);
   const small = pt < PP_MIN_PT;
   const fit = document.getElementById('pp-fit');
   fit.className = 'pp-fit' + (small ? ' warn' : '');
-  fit.innerHTML = `Текст ≈ ${pt.toFixed(1).replace('.', ',')} pt` +
+  fit.innerHTML = `Текст ≈ ${pt.toFixed(1).replace('.', ',')} pt` + (sheets.length > 1 ? ' на всех листах' : '') +
     (small ? ' — мелко для печати.' : '') +
     (best && best !== pp.format ? ` <button id="pp-auto">Перейти на ${best}</button>` : '') +
-    (small && !best ? ' Уберите часть веток или уровней.' : '');
+    (small && !best ? (pp.perBranch ? ' Уберите часть уровней или сотрудников.' : ' Уберите часть веток или уровней — или напечатайте каждую ветку на своём листе.') : '');
   const auto = document.getElementById('pp-auto');
   if (auto) auto.onclick = () => { pp.format = best; pp.zoom = null; ppRender(); };
+  document.getElementById('pp-branch-info').textContent = pp.perBranch
+    ? `${sheets.length} ${ppPlural(sheets.length, ['лист', 'листа', 'листов'])}: общая схема и по листу на каждую отмеченную ветку. В PDF — страницами по порядку.`
+    : '';
 
   ppSyncControls();
   ppPlaceSheet();
@@ -910,12 +1140,11 @@ function ppRender() {
    Ориентация кусков подбирается так, чтобы листов было меньше. В предпросмотре — сетка
    с номерами поверх листа, в печати — по странице на кусок с метками и подписью */
 
-function ppRenderTiles(t, wmm, hmm) {
-  const grid = document.getElementById('pp-grid');
+function ppRenderTiles(t) {
   const box = document.getElementById('pp-tiles');
   const info = document.getElementById('pp-tile-info');
+  const sheets = [...document.querySelectorAll('#pp-pages > .pp-sheet')];
   document.body.classList.toggle('pp-tiling', !!t);
-  grid.innerHTML = '';
   box.innerHTML = '';
   if (!t) {
     info.textContent = pp.tile === 'off' ? ''
@@ -923,60 +1152,63 @@ function ppRenderTiles(t, wmm, hmm) {
     return;
   }
   const word = ppPlural(t.n, ['лист', 'листа', 'листов']);
-  info.innerHTML = `${t.n} ${word} ${pp.tile} (${t.rows} × ${t.cols}) — склеенные, дают ${pp.format}. `
+  info.innerHTML = `${t.n} ${word} ${pp.tile} (${t.rows} × ${t.cols}) — склеенные, дают ${pp.format}`
+    + (sheets.length > 1 ? `; всего ${t.n * sheets.length} — на ${sheets.length} ${ppPlural(sheets.length, ['плакат', 'плаката', 'плакатов'])}` : '') + '. '
     + `Изображение чуть уменьшено, чтобы лист делился ровно; нахлёст ${PP_TILE_OVERLAP_MM} мм для склейки.<br>`
     + `В окне печати — масштаб 100%, без «Вписать в страницу».`;
 
-  const sheet = document.getElementById('pp-sheet');
-  let k = 0;
-  for (let r = 0; r < t.rows; r++) for (let c = 0; c < t.cols; c++) {
-    k++;
-    const x = c * t.sx, y = r * t.sy;   // лист = склеенная площадь, куски делят его ровно
-    // сетка поверх листа в предпросмотре
-    grid.insertAdjacentHTML('beforeend',
-      `<div class="pp-grid__tile" style="left:${x}mm;top:${y}mm;width:${t.vw}mm;height:${t.vh}mm"><span>${k}</span></div>`);
-    // страница-кусок для печати: окно на копию листа
-    const clone = sheet.cloneNode(true);
-    clone.removeAttribute('id');
-    clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
-    clone.querySelector('.pp-grid').remove();
-    clone.style.cssText += `;position:absolute;left:${-x}mm;top:${-y}mm;transform:none;`;
-    const tile = document.createElement('div');
-    tile.className = 'pp-tile';
-    tile.style.cssText = `width:${t.pw}mm;height:${t.ph - 0.5}mm;padding:${PP_TILE_MARGIN_MM}mm`;
-    const view = document.createElement('div');
-    view.className = 'pp-tile__view';
-    view.style.cssText = `width:${t.vw}mm;height:${t.vh}mm`;
-    view.appendChild(clone);
-    // Склейка: следующий лист кладётся поверх предыдущего (правый на левый, нижний на верхний).
-    // У нижнего листа справа/снизу — серая полоса под клей, её закрывает соседний лист.
-    // Верхний лист обрезается по меткам реза и кладётся краем на начало серой полосы.
-    // На содержимом верхнего листа линий нет — на готовом плакате ничего не остаётся
-    const O = PP_TILE_OVERLAP_MM, M = PP_TILE_MARGIN_MM;
-    if (c < t.cols - 1) view.insertAdjacentHTML('beforeend', `<div class="pp-tile__glue pp-tile__glue--v" style="left:${t.vw - O}mm;width:${O}mm"></div>`);
-    if (r < t.rows - 1) view.insertAdjacentHTML('beforeend', `<div class="pp-tile__glue pp-tile__glue--h" style="top:${t.vh - O}mm;height:${O}mm"></div>`);
-    tile.appendChild(view);
-    // метки реза — на полях, точно по краям видимой части
-    const cut = [];
-    for (const yy of [M, t.ph - M]) cut.push(`top:${yy}mm;left:1mm;width:${M - 2}mm`, `top:${yy}mm;right:1mm;width:${M - 2}mm`);
-    for (const xx of [M, t.pw - M]) cut.push(`left:${xx}mm;top:1mm;height:${M - 2}mm`, `left:${xx}mm;bottom:1mm;height:${M - 2}mm`);
-    tile.insertAdjacentHTML('beforeend',
-      cut.map(st => `<i class="pp-tile__cut ${/width/.test(st) ? 'h' : 'v'}" style="${st}"></i>`).join('')
-      + `<div class="pp-tile__label">${escHtml(pp.title)} · ${pp.format} частями · лист ${k} из ${t.n} · ряд ${r + 1}, колонка ${c + 1}`
-      + `${c > 0 || r > 0 ? ' · обрежьте ' + [c > 0 ? 'левое' : '', r > 0 ? 'верхнее' : ''].filter(Boolean).join(' и ') + ' поле по меткам и наложите край на серую полосу соседнего листа' : ''}</div>`);
-    box.appendChild(tile);
-  }
+  sheets.forEach((sheet, si) => {
+    const grid = sheet.querySelector('.pp-grid');
+    const sheetNo = sheets.length > 1 ? ` · плакат ${si + 1} из ${sheets.length}` : '';
+    let k = 0;
+    for (let r = 0; r < t.rows; r++) for (let c = 0; c < t.cols; c++) {
+      k++;
+      const x = c * t.sx, y = r * t.sy;   // лист = склеенная площадь, куски делят его ровно
+      // сетка поверх листа в предпросмотре
+      grid.insertAdjacentHTML('beforeend',
+        `<div class="pp-grid__tile" style="left:${x}mm;top:${y}mm;width:${t.vw}mm;height:${t.vh}mm"><span>${k}</span></div>`);
+      // страница-кусок для печати: окно на копию листа
+      const clone = sheet.cloneNode(true);
+      clone.querySelector('.pp-grid').remove();
+      clone.style.cssText += `;position:absolute;left:${-x}mm;top:${-y}mm;`;
+      const tile = document.createElement('div');
+      tile.className = 'pp-tile';
+      tile.style.cssText = `width:${t.pw}mm;height:${t.ph - 0.5}mm;padding:${PP_TILE_MARGIN_MM}mm`;
+      const view = document.createElement('div');
+      view.className = 'pp-tile__view';
+      view.style.cssText = `width:${t.vw}mm;height:${t.vh}mm`;
+      view.appendChild(clone);
+      // Склейка: следующий лист кладётся поверх предыдущего (правый на левый, нижний на верхний).
+      // У нижнего листа справа/снизу — серая полоса под клей, её закрывает соседний лист.
+      // Верхний лист обрезается по меткам реза и кладётся краем на начало серой полосы.
+      // На содержимом верхнего листа линий нет — на готовом плакате ничего не остаётся
+      const O = PP_TILE_OVERLAP_MM, M = PP_TILE_MARGIN_MM;
+      if (c < t.cols - 1) view.insertAdjacentHTML('beforeend', `<div class="pp-tile__glue pp-tile__glue--v" style="left:${t.vw - O}mm;width:${O}mm"></div>`);
+      if (r < t.rows - 1) view.insertAdjacentHTML('beforeend', `<div class="pp-tile__glue pp-tile__glue--h" style="top:${t.vh - O}mm;height:${O}mm"></div>`);
+      tile.appendChild(view);
+      // метки реза — на полях, точно по краям видимой части
+      const cut = [];
+      for (const yy of [M, t.ph - M]) cut.push(`top:${yy}mm;left:1mm;width:${M - 2}mm`, `top:${yy}mm;right:1mm;width:${M - 2}mm`);
+      for (const xx of [M, t.pw - M]) cut.push(`left:${xx}mm;top:1mm;height:${M - 2}mm`, `left:${xx}mm;bottom:1mm;height:${M - 2}mm`);
+      tile.insertAdjacentHTML('beforeend',
+        cut.map(st => `<i class="pp-tile__cut ${/width/.test(st) ? 'h' : 'v'}" style="${st}"></i>`).join('')
+        + `<div class="pp-tile__label">${ppEsc(pp.title)}${sheetNo} · ${pp.format} частями · лист ${k} из ${t.n} · ряд ${r + 1}, колонка ${c + 1}`
+        + `${c > 0 || r > 0 ? ' · обрежьте ' + [c > 0 ? 'левое' : '', r > 0 ? 'верхнее' : ''].filter(Boolean).join(' и ') + ' поле по меткам и наложите край на серую полосу соседнего листа' : ''}</div>`);
+      box.appendChild(tile);
+    }
+  });
 }
 
 /* ---------- Масштаб просмотра: как на холсте страницы ----------
    «−»/«+» — шаг ×1.2, колесо — ×1.1 к точке под курсором, перетаскивание — сдвиг,
-   «Лист целиком» / «Реальный размер» — быстрые значения. Диапазон: от «лист целиком» до 300%. */
+   «Лист целиком» / «Реальный размер» — быстрые значения. Диапазон: от «лист целиком» до 300%.
+   Листов несколько — идут столбиком, «лист целиком» вписывает один лист */
 
 const PP_ZOOM_MAX = 3;
 
 function ppSheetPx() {
   const { w: wmm, h: hmm } = ppSheetMM(pp.format);
-  return { sw: wmm * PP_PX_PER_MM, sh: hmm * PP_PX_PER_MM };
+  return { sw: wmm * PP_PX_PER_MM, sh: (hmm - 0.5) * PP_PX_PER_MM };
 }
 
 function ppZoomRange() {
@@ -1038,16 +1270,18 @@ function ppSetupZoom(root) {
   };
 }
 
-// Лист на экране в текущем масштабе + ползунок
+// Листы на экране в текущем масштабе + ползунок
 function ppPlaceSheet() {
   if (!pp) return;
   const sizer = document.getElementById('pp-sizer');
-  const sheet = document.getElementById('pp-sheet');
+  const pages = document.getElementById('pp-pages');
+  const n = Math.max(1, pages.children.length);
   const { sw, sh } = ppSheetPx();
   const k = ppCurZoom();
-  sheet.style.transform = `scale(${k})`;
-  sizer.style.width = sw * k + 'px';      // обёртка по видимому размеру — для центрирования и прокрутки
-  sizer.style.height = sh * k + 'px';
+  pages.style.transform = `scale(${k})`;
+  pages.style.gap = PP_SHEET_GAP / k + 'px';   // промежуток между листами на экране — постоянный
+  sizer.style.width = sw * k + 'px';           // обёртка по видимому размеру — для центрирования и прокрутки
+  sizer.style.height = n * sh * k + (n - 1) * PP_SHEET_GAP + 'px';
 
   const { min, max } = ppZoomRange();
   const val = Math.round((k - min) / (max - min || 1) * 100);
