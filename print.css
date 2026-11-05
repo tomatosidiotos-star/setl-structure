@@ -347,6 +347,7 @@ body.pp-open { overflow: hidden; }
 .pp-dot {
   position: absolute; left: 0; top: 6px; width: 9px; height: 9px; border-radius: 50%;
   border: 1.5px solid #b5b5b5; background: #fff; box-sizing: border-box;
+  z-index: 1;   /* поверх линий: линия стопки (::after пункта) рисуется позже кружка */
 }
 .pp-item--top > .pp-row > .pp-dot { border-color: var(--red); }
 .pp-label { font-family: var(--f-exp); font-size: 12px; line-height: 1.2; color: #111; }
