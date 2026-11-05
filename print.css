@@ -139,6 +139,11 @@ body.pp-open { overflow: hidden; }
 .pp-seg button:hover { color: var(--black); }
 .pp-seg button.on { background: #fff; color: var(--black); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .pp-seg--orient { margin-bottom: 8px; }
+.pp-seg button:disabled { opacity: 0.4; cursor: default; }
+.pp-seg button:disabled:hover { color: #41484a; }
+#pp-format button { flex: 1 1 auto; padding: 0 6px; }   /* по ширине текста: «Баннер» шире «A4» */
+.pp-check--off { opacity: 0.4; cursor: default; }
+.pp-check--off input { cursor: default; }
 
 .pp-fit { margin-top: 10px; font-size: 13px; color: #41484a; line-height: 1.3; }
 .pp-fit.warn { color: #d33831; }

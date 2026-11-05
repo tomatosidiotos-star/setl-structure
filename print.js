@@ -38,8 +38,17 @@ const PP_TILE_MARGIN_MM  = 8;    // печать частями: поле лис
 const PP_TILE_OVERLAP_MM = 10;   // нахлёст соседних кусков — полоса для склейки
 const PP_TILE_PAD_MM     = 8;    // отступ содержимого от края склеенного листа
 
+/* Баннер — лист без формата, для полиграфии: одна страница по размеру структуры, текст ровно
+   PP_BANNER_PT, без продолжения на листах и без растягивания колонок. Раскладка подбирается на
+   воображаемом листе пропорции A (ориентация — «Горизонтально/Вертикально»): на самом маленьком
+   из ряда A, где текст не мельче PP_BANNER_PT; потом лист обрезается по структуре.
+   ppBanner — текущие стороны баннера, мм (уже с учётом ориентации) */
+const PP_BANNER_PT = 12;
+let ppBanner = [1189, 841];
+
 // Размер листа в мм с учётом ориентации
 function ppDims(format) {
+  if (format === 'banner') return ppBanner;
   const [w, h] = PP_FORMATS[format];
   return pp && pp.orient === 'portrait' ? [h, w] : [w, h];
 }
@@ -53,7 +62,9 @@ const PP_HEAD_MM = 20;         // высота шапки на вертикал�
 const PP_TOP_MM  = 6;          // поле над шапкой — меньше обычного поля, чтобы шапка не «опускалась»
 // Шапка — по высоте листа: горизонтальный лист ниже, и на нём шапка на ступень меньше
 // (горизонтальный A3 = как вертикальный A4), иначе она выглядит огромной
-function ppHeadK(format) { return (PP_HEAD_SCALE[format] || 1) / (pp && pp.orient === 'landscape' ? Math.SQRT2 : 1); }
+function ppHeadK(format) {
+  if (format === 'banner') return ppBanner[1] / 297;   // как у форматов A: высота листа / высота A4
+  return (PP_HEAD_SCALE[format] || 1) / (pp && pp.orient === 'landscape' ? Math.SQRT2 : 1); }
 function ppHeadMM(format) { return PP_HEAD_MM * ppHeadK(format); }
 
 /* Лист, на который раскладывается структура. Целым листом — сам формат с полями.
@@ -69,7 +80,7 @@ function ppSheetMM(format) {
 }
 
 function ppTileGrid(w, h) {
-  if (!pp || pp.tile === 'off') return null;
+  if (!pp || pp.tile === 'off' || pp.format === 'banner') return null;
   const [a, b] = PP_FORMATS[pp.tile];
   const grid = (pw, ph) => {
     const cols = Math.max(1, Math.round(w / pw)), rows = Math.max(1, Math.round(h / ph));
@@ -331,7 +342,7 @@ function ppSheets() {
   const { levels, cols } = ppTop();
   const main = { title: pp.title, levels, cols, base: 3 };
   let sheets = [main];
-  if (pp.perBranch && !pp.data.custom && cols.length) {
+  if (pp.perBranch && pp.format !== 'banner' && !pp.data.custom && cols.length) {
     sheets = [...(cols.length > 1 ? [{ ...main, overview: true }] : []), ...cols.map(c => ({   // одна ветка — общая схема не нужна
       title: pp.title, sub: c.dept || (c.person ? c.person.fullName : ''),
       levels: [{ kind: 'node', node: c }],
@@ -505,7 +516,7 @@ export function openPrintPreview(payload, opts = {}) {
             <button data-v="landscape">Горизонтально</button><button data-v="portrait">Вертикально</button>
           </div>
           <div class="pp-seg" id="pp-format">
-            ${Object.keys(PP_FORMATS).map(f => `<button data-v="${f}">${f}</button>`).join('')}
+            ${Object.keys(PP_FORMATS).map(f => `<button data-v="${f}">${f}</button>`).join('')}<button data-v="banner">Баннер</button>
           </div>
           <div class="pp-fit" id="pp-fit"></div>
         </div>
@@ -649,15 +660,24 @@ function ppSyncControls() {
   const mark = (sel, v) => document.querySelectorAll(sel + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   mark('#pp-format', pp.format);
   mark('#pp-orient', pp.orient);
-  mark('#pp-tile', pp.tile);
+  const banner = pp.format === 'banner';
+  mark('#pp-tile', banner ? 'off' : pp.tile);
+  // баннер — одна страница целиком: части, ветки по листам и растягивание к нему не относятся
+  document.querySelectorAll('#pp-tile button').forEach(b => { b.disabled = banner; });
+  ['#pp-branch', '#pp-fill'].forEach(sel => {
+    const el = document.querySelector(sel);
+    el.disabled = banner;
+    el.closest('label').classList.toggle('pp-check--off', banner);
+  });
   mark('#pp-depth', pp.depth === Infinity ? 'all' : String(pp.depth));
   mark('#pp-layout', pp.layout);
   document.getElementById('pp-layout-info').textContent = {
-    dept: pp.fill ? 'Подразделения отделов — рядом, на всю ширину листа; каждый отдел целиком.'
+    dept: banner ? 'Подразделения отделов — рядом; каждый отдел целиком.'
+      : pp.fill ? 'Подразделения отделов — рядом, на всю ширину листа; каждый отдел целиком.'
       : 'Колонка делится только между отделами первого уровня — каждый отдел целиком в одном столбце.',
     auto: 'Отделы не разрываются: ширина по листу, сотрудники сеткой.',
     dense: 'Максимальное уплотнение: списки переходят в соседний столбец с пометкой «продолжение».',
-  }[pp.layout] + ` Мельче ${PP_PAGE_PT} pt не уменьшает — продолжение на следующем листе.`;
+  }[pp.layout] + (banner ? '' : ` Мельче ${PP_PAGE_PT} pt не уменьшает — продолжение на следующем листе.`);
 }
 
 /* ---------- Дерево выбора веток (левая панель) ---------- */
@@ -1088,6 +1108,7 @@ function ppTreeLayout(model, format, fitW) {
       groups: (key, kids) => { const b0 = bw; bw = bwNow; const r = groups(key, kids, kids.map(k => size(k, levelOf.get(k.uid)))); bw = b0; return r; },
     };
   };
+  if (format === 'banner') { cur.tree = finish(); return cur; }   // баннер — блоки обычной ширины
   // ширину под лист — по настоящему размеру: высота в оценке с запасом
   let realScale = cur.scale;
   if (!fitW) {
@@ -1181,7 +1202,7 @@ function ppModel(sheet) {
   if (pp.layout === 'dense' && model.cols.length) model.alts = PP_DENSE_W.map(w => ppModelAt(sheet, w));
   // «По отделам» вширь — только с «Заполнять всю ширину»; без неё — как опубликованная версия:
   // отделы списком, колонка делится на подколонки только между отделами первого уровня
-  if (pp.layout === 'dept' && pp.fill && model.cols.length) model.tree = ppTreeModel(sheet);
+  if (pp.layout === 'dept' && (pp.fill || pp.format === 'banner') && model.cols.length) model.tree = ppTreeModel(sheet);
   return model;
 }
 
@@ -1365,7 +1386,7 @@ function ppLayout(model, format) {
     const lay = ppLayoutOne(m, format);
     if (lay && (!best || lay.scale > best.scale * 1.01)) best = lay;
   });
-  if (pp.layout !== 'dept' && best) ppFill(best, format, pp.fill, model);
+  if (pp.layout !== 'dept' && best && format !== 'banner') ppFill(best, format, pp.fill, model);
   return best;
 }
 
@@ -1494,12 +1515,30 @@ function ppHeadHTML(sheet, i, n) {
     <div class="pp-sheet__date">Актуально на ${new Date().toLocaleDateString('ru-RU')}${n > 1 ? ` · лист ${i + 1} из ${n}` : ''}</div>`;
 }
 
+// Баннер: раскладка на воображаемом листе A нужной ориентации (самом маленьком, где текст не мельче
+// PP_BANNER_PT), затем лист — по структуре: поля, шапка (высота — от высоты листа), структура
+function ppBannerPart(s, model) {
+  const scale = PP_BANNER_PT / (PP_BASE_FONT * 0.75);
+  const [a, b] = pp.orient === 'portrait' ? [1 / Math.SQRT2, 1] : [1, 1 / Math.SQRT2];
+  let lay = null;
+  for (let L = 297; ; L *= Math.SQRT2) {
+    ppBanner = [L * a, L * b];
+    lay = model.cols.length ? ppLayout(model, 'banner') : null;
+    if (!lay || lay.scale >= scale - 1e-6 || L > 20000) break;
+  }
+  const html = ppContentHTML(s, lay);
+  const size = ppMeasure(html);
+  const hmm = (PP_TOP_MM + size.h * scale / PP_PX_PER_MM + PP_MARGIN_MM + 0.5) / (1 - PP_HEAD_MM / 297);
+  // не уже шапки: на вертикальном A4 она занимает 190 мм ширины, дальше — пропорционально
+  const wmm = Math.max(size.w * scale / PP_PX_PER_MM, 190 * hmm / 297) + PP_MARGIN_MM * 2;
+  ppBanner = [wmm, hmm];
+  return { sheet: s, html, size, scale };
+}
+
 function ppRender() {
   const sheets = ppSheets();
   const models = sheets.map(ppModel);
-  const sh = ppSheetMM(pp.format);
-  const wmm = sh.w, hmm = sh.h;
-  const innerW = (wmm - sh.pad * 2) * PP_PX_PER_MM;
+  const banner = pp.format === 'banner';
   const pages = document.getElementById('pp-pages');
   pages.innerHTML = '';
   // Раскладка и масштаб каждого листа. Листов несколько — у всех один масштаб, по самому плотному:
@@ -1508,7 +1547,8 @@ function ppRender() {
   const minScale = PP_PAGE_PT / (PP_BASE_FONT * 0.75);
   const parts = [];
   let paged = false;
-  sheets.forEach((s, si) => {
+  if (banner) parts.push(ppBannerPart(sheets[0], models[0]));   // баннер — всегда одна страница
+  else sheets.forEach((s, si) => {
     const lay = models[si].cols.length ? ppLayout(models[si], pp.format) : null;
     if (lay && lay.scale < minScale) {
       const pg = lay.tree ? ppTreePaginate(s, models[si], pp.format, minScale) : ppPaginate(s, models[si], pp.format, minScale);
@@ -1523,6 +1563,9 @@ function ppRender() {
   });
   const common = Math.min(...parts.map(x => x.scale));
   const minPt = ppPt(common);
+  const sh = ppSheetMM(pp.format);   // после раскладки: баннер уже знает свой размер
+  const wmm = sh.w, hmm = sh.h;
+  const innerW = (wmm - sh.pad * 2) * PP_PX_PER_MM;
 
   parts.forEach(({ sheet: s, html, size }, si) => {
     const scale = common;
@@ -1563,11 +1606,14 @@ function ppRender() {
 
   // Подсказка про читаемость
   const pt = minPt;
-  const best = ppAutoFormat(sheets, models);
+  const best = banner ? null : ppAutoFormat(sheets, models);
   const small = pt < PP_MIN_PT - 0.05;
   const fit = document.getElementById('pp-fit');
   fit.className = 'pp-fit' + (small ? ' warn' : '');
-  fit.innerHTML = `Текст ≈ ${pt.toFixed(1).replace('.', ',')} pt` + (parts.length > 1 ? ' на всех листах' : '') +
+  const m = mm => (mm / 1000).toFixed(mm < 995 ? 2 : 1).replace('.', ',');
+  if (banner) fit.innerHTML = `Баннер ${m(wmm)} × ${m(hmm)} м, текст ${PP_BANNER_PT} pt. Размер — по структуре:`
+    + ' колонки обычной ширины, без продолжения на листах. PDF — одной страницей, для полиграфии.';
+  else fit.innerHTML = `Текст ≈ ${pt.toFixed(1).replace('.', ',')} pt` + (parts.length > 1 ? ' на всех листах' : '') +
     (small ? ' — мелко для печати.' : '') +
     (paged ? ` Целиком по высоте не помещается — продолжение на следующих листах, всего ${parts.length} ${ppPlural(parts.length, ['лист', 'листа', 'листов'])}.` : '') +
     (best && best !== pp.format ? ` <button id="pp-auto">Перейти на ${best}</button>` : '') +
@@ -1708,6 +1754,7 @@ function ppRenderTiles(t) {
   box.innerHTML = '';
   if (!t) {
     info.textContent = pp.tile === 'off' ? ''
+      : pp.format === 'banner' ? 'Баннер — одной страницей, частями не печатается.'
       : `${pp.format} и так помещается на ${pp.tile} — печатайте целым листом.`;
     return;
   }
