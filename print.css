@@ -152,6 +152,9 @@ body.pp-open { overflow: hidden; }
 .pp-check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 3px 0; }
 .pp-check input { width: 15px; height: 15px; accent-color: var(--red); flex-shrink: 0; cursor: pointer; }
 .pp-check--top { margin-top: 10px; }
+.pp-check--sub { padding-left: 23px; align-items: flex-start; }
+.pp-check--sub input { margin-top: 1px; }
+.pp-check:has(input:disabled) { opacity: 0.45; cursor: default; }
 
 /* Поиск — компонент страницы .search-wrap; в колонке панели он не должен растягиваться по высоте */
 .pp-group--grow .search-wrap { flex: none; margin-bottom: 8px; }
@@ -361,6 +364,14 @@ body.pp-open { overflow: hidden; }
 /* Карточка ветки над колонками (лист на ветку): сотрудники — в несколько колонок (--tc) */
 .pp-card--branch { width: auto; min-width: 220px; }
 .pp-card--branch .pp-team { display: grid; grid-template-columns: repeat(var(--tc, 1), 196px); column-gap: 12px; }
+/* Авто-раскладка: сотрудники отдела — сеткой по ширине колонки (широкая колонка — несколько столбцов) */
+.pp-chart--wide .pp-list .pp-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); column-gap: 12px; }
+/* Лист продолжения: над колонкой — её название; закончившиеся колонки — пустое место той же ширины */
+.pp-colhead {
+  padding: 0 0 8px 12px; border-bottom: 1.5px solid var(--pp-ln);
+  font-family: var(--f-exp); font-weight: 600; font-size: 12.5px; line-height: 1.2;
+}
+.pp-col--cont > .pp-list--root { padding-top: 10px; }
 /* Сотрудники самой карточки колонки — в начале списка под ней; линия от карточки идёт вдоль
    списка: до последнего сотрудника или дальше, к подразделениям */
 .pp-list--root > .pp-team { position: relative; margin: 0 0 6px; }
