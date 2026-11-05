@@ -649,9 +649,9 @@ function ppSyncControls() {
   mark('#pp-layout', pp.layout);
   document.getElementById('pp-layout-info').textContent = {
     dept: 'Колонка делится только между отделами первого уровня — каждый отдел целиком в одном столбце.',
-    auto: `Отделы не разрываются: ширина по листу, сотрудники сеткой. Мельче ${PP_PAGE_PT} pt не уменьшает — продолжение на следующем листе.`,
+    auto: 'Отделы не разрываются: ширина по листу, сотрудники сеткой.',
     dense: 'Максимальное уплотнение: списки переходят в соседний столбец с пометкой «продолжение».',
-  }[pp.layout];
+  }[pp.layout] + ` Мельче ${PP_PAGE_PT} pt не уменьшает — продолжение на следующем листе.`;
 }
 
 /* ---------- Дерево выбора веток (левая панель) ---------- */
@@ -1225,13 +1225,13 @@ function ppRender() {
   pages.innerHTML = '';
   // Раскладка и масштаб каждого листа. Листов несколько — у всех один масштаб, по самому плотному:
   // текст во всём комплекте одного размера, маленькая ветка не раздувается на весь лист
-  // Авто-раскладка: мельче PP_PAGE_PT не уменьшаем — то, что не влезло по высоте, идёт на следующие листы
+  // Мельче PP_PAGE_PT не уменьшаем — то, что не влезло по высоте, идёт на следующие листы
   const minScale = PP_PAGE_PT / (PP_BASE_FONT * 0.75);
   const parts = [];
   let paged = false;
   sheets.forEach((s, si) => {
     const lay = models[si].cols.length ? ppLayout(models[si], pp.format) : null;
-    if (lay && pp.layout === 'auto' && lay.scale < minScale) {
+    if (lay && lay.scale < minScale) {
       const pg = ppPaginate(s, models[si], pp.format, minScale);
       if (pg.length > 1) { paged = true; pg.forEach(x => parts.push({ sheet: s, ...x })); return; }
     }
@@ -1303,11 +1303,12 @@ function ppRender() {
   ppPlaceSheet();
 }
 
-/* ---------- Продолжение на следующих листах (авто-раскладка) ----------
-   Не помещается при PP_PAGE_PT — колонки в один ряд, ширины подбираются под лист при этом масштабе,
-   и каждая колонка продолжается на следующих листах с того места, где кончился предыдущий.
-   Колонки на всех листах стоят на тех же местах; рвутся по границе строки (у сетки сотрудников —
-   по границе ряда сетки), сверху продолжения — название колонки и отделы с пометкой «продолжение» */
+/* ---------- Продолжение на следующих листах (все раскладки) ----------
+   Не помещается при PP_PAGE_PT — колонки в один ряд, деления и ширины подбираются под лист при этом
+   масштабе, и каждая подколонка («дорожка») продолжается на следующих листах с того места, где
+   кончилась на предыдущем. Колонки на всех листах стоят на тех же местах; рвутся по границе строки
+   (у сетки сотрудников — по границе ряда сетки), сверху продолжения — название колонки и отделы
+   с пометкой «продолжение» */
 const PP_CONT_HEAD_H = 40;   // заголовок колонки на листе продолжения, с запасом, px
 
 function ppPaginate(sheet, model, format, scale) {
@@ -1315,22 +1316,25 @@ function ppPaginate(sheet, model, format, scale) {
   const W = (sh.w - sh.pad * 2) * PP_PX_PER_MM / scale;
   const Hp = (sh.h - 0.5 - PP_TOP_MM - sh.pad - ppHeadMM(format)) * PP_PX_PER_MM / scale;
   const n = model.cols.length;
-  // ширины: расширяем самую высокую колонку, пока ряд помещается в лист и она от этого ниже
+  // деления: увеличиваем самую высокую колонку (шире / ещё подколонка), пока ряд помещается и она ниже
   const k = model.cols.map(() => 1);
   const opt = i => ppColOption(model.cols[i], k[i]);
   const rowW = () => k.reduce((a, _, i) => a + opt(i).w, 0) + (n - 1) * PP_COL_GAP;
   for (;;) {
     let i = 0;
     for (let j = 1; j < n; j++) if (opt(j).h > opt(i).h) i = j;
-    if (k[i] >= PP_MAX_WIDE) break;
+    if (k[i] >= ppMaxK(model.cols[i])) break;
     const h0 = opt(i).h;
     k[i]++;
     if (rowW() > W || opt(i).h >= h0) { k[i]--; break; }
   }
-  const lay = { rows: [model.cols.map((c, i) => i)], halves: [null], splits: {}, widths: model.cols.map((c, i) => opt(i).w), w: rowW(), scale };
-  ppFill(lay, format, true);
+  const lay = { rows: [model.cols.map((c, i) => i)], halves: [null], splits: {},
+    widths: model.cols.map((c, i) => opt(i).w), w: rowW(), scale };
+  model.cols.forEach((c, i) => { const cuts = opt(i).cuts; if (cuts.length) lay.splits[i] = cuts; });
+  if (pp.layout === 'auto') ppFill(lay, format, true);
+  else if (pp.layout === 'dense') ppFill(lay, format);
 
-  // замер: положение каждой строки потока от верха колонки
+  // замер: положение каждой строки потока от верха колонки и низ каждой дорожки
   const probe = ppProbe(ppContentHTML(sheet, lay));
   const colsEl = probe.querySelector('.pp-cols');
   const top0 = colsEl ? colsEl.offsetTop : 0;
@@ -1338,56 +1342,75 @@ function ppPaginate(sheet, model, format, scale) {
     const E = sheet.flows[i], m = E.length, ct = el.getBoundingClientRect().top;
     const top = new Float64Array(m + 1);
     el.querySelectorAll('[data-e]').forEach(x => { top[+x.dataset.e] = x.getBoundingClientRect().top - ct; });
-    top[m] = el.offsetHeight;
-    return { E, top };
+    const roots = [...el.querySelectorAll('.pp-list--root')].filter(r => !r.parentElement.closest('.pp-list--root'));
+    const bounds = [0, ...(lay.splits[i] || []), m];
+    const lanes = m ? roots.map((r, li) => ({ s: bounds[li], e: bounds[li + 1], bottom: r.getBoundingClientRect().bottom - ct })) : [];
+    return { E, top, lanes };
   });
   probe.remove();
 
-  // разрезы по листам для каждой колонки
-  const cutsOf = cols.map(({ E, top }) => {
-    const m = E.length;
-    const depth = new Int32Array(m);
+  // Разрезы по листам и сами листы. Высота продолжения (заголовок, строки «продолжение») — оценка:
+  // если лист всё-таки вышел выше, раскладываем ещё раз с запасом на перебор
+  let out = [], room = Hp;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    out = ppPages(sheet, cols, lay, room, top0, n);
+    const over = Math.max(...out.map(o => o.size.h)) - Hp;
+    if (over <= 0.5) break;
+    room -= over + 4;
+  }
+  return out.map(o => ({ ...o, scale: Math.min(scale, ppScaleFor(format, o.size)) }));
+}
+
+function ppPages(sheet, cols, lay, Hp, top0, n) {
+  cols.forEach(({ E, top, lanes }) => {
+    const depth = new Int32Array(E.length);
     E.forEach((e, j) => { depth[j] = e.parent < 0 ? 0 : depth[e.parent] + 1; });
-    const ok = j => j > 0 && top[j] > top[j - 1] + 0.5 && E[j].parent !== j - 1;   // новая строка, не сразу после названия отдела
-    const over = a => PP_CONT_HEAD_H + depth[a] * PP_CONT_H + 10 + (E[a].kind === 'member' ? 12 : 0);
-    const bounds = [0];
-    let a = 0, first = true;
-    while (a < m) {
-      const fits = b => first ? top[b] <= Hp - top0 : top[b] - top[a] + over(a) <= Hp;
-      let b = a;
-      while (b < m && fits(b + 1)) b++;
-      while (b < m && b > a && !ok(b)) b--;
-      if (b === a) {   // ни одной строки не влезло — берём хотя бы до следующего разрешённого места
-        if (first && a === 0) { first = false; bounds.push(0); continue; }
-        b = a + 1;
-        while (b < m && !ok(b)) b++;
+    lanes.forEach(L => {
+      const T = j => j === L.e ? L.bottom : top[j];
+      const ok = j => j > L.s && T(j) > T(j - 1) + 0.5 && E[j].parent !== j - 1;   // новая строка, не сразу после названия отдела
+      const over = a => PP_CONT_HEAD_H + depth[a] * PP_CONT_H + 10 + (E[a].kind === 'member' ? 12 : 0);
+      const b = [L.s];
+      let a = L.s, first = true;
+      while (a < L.e) {
+        const fits = x => first ? T(x) <= Hp - top0 : T(x) - T(a) + over(a) <= Hp;
+        let x = a;
+        while (x < L.e && fits(x + 1)) x++;
+        while (x < L.e && x > a && !ok(x)) x--;
+        if (x === a) {   // ни одной строки не влезло — на этом листе пусто или берём до ближайшего разрешённого места
+          if (first) { first = false; b.push(a); continue; }
+          x = a + 1;
+          while (x < L.e && !ok(x)) x++;
+        }
+        b.push(x);
+        a = x;
+        first = false;
       }
-      bounds.push(b);
-      a = b;
-      first = false;
-    }
-    if (bounds.length === 1) bounds.push(m);   // пустая колонка — только карточка
-    return bounds;
+      L.b = b;
+    });
   });
-  const pages = Math.max(...cutsOf.map(b => b.length - 1));
+  const pages = Math.max(1, ...cols.flatMap(c => c.lanes.map(L => L.b.length - 1)));
 
   const out = [];
   for (let p = 0; p < pages; p++) {
     const colHTML = sheet.cols.map((c, i) => {
-      const b = cutsOf[i], E = cols[i].E, base = sheet.base, w = lay.widths[i];
-      const a0 = b[p], a1 = b[p + 1];
-      const slice = a1 != null && a1 > a0 ? ppFlowHTML(E, a0, a1, base) : '';
-      if (p === 0) return `<div class="pp-col" style="width:${w}px">${ppCardHTML(c)}${slice}</div>`;
-      if (!slice) return `<div class="pp-col pp-col--empty" style="width:${w}px"></div>`;
+      const { E, lanes } = cols[i], w = lay.widths[i];
+      const slices = lanes.map(L => {
+        const a0 = L.b[p], a1 = L.b[p + 1];
+        return a1 != null && a1 > a0 ? ppFlowHTML(E, a0, a1, sheet.base) : null;
+      });
+      const inner = lanes.length > 1
+        ? `<div class="pp-split">${slices.map(x => x || '<div class="pp-lane-empty"></div>').join('')}</div>`
+        : (slices[0] || '');
+      if (p === 0) return `<div class="pp-col" style="width:${w}px">${ppCardHTML(c)}${inner}</div>`;
+      if (!slices.some(Boolean)) return `<div class="pp-col pp-col--empty" style="width:${w}px"></div>`;
       const title = c.dept || (c.person ? ppPersonName(c.person) : '');
-      return `<div class="pp-col pp-col--cont" style="width:${w}px"><div class="pp-colhead">${ppEsc(title)} <span class="pp-cont">продолжение</span></div>${slice}</div>`;
+      return `<div class="pp-col pp-col--cont" style="width:${w}px"><div class="pp-colhead">${ppEsc(title)} <span class="pp-cont">продолжение</span></div>${inner}</div>`;
     }).join('');
-    const wide = ' pp-chart--wide';
+    const wide = pp.layout === 'auto' ? ' pp-chart--wide' : '';
     const html = p === 0
       ? `<div class="pp-chart${sheet.levels.length ? '' : ' pp-chart--no-heads'}${wide}">${ppLevelsHTML(sheet.levels, true)}<div class="pp-cols${n === 1 ? ' single' : ''}">${colHTML}</div></div>`
       : `<div class="pp-chart pp-chart--no-heads pp-chart--cont${wide}"><div class="pp-cols">${colHTML}</div></div>`;
-    const size = ppMeasure(html);
-    out.push({ html, size, scale: Math.min(scale, ppScaleFor(format, size)) });
+    out.push({ html, size: ppMeasure(html) });
   }
   return out;
 }

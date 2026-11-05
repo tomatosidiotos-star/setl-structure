@@ -369,6 +369,7 @@ body.pp-open { overflow: hidden; }
   font-family: var(--f-exp); font-weight: 600; font-size: 12.5px; line-height: 1.2;
 }
 .pp-col--cont > .pp-list--root { padding-top: 10px; }
+.pp-split > .pp-lane-empty { flex: 1; min-width: 0; }   /* подколонка, кончившаяся на прошлом листе */
 /* Сотрудники самой карточки колонки — в начале списка под ней; линия от карточки идёт вдоль
    списка: до последнего сотрудника или дальше, к подразделениям */
 .pp-list--root > .pp-team { position: relative; margin: 0 0 6px; }
