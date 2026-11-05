@@ -897,13 +897,13 @@ function ppLevelsHTML(levels, hasCols) {
 
 /* ---------- «По отделам»: иерархия вширь ----------
    Подразделения отдела можно поставить не списком вниз, а рядом (блоками), как карточки
-   верхнего уровня; не помещаются в ряд — переходят в следующий ряд. Блок — либо отдел со всем
-   содержимым списком вниз (как раньше), либо «развёрнутый» отдел: его строка, под ней ряды блоков
-   его подразделений. Разворачивается по одному отделу, пока от этого растёт масштаб; сам отдел
-   никогда не разрывается между столбцами */
-const PP_HGAP     = 16;   // между блоками в ряду — как .pp-hrow gap
-const PP_HBUS     = 14;   // от шины ряда до кружка блока — как .pp-hcol padding-top
-const PP_HROW_GAP = 16;   // между рядами блоков — как .pp-hrow + .pp-hrow
+   верхнего уровня. Блок — либо отдел со всем содержимым списком вниз (как раньше), либо
+   «развёрнутый» отдел: его строка, под ней в ряд стопки блоков его подразделений (в стопке блоки
+   друг под другом на общей линии; стопки — примерно равной высоты, без провалов). Разворачивается
+   по одному отделу, пока от этого растёт масштаб; сам отдел никогда не разрывается между столбцами */
+const PP_HGAP     = 16;   // между стопками — как .pp-hrow gap
+const PP_HBUS     = 14;   // от шины до кружка первого блока стопки — как .pp-hcol padding-top
+const PP_STACK_GAP = 10;  // между блоками в стопке — как .pp-hcol > .pp-item + .pp-item
 
 function ppKidsAt(n, level) { return level + 1 <= pp.depth ? ppVisibleKids(n.children) : []; }
 
@@ -934,10 +934,13 @@ function ppTreeItemHTML(n, level, base, T) {
   return `<div class="pp-item pp-item--x has-kids${level === base ? ' pp-item--top' : ''}">${ppRowHTML(n, level, T.bw - 15)}${ppHRowsHTML(kids, level + 1, base, T, n.uid)}</div>`;
 }
 
+// Подразделения развёрнутого отдела: ряд стопок
 function ppHRowsHTML(kids, level, base, T, key) {
   let i = 0;
-  return T.groups(key, kids).map(g => `<div class="pp-hrow">${kids.slice(i, i += g).map(k =>
-    `<div class="pp-hcol" style="width:${T.size(k).w}px">${ppTreeItemHTML(k, level, base, T)}</div>`).join('')}</div>`).join('');
+  return `<div class="pp-hrow">${T.groups(key, kids).map(g => {
+    const part = kids.slice(i, i += g);
+    return `<div class="pp-hcol" style="width:${Math.max(...part.map(k => T.size(k).w))}px">${part.map(k => ppTreeItemHTML(k, level, base, T)).join('')}</div>`;
+  }).join('')}</div>`;
 }
 
 function ppTreeColHTML(c, base, T, width) {
@@ -988,9 +991,10 @@ function ppTreeLayout(model, format, fitW) {
   const score = lay => fitW ? (lay.w <= fitW + 0.5 ? 1e9 / lay.h : 1e-3 / lay.w) : lay.scale;
   const exp = new Map();
   let bw = PP_COL_W;   // ширина блока-списка; после подбора растёт, чтобы раскладка заняла ширину листа
+  // стопки: подряд идущие подразделения, по высоте поровну; q — число стопок
   const groups = (key, kids, sizes) => {
-    const q = Math.min(exp.get(key) || 1, kids.length);
-    return ppPartition(sizes.map(s => s.w + PP_HGAP), q).groups;
+    const q = Math.min(exp.get(key) || kids.length, kids.length);
+    return ppPartition(sizes.map(s => s.h + PP_STACK_GAP), q).groups;
   };
   // размер блока отдела n на уровне level
   const size = (n, level) => {
@@ -1001,13 +1005,14 @@ function ppTreeLayout(model, format, fitW) {
   };
   const rowsOf = (key, kids, level) => {
     const sizes = kids.map(k => size(k, level));
+    const gs = groups(key, kids, sizes);
     let i = 0, w = 0, h = 0;
-    groups(key, kids, sizes).forEach((g, gi) => {
+    gs.forEach(g => {
       const part = sizes.slice(i, i += g);
-      w = Math.max(w, part.reduce((a, s) => a + s.w, 0) + (g - 1) * PP_HGAP);
-      h += PP_HBUS + Math.max(...part.map(s => s.h)) + (gi ? PP_HROW_GAP : 0);
+      w += Math.max(...part.map(s => s.w));
+      h = Math.max(h, part.reduce((a, s) => a + s.h, 0) + (g - 1) * PP_STACK_GAP);
     });
-    return { w, h };
+    return { w: w + (gs.length - 1) * PP_HGAP, h: PP_HBUS + h };
   };
   const colSize = mc => {
     const kids = base <= pp.depth ? ppVisibleKids(mc.c.children) : [];
@@ -1018,7 +1023,8 @@ function ppTreeLayout(model, format, fitW) {
   const evaluate = () => {
     const sp = M.cols.map(colSize);
     let best = null;
-    for (let r = 1; r <= Math.min(PP_MAX_ROWS, Math.max(1, sp.length)); r++) {
+    // на листах продолжения — один ряд колонок: второй ряд ушёл бы под всю высоту первого, на дальние листы
+    for (let r = 1; r <= (fitW ? 1 : Math.min(PP_MAX_ROWS, Math.max(1, sp.length))); r++) {
       const lay = ppArrangeSizes(model, sp, r, format);
       if (!best || score(lay) > score(best) * 1.05) best = lay;
     }
@@ -1048,7 +1054,7 @@ function ppTreeLayout(model, format, fitW) {
     let pick = null, pickLay = null;
     candidates().forEach(({ key, m }) => {
       const was = exp.get(key);
-      for (let q = 1; q <= Math.min(m, 6); q++) {
+      for (let q = 2; q <= Math.min(m, 12); q++) {
         if (q === was) continue;
         exp.set(key, q);
         const lay = evaluate();

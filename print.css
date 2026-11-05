@@ -365,23 +365,25 @@ body.pp-open { overflow: hidden; }
 .pp-chart--wide .pp-list .pp-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); column-gap: 12px; }
 /* Лист продолжения «По отделам» — окно на общую раскладку */
 .pp-window { position: relative; overflow: hidden; }
-/* «По отделам» вширь: подразделения отдела — блоками в ряд под ним, шина сверху, лишнее — в следующий ряд.
-   Размеры — как PP_HGAP / PP_HBUS / PP_HROW_GAP в print.js */
+/* «По отделам» вширь: подразделения отдела — стопками в ряд под ним, шина сверху; в стопке блоки
+   друг под другом на общей линии. Размеры — как PP_HGAP / PP_HBUS / PP_STACK_GAP в print.js */
 .pp-hrow { position: relative; display: flex; gap: 16px; align-items: flex-start; }
-.pp-hrow + .pp-hrow { margin-top: 16px; }
 .pp-item--x > .pp-hrow { margin-left: 16px; }
-.pp-hrow:not(:last-child)::after {   /* ствол слева — к следующему ряду */
-  content: ''; position: absolute; left: -12px; top: 0; bottom: -16px; border-left: 1.5px solid var(--pp-ln);
-}
 .pp-hcol { position: relative; padding-top: 14px; flex-shrink: 0; }
-.pp-hcol::before {                    /* шина: от предыдущего блока до своего кружка и дальше */
+.pp-hcol::before {                    /* шина: от предыдущей стопки до своего кружка и дальше */
   content: ''; position: absolute; top: 0; left: -16px; right: 0; border-top: 1.5px solid var(--pp-ln);
 }
 .pp-hcol:first-child::before { left: -12px; }
 .pp-hcol:last-child::before { right: auto; width: 21px; }
 .pp-hcol:first-child:last-child::before { width: 17px; }
 .pp-hcol > .pp-item::before { left: 4px; top: -14px; bottom: auto; height: 20px; }
+.pp-hcol > .pp-item + .pp-item { margin-top: 10px; }
+.pp-hcol > .pp-item + .pp-item::before { display: none; }
 .pp-hcol > .pp-item::after { display: none; }
+.pp-hcol > .pp-item:not(:last-child)::after {   /* линия стопки: вдоль блока к кружку следующего */
+  display: block; content: ''; position: absolute; left: 4px; top: 6px; bottom: -16px; width: 0;
+  border-top: none; border-left: 1.5px solid var(--pp-ln);
+}
 /* Лист продолжения: над колонкой — её название; закончившиеся колонки — пустое место той же ширины */
 .pp-colhead {
   padding: 0 0 8px 12px; border-bottom: 1.5px solid var(--pp-ln);
