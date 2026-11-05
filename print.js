@@ -848,7 +848,9 @@ function ppColHTML(c, E, cuts, base, width) {
 // Ряды карточек. Во всех рядах, кроме последнего, по центру проход, через него ствол идёт к следующему ряду
 function ppRowsHTML(sheet, lay) {
   return lay.rows.map((row, ri) => {
-    const cols = row.map(i => ppColHTML(sheet.cols[i], sheet.flows[i], lay.splits[i], sheet.base, lay.widths && lay.widths[i]));
+    const cols = row.map(i => lay.tree
+      ? ppTreeColHTML(sheet.cols[i], sheet.base, lay.tree, lay.widths[i])
+      : ppColHTML(sheet.cols[i], sheet.flows[i], lay.splits[i], sheet.base, lay.widths && lay.widths[i]));
     const hv = lay.halves[ri];
     if (hv) return `<div class="pp-cols pp-cols--pass">
         <div class="pp-half pp-half--l" style="width:${hv.half}px">${cols.slice(0, hv.left).join('')}</div>
@@ -893,6 +895,249 @@ function ppLevelsHTML(levels, hasCols) {
   }).join('');
 }
 
+/* ---------- «По отделам»: иерархия вширь ----------
+   Подразделения отдела можно поставить не списком вниз, а рядом (блоками), как карточки
+   верхнего уровня; не помещаются в ряд — переходят в следующий ряд. Блок — либо отдел со всем
+   содержимым списком вниз (как раньше), либо «развёрнутый» отдел: его строка, под ней ряды блоков
+   его подразделений. Разворачивается по одному отделу, пока от этого растёт масштаб; сам отдел
+   никогда не разрывается между столбцами */
+const PP_HGAP     = 16;   // между блоками в ряду — как .pp-hrow gap
+const PP_HBUS     = 14;   // от шины ряда до кружка блока — как .pp-hcol padding-top
+const PP_HROW_GAP = 16;   // между рядами блоков — как .pp-hrow + .pp-hrow
+
+function ppKidsAt(n, level) { return level + 1 <= pp.depth ? ppVisibleKids(n.children) : []; }
+
+// Строка отдела: кружок, название, руководитель, «ещё N», сотрудники
+// teamW — ширина плашки сотрудников (у развёрнутого отдела — как у блока, не на всю ширину рядов)
+function ppRowHTML(n, level, teamW) {
+  const label = n.dept || (n.person ? ppPersonName(n.person) : '');
+  const sub = n.dept ? [n.person, ...(n.persons || [])].filter(Boolean).map(ppPersonName).join(', ') : (n.person ? n.person.role : '');
+  const more = level + 1 > pp.depth && n.children.length ? ppStats(n).depts : 0;
+  const team = pp.team && n.team && n.team.length
+    ? `<div class="pp-team"${teamW ? ` style="max-width:${teamW}px"` : ''}>${n.team.map(p => ppMemberHTML(p)).join('')}</div>` : '';
+  return `<div class="pp-row"><span class="pp-dot"></span><div class="pp-label">${ppEsc(label)}</div>
+    ${sub ? `<div class="pp-sub">${ppEsc(sub)}</div>` : ''}
+    ${more ? `<div class="pp-more">ещё ${more} ${ppPlural(more, ['подразделение', 'подразделения', 'подразделений'])}</div>` : ''}${team}</div>`;
+}
+
+// Отдел списком вниз (как раньше)
+function ppVHTML(n, level, base) {
+  const kids = ppKidsAt(n, level);
+  const nested = kids.length ? `<div class="pp-list">${kids.map(k => ppVHTML(k, level + 1, base)).join('')}</div>` : '';
+  return `<div class="pp-item${nested ? ' has-kids' : ''}${level === base ? ' pp-item--top' : ''}">${ppRowHTML(n, level)}${nested}</div>`;
+}
+
+// Отдел в раскладке: развёрнутый — строка и ряды блоков, иначе — списком
+function ppTreeItemHTML(n, level, base, T) {
+  const kids = ppKidsAt(n, level);
+  if (!T.exp.has(n.uid) || !kids.length) return ppVHTML(n, level, base);
+  return `<div class="pp-item pp-item--x has-kids${level === base ? ' pp-item--top' : ''}">${ppRowHTML(n, level, T.bw - 15)}${ppHRowsHTML(kids, level + 1, base, T, n.uid)}</div>`;
+}
+
+function ppHRowsHTML(kids, level, base, T, key) {
+  let i = 0;
+  return T.groups(key, kids).map(g => `<div class="pp-hrow">${kids.slice(i, i += g).map(k =>
+    `<div class="pp-hcol" style="width:${T.size(k).w}px">${ppTreeItemHTML(k, level, base, T)}</div>`).join('')}</div>`).join('');
+}
+
+function ppTreeColHTML(c, base, T, width) {
+  const kids = base <= pp.depth ? ppVisibleKids(c.children) : [];
+  const wide = T.exp.has(c.uid) && kids.length;
+  const team = pp.team && c.team && c.team.length
+    ? `<div class="pp-team"${wide ? ` style="max-width:${T.bw - 28}px"` : ''}>${c.team.map(p => ppMemberHTML(p)).join('')}</div>` : '';
+  const body = T.exp.has(c.uid) && kids.length ? ppHRowsHTML(kids, base, base, T, c.uid) : kids.map(k => ppVHTML(k, base, base)).join('');
+  const root = kids.length || team ? `<div class="pp-list pp-list--root">${team}${body}</div>` : '';
+  return `<div class="pp-col" style="width:${width}px">${ppCardHTML(c)}${root}</div>`;
+}
+
+// Замер: у каждого отдела — высота блока списком (ширина колонки) и высота его строки;
+// у колонки — карточка, сотрудники карточки и весь список
+function ppTreeModel(sheet) {
+  const base = sheet.base, nodes = [];
+  sheet.cols.forEach(c => (function walk(list, level) {
+    if (level > pp.depth) return;
+    ppVisibleKids(list).forEach(x => { nodes.push({ n: x, level }); walk(x.children, level + 1); });
+  })(c.children, base));
+  const W = `width:${PP_COL_W}px`;
+  const empty = { exp: new Map() };
+  const probe = ppProbe(
+    sheet.cols.map((c, i) => `<div class="pp-col" data-ci="${i}" style="${W}">${ppCardHTML(c)}</div>`
+      + `<div data-cf="${i}">${ppTreeColHTML(c, base, empty, PP_COL_W)}</div>`).join('')
+    + nodes.map(({ n, level }, j) => `<div class="pp-hcol" data-v="${j}" style="${W}">${ppVHTML(n, level, base)}</div>`
+      + `<div class="pp-item has-kids" data-r="${j}" style="${W}">${ppRowHTML(n, level)}</div>`).join(''));
+  const vH = new Map(), rowH = new Map();
+  nodes.forEach(({ n }, j) => {
+    vH.set(n.uid, probe.querySelector(`[data-v="${j}"] > .pp-item`).offsetHeight);
+    rowH.set(n.uid, probe.querySelector(`[data-r="${j}"] > .pp-row`).offsetHeight);
+  });
+  const cols = sheet.cols.map((c, i) => {
+    const cardH = probe.querySelector(`[data-ci="${i}"]`).offsetHeight;
+    const full = probe.querySelector(`[data-cf="${i}"] > .pp-col`);
+    const team = full.querySelector(':scope > .pp-list--root > .pp-team');
+    return { c, cardH, vH: full.offsetHeight, teamH: team ? team.offsetHeight + 6 : 0 };
+  });
+  probe.remove();
+  return { cols, vH, rowH, base, sheet };
+}
+
+/* Раскладка «вширь»: exp — развёрнутые отделы (uid → число рядов их подразделений; uid колонки —
+   её первый уровень). Размеры блоков считаются по замерам, без перерисовки */
+// fitW — для продолжения на листах: не шире fitW, и как можно ниже (масштаб задан)
+function ppTreeLayout(model, format, fitW) {
+  const M = model.tree, base = M.base;
+  const score = lay => fitW ? (lay.w <= fitW + 0.5 ? 1e9 / lay.h : 1e-3 / lay.w) : lay.scale;
+  const exp = new Map();
+  let bw = PP_COL_W;   // ширина блока-списка; после подбора растёт, чтобы раскладка заняла ширину листа
+  const groups = (key, kids, sizes) => {
+    const q = Math.min(exp.get(key) || 1, kids.length);
+    return ppPartition(sizes.map(s => s.w + PP_HGAP), q).groups;
+  };
+  // размер блока отдела n на уровне level
+  const size = (n, level) => {
+    const kids = ppKidsAt(n, level);
+    if (!exp.has(n.uid) || !kids.length) return { w: bw, h: M.vH.get(n.uid) };
+    const r = rowsOf(n.uid, kids, level + 1);
+    return { w: Math.max(bw, 16 + r.w), h: M.rowH.get(n.uid) + r.h };
+  };
+  const rowsOf = (key, kids, level) => {
+    const sizes = kids.map(k => size(k, level));
+    let i = 0, w = 0, h = 0;
+    groups(key, kids, sizes).forEach((g, gi) => {
+      const part = sizes.slice(i, i += g);
+      w = Math.max(w, part.reduce((a, s) => a + s.w, 0) + (g - 1) * PP_HGAP);
+      h += PP_HBUS + Math.max(...part.map(s => s.h)) + (gi ? PP_HROW_GAP : 0);
+    });
+    return { w, h };
+  };
+  const colSize = mc => {
+    const kids = base <= pp.depth ? ppVisibleKids(mc.c.children) : [];
+    if (!exp.has(mc.c.uid) || !kids.length) return { w: bw, h: mc.vH };
+    const r = rowsOf(mc.c.uid, kids, base);
+    return { w: Math.max(bw, 28 + r.w), h: mc.cardH + 10 + mc.teamH + r.h };
+  };
+  const evaluate = () => {
+    const sp = M.cols.map(colSize);
+    let best = null;
+    for (let r = 1; r <= Math.min(PP_MAX_ROWS, Math.max(1, sp.length)); r++) {
+      const lay = ppArrangeSizes(model, sp, r, format);
+      if (!best || score(lay) > score(best) * 1.05) best = lay;
+    }
+    return best;
+  };
+  // кандидаты: колонка (первый уровень вширь) и отделы, чей родитель уже развёрнут; у развёрнутых —
+  // другое число рядов
+  const candidates = () => {
+    const out = [];
+    M.cols.forEach(mc => {
+      const kids = base <= pp.depth ? ppVisibleKids(mc.c.children) : [];
+      if (kids.length < 2) return;
+      out.push({ key: mc.c.uid, m: kids.length });
+      if (!exp.has(mc.c.uid)) return;
+      (function walk(list, level) {
+        list.forEach(n => {
+          const kk = ppKidsAt(n, level);
+          if (kk.length >= 2) out.push({ key: n.uid, m: kk.length });
+          if (exp.has(n.uid)) walk(kk, level + 1);
+        });
+      })(kids, base);
+    });
+    return out;
+  };
+  let cur = evaluate();
+  for (let iter = 0; iter < 200; iter++) {
+    let pick = null, pickLay = null;
+    candidates().forEach(({ key, m }) => {
+      const was = exp.get(key);
+      for (let q = 1; q <= Math.min(m, 6); q++) {
+        if (q === was) continue;
+        exp.set(key, q);
+        const lay = evaluate();
+        if (score(lay) > (pickLay ? score(pickLay) : score(cur) * 1.01)) { pick = { key, q }; pickLay = lay; }
+      }
+      if (was == null) exp.delete(key); else exp.set(key, was);
+    });
+    if (!pick) break;
+    exp.set(pick.key, pick.q);
+    cur = pickLay;
+  }
+  // Свободная ширина листа — блокам: шире блок — названия и должности в меньшее число строк, ниже
+  // колонки. Высоты замерены при обычной ширине, так что масштаб от этого не падает
+  const sh = ppSheetMM(format);
+  const finish = () => {   // данные для отрисовки при текущих exp и bw
+    const levelOf = new Map();
+    M.cols.forEach(mc => (function walk(list, level) {
+      if (level > pp.depth) return;
+      ppVisibleKids(list).forEach(n => { levelOf.set(n.uid, level); walk(n.children, level + 1); });
+    })(mc.c.children, base));
+    const bwNow = bw, expNow = new Map(exp);
+    return {
+      bw: bwNow, exp: expNow,
+      size: n => { const b0 = bw; bw = bwNow; const r = size(n, levelOf.get(n.uid)); bw = b0; return r; },
+      groups: (key, kids) => { const b0 = bw; bw = bwNow; const r = groups(key, kids, kids.map(k => size(k, levelOf.get(k.uid)))); bw = b0; return r; },
+    };
+  };
+  // ширину под лист — по настоящему размеру: высота в оценке с запасом
+  let realScale = cur.scale;
+  if (!fitW) {
+    cur.tree = finish();
+    realScale = ppScaleFor(format, ppMeasure(ppContentHTML(M.sheet, cur)));
+  }
+  const target = fitW || (sh.w - sh.pad * 2) * PP_PX_PER_MM / realScale;
+  if (cur.w < target - 1) {
+    let lo = PP_COL_W, hi = PP_COL_W * 3;
+    for (let it = 0; it < 20; it++) {
+      bw = (lo + hi) / 2;
+      if (evaluate().w <= target) lo = bw; else hi = bw;
+    }
+    bw = lo;
+    const filled = evaluate();
+    if (filled.w <= target + 0.5) { filled.scale = Math.max(filled.scale, realScale); cur = filled; }
+    else bw = PP_COL_W;
+  }
+  cur.tree = finish();
+  return cur;
+}
+
+/* Продолжение «По отделам» на следующих листах: раскладка вширь строится под ширину листа при
+   PP_PAGE_PT, потом лист режется по высоте на страницы. Разрез — там, где не задета ни одна
+   строка текста и ни одна карточка; линии просто продолжаются на следующем листе */
+function ppTreePaginate(sheet, model, format, scale) {
+  const sh = ppSheetMM(format);
+  const W = (sh.w - sh.pad * 2) * PP_PX_PER_MM / scale;
+  const Hp = (sh.h - 0.5 - PP_TOP_MM - sh.pad - ppHeadMM(format)) * PP_PX_PER_MM / scale;
+  const lay = ppTreeLayout(model, format, W);
+  const probe = ppProbe(ppContentHTML(sheet, lay));
+  const pt = probe.getBoundingClientRect().top;
+  const H = probe.scrollHeight, Wc = probe.scrollWidth;
+  // «атомы» — то, что нельзя резать: карточки, строки отделов, строки сотрудников
+  const atoms = [...probe.querySelectorAll('.pp-card, .pp-lvl-wrap, .pp-label, .pp-sub, .pp-more, .pp-team__row')]
+    .map((e, i) => { e.dataset.a = i; const r = e.getBoundingClientRect(); return { i, a: r.top - pt, b: r.bottom - pt }; });
+  const html = probe.innerHTML;
+  probe.remove();
+  // Режем по краю листа; строки на разрезе прячем и показываем целиком на следующем листе,
+  // который начинается с самой верхней из них. Что уже было на прошлом листе — на новом прячем
+  const out = [];
+  let y0 = 0, shownTo = 0;
+  for (let guard = 0; guard < 50; guard++) {
+    const last = H - y0 <= Hp + 0.5;
+    const y1 = last ? H : y0 + Hp;
+    const cross = last ? [] : atoms.filter(t => t.a < y1 && t.b > y1 && t.a > y0);
+    const hide = atoms.filter(t => t.b > y0 && t.a < y1 && (cross.includes(t) || (t.b <= shownTo && t.a >= 0 && shownTo > y0)));
+    const id = 'ppw' + (++ppWinSeq);
+    const style = hide.length ? `<style>.${id} [data-a="${hide.map(t => t.i).join(`"],.${id} [data-a="`)}"]{visibility:hidden}</style>` : '';
+    const h = y1 - y0;
+    out.push({
+      html: `${style}<div class="pp-window ${id}" style="width:${Wc}px;height:${h}px"><div style="position:absolute;left:0;top:${-y0}px;width:${Wc}px">${html}</div></div>`,
+      size: { w: Wc, h }, scale: Math.min(scale, ppScaleFor(format, { w: Wc, h })),
+    });
+    if (last) break;
+    shownTo = y1;
+    y0 = cross.length ? Math.min(...cross.map(t => t.a)) - 2 : y1;
+  }
+  return out;
+}
+let ppWinSeq = 0;
+
 /* ---------- Раскладка и масштаб ---------- */
 
 function ppProbe(html) {
@@ -919,6 +1164,7 @@ const PP_DENSE_W = [260, 300, 350];   // плотная раскладка: ещ
 function ppModel(sheet) {
   const model = ppModelAt(sheet, PP_COL_W);
   if (pp.layout === 'dense' && model.cols.length) model.alts = PP_DENSE_W.map(w => ppModelAt(sheet, w));
+  if (pp.layout === 'dept' && model.cols.length) model.tree = ppTreeModel(sheet);
   return model;
 }
 
@@ -1052,7 +1298,11 @@ function ppScaleFor(format, size) {
 // Раскладка при заданных делениях колонок (k) и числе рядов (r): ряды — подряд идущие
 // колонки примерно равной ширины; в рядах с проходом колонки делятся на левую и правую половины
 function ppArrange(model, k, r, format) {
-  const sp = model.cols.map((c, i) => ppColOption(c, k[i]));
+  return ppArrangeSizes(model, model.cols.map((c, i) => ppColOption(c, k[i])), r, format);
+}
+
+// Ряды карточек по готовым размерам колонок sp[i] = { w, h, cuts }
+function ppArrangeSizes(model, sp, r, format) {
   const colW = i => sp[i].w;
   const colH = i => sp[i].h;
   const rowW = ws => ws.reduce((a, b) => a + b, 0) + Math.max(0, ws.length - 1) * PP_COL_GAP;
@@ -1079,8 +1329,8 @@ function ppArrange(model, k, r, format) {
     return hv;
   });
   const splits = {};
-  sp.forEach((s, i) => { if (s.cuts.length) splits[i] = s.cuts; });
-  return { rows, halves, splits, widths: sp.map(s => s.w), w, scale: ppScaleFor(format, { w, h }) };
+  sp.forEach((s, i) => { if (s.cuts && s.cuts.length) splits[i] = s.cuts; });
+  return { rows, halves, splits, widths: sp.map(s => s.w), w, h, scale: ppScaleFor(format, { w, h }) };
 }
 
 // Перебираем число рядов; в каждом варианте ищем деления колонок двумя способами и берём лучший:
@@ -1092,6 +1342,7 @@ function ppArrange(model, k, r, format) {
 // Плотная раскладка — ещё и перебор ширины подколонки (замеры model.alts): шире подколонка —
 // ФИО и должности в меньшее число строк. Плотная и авто — свободное место ряда раздаётся колонкам
 function ppLayout(model, format) {
+  if (model.tree) return ppTreeLayout(model, format);
   let best = null;
   [model, ...(model.alts || [])].forEach(m => {
     const lay = ppLayoutOne(m, format);
@@ -1232,7 +1483,7 @@ function ppRender() {
   sheets.forEach((s, si) => {
     const lay = models[si].cols.length ? ppLayout(models[si], pp.format) : null;
     if (lay && lay.scale < minScale) {
-      const pg = ppPaginate(s, models[si], pp.format, minScale);
+      const pg = lay.tree ? ppTreePaginate(s, models[si], pp.format, minScale) : ppPaginate(s, models[si], pp.format, minScale);
       if (pg.length > 1) { paged = true; pg.forEach(x => parts.push({ sheet: s, ...x })); return; }
     }
     const html = ppContentHTML(s, lay);
