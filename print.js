@@ -831,6 +831,10 @@ function ppFlow(col, base, overview) {
   return E;
 }
 
+// Пометка «продолжение» у повторённого названия. В «По отделам» её нет — как в раскладке вширь,
+// где продолжение на листе ничем не помечено; в «Авто» и «Плотной» — есть
+function ppContMark() { return pp.layout === 'dept' ? '' : ' <span class="pp-cont">продолжение</span>'; }
+
 // Кусок потока [a, b) — дерево-список; отделы, начатые в прошлой подколонке, — с пометкой «продолжение»
 function ppFlowHTML(E, a, b, base) {
   const cont = new Set();
@@ -849,7 +853,7 @@ function ppFlowHTML(E, a, b, base) {
     const nested = kids ? `<div class="pp-list">${kids}</div>` : '';
     return `<div class="pp-item${nested ? ' has-kids' : ''}${e.level === base ? ' pp-item--top' : ''}${isCont ? ' pp-item--cont' : ''}">
       <div class="pp-row"${isCont ? '' : ` data-e="${i}"`}><span class="pp-dot"></span>
-        <div class="pp-label">${ppEsc(label)}${isCont ? ' <span class="pp-cont">продолжение</span>' : ''}</div>
+        <div class="pp-label">${ppEsc(label)}${isCont ? ppContMark() : ''}</div>
         ${!isCont && sub ? `<div class="pp-sub">${ppEsc(sub)}</div>` : ''}
         ${!isCont && e.more ? `<div class="pp-more">ещё ${e.more} ${ppPlural(e.more, ['подразделение', 'подразделения', 'подразделений'])}</div>` : ''}
         ${team(i)}
@@ -1732,7 +1736,7 @@ function ppPages(sheet, cols, lay, Hp, top0, n) {
       if (p === 0) return `<div class="pp-col" style="width:${w}px">${ppCardHTML(c)}${inner}</div>`;
       if (!slices.some(Boolean)) return `<div class="pp-col pp-col--empty" style="width:${w}px"></div>`;
       const title = c.dept || (c.person ? ppPersonName(c.person) : '');
-      return `<div class="pp-col pp-col--cont" style="width:${w}px"><div class="pp-colhead">${ppEsc(title)} <span class="pp-cont">продолжение</span></div>${inner}</div>`;
+      return `<div class="pp-col pp-col--cont" style="width:${w}px"><div class="pp-colhead">${ppEsc(title)}${ppContMark()}</div>${inner}</div>`;
     }).join('');
     const wide = pp.layout === 'auto' ? ' pp-chart--wide' : '';
     const html = p === 0
