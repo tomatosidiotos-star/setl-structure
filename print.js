@@ -1204,7 +1204,7 @@ function ppRender() {
     head.style.setProperty('--hk', ppHeadK(pp.format));
     head.innerHTML = ppHeadHTML(s, si, parts.length);
     // по ширине структуры; если структура уже шапки (одна группа) — шапка своей ширины, по центру
-    head.style.width = 'auto';
+    head.style.width = 'max-content';   // собственная ширина шапки (auto растянул бы её на весь лист)
     const headW = Math.min(innerW, Math.max(size.w * scale, head.scrollWidth));
     head.style.width = headW + 'px';
     head.style.marginLeft = Math.max(0, (innerW - headW) / 2) + 'px';
