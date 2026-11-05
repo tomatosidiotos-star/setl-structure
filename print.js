@@ -1202,7 +1202,9 @@ function ppModel(sheet) {
   if (pp.layout === 'dense' && model.cols.length) model.alts = PP_DENSE_W.map(w => ppModelAt(sheet, w));
   // «По отделам» вширь — только с «Заполнять всю ширину»; без неё — как опубликованная версия:
   // отделы списком, колонка делится на подколонки только между отделами первого уровня
-  if (pp.layout === 'dept' && (pp.fill || pp.format === 'banner') && model.cols.length) model.tree = ppTreeModel(sheet);
+  // общая схема («Каждая ветка — на своём листе») — только первый уровень без сотрудников: вширь там
+  // разворачивать нечего, а раскладка вширь рисует всю глубину
+  if (pp.layout === 'dept' && (pp.fill || pp.format === 'banner') && !sheet.overview && model.cols.length) model.tree = ppTreeModel(sheet);
   return model;
 }
 
