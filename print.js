@@ -84,6 +84,7 @@ function ppTileGrid(w, h) {
 }
 const PP_BASE_FONT = 12;       // кегль пунктов списка в «натуральном» размере, px
 const PP_MIN_PT    = 6;        // мельче — предупреждаем
+const PP_PAGE_PT   = 7;        // авто-раскладка: мельче не уменьшаем — продолжение на следующем листе
 const PP_GOOD_PT   = 7;        // «Подобрать формат» ищет первый формат не мельче этого
 const PP_MAX_SCALE = 2.5;
 const PP_COL_W     = 220;      // ширина колонки (карточка 2-го уровня), px
@@ -432,8 +433,9 @@ function ppDefaults() {
     fullNames: true,
     photos: true,
     team: false,          // сотрудники отделов
-    balance: true,        // авто-раскладка: карточки рядами, ширина колонок по листу, сотрудники сеткой
-    dense: false,         // максимальное уплотнение: списки переходят в соседние подколонки
+    layout: 'auto',       // раскладка: 'dept' — по отделам (колонка делится только между отделами
+                          // первого уровня) | 'auto' — отделы целиком, ширина по листу, сотрудники сеткой,
+                          // продолжение на следующем листе | 'dense' — списки переходят в соседний столбец
     perBranch: false,     // каждая ветка — на своём листе
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
@@ -450,8 +452,6 @@ function ppReset() {
   document.getElementById('pp-fullnames').checked = pp.fullNames;
   document.getElementById('pp-photos').checked = pp.photos;
   document.getElementById('pp-team').checked = pp.team;
-  document.getElementById('pp-balance').checked = pp.balance;
-  document.getElementById('pp-dense').checked = pp.dense;
   document.getElementById('pp-branch').checked = pp.perBranch;
   const search = document.getElementById('pp-search');
   search.value = '';
@@ -516,6 +516,13 @@ export function openPrintPreview(payload, opts = {}) {
           <div class="pp-hint pp-hint--block" id="pp-branch-info"${pp.data.custom ? ' hidden' : ''}></div>
         </div>
         <div class="pp-group">
+          <div class="pp-gtitle">Раскладка</div>
+          <div class="pp-seg" id="pp-layout">
+            <button data-v="dept">По отделам</button><button data-v="auto">Авто</button><button data-v="dense">Плотная</button>
+          </div>
+          <div class="pp-hint pp-hint--block" id="pp-layout-info"></div>
+        </div>
+        <div class="pp-group">
           <div class="pp-gtitle">Уровни</div>
           <div class="pp-seg" id="pp-depth">
             <button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button>
@@ -527,8 +534,6 @@ export function openPrintPreview(payload, opts = {}) {
           <label class="pp-check"><input type="checkbox" id="pp-fullnames" checked> ФИО полностью</label>
           <label class="pp-check"><input type="checkbox" id="pp-photos" checked> Фото в карточках</label>
           <label class="pp-check"><input type="checkbox" id="pp-team"> Сотрудники отделов</label>
-          <label class="pp-check"><input type="checkbox" id="pp-balance" checked> Авто-раскладка <span class="pp-hint">ряды, ширина по листу</span></label>
-          <label class="pp-check pp-check--sub"><input type="checkbox" id="pp-dense"> <span>Максимальное уплотнение <span class="pp-hint">списки переходят в соседний столбец</span></span></label>
         </div>
         <div class="pp-group pp-group--grow">
           <div class="pp-gtitle">Ветки
@@ -596,8 +601,7 @@ export function openPrintPreview(payload, opts = {}) {
   root.querySelector('#pp-fullnames').onchange = e => { pp.fullNames = e.target.checked; ppRender(); };
   root.querySelector('#pp-photos').onchange = e => { pp.photos = e.target.checked; ppRender(); };
   root.querySelector('#pp-team').onchange = e => { pp.team = e.target.checked; ppRender(); };
-  root.querySelector('#pp-balance').onchange = e => { pp.balance = e.target.checked; ppRender(); };
-  root.querySelector('#pp-dense').onchange = e => { pp.dense = e.target.checked; ppRender(); };
+  ppSeg('#pp-layout', v => { pp.layout = v; pp.zoom = null; ppRender(); });
   root.querySelector('#pp-branch').onchange = e => { pp.perBranch = e.target.checked; pp.zoom = null; ppRender(); };
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
   root.querySelector('#pp-none').onclick = () => { ppAllNodes().forEach(n => pp.excluded.add(n.uid)); ppRenderTree(); ppRender(); };
@@ -642,7 +646,12 @@ function ppSyncControls() {
   mark('#pp-orient', pp.orient);
   mark('#pp-tile', pp.tile);
   mark('#pp-depth', pp.depth === Infinity ? 'all' : String(pp.depth));
-  document.getElementById('pp-dense').disabled = !pp.balance;   // уплотнение — часть авто-раскладки
+  mark('#pp-layout', pp.layout);
+  document.getElementById('pp-layout-info').textContent = {
+    dept: 'Колонка делится только между отделами первого уровня — каждый отдел целиком в одном столбце.',
+    auto: `Отделы не разрываются: ширина по листу, сотрудники сеткой. Мельче ${PP_PAGE_PT} pt не уменьшает — продолжение на следующем листе.`,
+    dense: 'Максимальное уплотнение: списки переходят в соседний столбец с пометкой «продолжение».',
+  }[pp.layout];
 }
 
 /* ---------- Дерево выбора веток (левая панель) ---------- */
@@ -854,7 +863,7 @@ function ppContentHTML(sheet, lay) {
   if (pp.data.custom) return ppCustomHTML();
   const { levels, cols } = sheet;
   lay = lay || { rows: [cols.map((c, i) => i)], halves: [null], splits: {} };
-  const wide = pp.balance && !pp.dense;   // авто-раскладка: сотрудники отдела — сеткой по ширине колонки
+  const wide = pp.layout === 'auto';   // авто-раскладка: сотрудники отдела — сеткой по ширине колонки
   // Уровни над колонками — отмеченные звенья: [совет директоров] → [исполнительный директор] →
   // [руководители блока]. Исполнительный директор под советом — даже если он же среди руководителей
   // блока: это разные роли
@@ -905,9 +914,18 @@ function ppMeasure(html) {
 /* Замер для раскладки: высота «шапки» листа и по каждой колонке — карточка и положение
    каждой строки потока от верха списка. Высота куска потока [a, b) = top[b] − top[a]
    плюс строки «продолжение» над ним (cont[a]) */
+const PP_DENSE_W = [260, 300, 350];   // плотная раскладка: ещё варианты ширины подколонки, px
+
 function ppModel(sheet) {
+  const model = ppModelAt(sheet, PP_COL_W);
+  if (pp.layout === 'dense' && model.cols.length) model.alts = PP_DENSE_W.map(w => ppModelAt(sheet, w));
+  return model;
+}
+
+function ppModelAt(sheet, colW) {
   if (pp.data.custom) return { top: 0, minW: 0, cols: [] };   // у «Структуры» своя раскладка (ctLayout)
-  const probe = ppProbe(ppContentHTML(sheet));
+  const probe = ppProbe(ppContentHTML(sheet, colW === PP_COL_W ? null
+    : { rows: [sheet.cols.map((c, i) => i)], halves: [null], splits: {}, widths: sheet.cols.map(() => colW) }));
   const colsEl = probe.querySelector('.pp-cols');
   const model = {
     top: colsEl ? colsEl.offsetTop : probe.scrollHeight,
@@ -925,17 +943,21 @@ function ppModel(sheet) {
       E.forEach((e, j) => {
         depth[j] = e.parent < 0 ? 0 : depth[e.parent] + 1;
         cont[j] = depth[j] * PP_CONT_H + (e.kind === 'member' && j > 0 && E[j - 1].kind === 'member' ? 12 : 0);
-        // не резать сразу после названия отдела и не оставлять под ним одного сотрудника
-        ok[j] = j > 0 && e.parent !== j - 1 && !(j > 1 && E[j - 1].kind === 'member' && E[j - 1].parent === j - 2 && e.parent === j - 2) ? 1 : 0;
+        // по отделам — резать только перед отделом первого уровня; плотная — где угодно, но не сразу
+        // после названия отдела и не оставляя под ним одного сотрудника
+        ok[j] = pp.layout === 'dept'
+          ? (j > 0 && e.kind === 'row' && e.level === sheet.base ? 1 : 0)
+          : (j > 0 && e.parent !== j - 1 && !(j > 1 && E[j - 1].kind === 'member' && E[j - 1].parent === j - 2 && e.parent === j - 2) ? 1 : 0);
       });
       return { base: el.offsetHeight - (root ? root.offsetHeight : 0) + (root ? 10 : 0), n, top, cont, ok, memo: new Map(),
+        nOk: ok.reduce((a, x) => a + x, 0), colW,
         hs: [0, el.offsetHeight] };
     }),
   };
   probe.remove();
   // Авто-раскладка: высота каждой колонки при ширине в 2…PP_MAX_WIDE обычных — колонка не режется,
   // шире становятся строки и сетка сотрудников
-  if (pp.balance && !pp.dense && model.cols.length) {
+  if (pp.layout === 'auto' && model.cols.length) {
     for (let m = 2; m <= PP_MAX_WIDE; m++) {
       const all = { rows: [model.cols.map((c, i) => i)], halves: [null], splits: {}, widths: model.cols.map(() => ppWideW(m)) };
       const pr = ppProbe(ppContentHTML(sheet, all));
@@ -946,20 +968,20 @@ function ppModel(sheet) {
   return model;
 }
 
-function ppWideW(m) { return m * PP_COL_W + (m - 1) * PP_SPLIT_GAP; }
+function ppWideW(m, w = PP_COL_W) { return m * w + (m - 1) * PP_SPLIT_GAP; }
 
 // Вариант колонки при «делении» k: максимальное уплотнение — k подколонок потока,
 // авто-раскладка — колонка целиком, шириной в k обычных
 function ppColOption(c, k) {
-  if (pp.dense) {
+  if (pp.layout !== 'auto') {
     const s = ppFlowSplit(c, k);
-    return { w: ppWideW(s.k), h: c.base + s.max, cuts: s.cuts };
+    return { w: ppWideW(s.k, c.colW), h: c.base + s.max, cuts: s.cuts };
   }
   return { w: ppWideW(k), h: c.hs[k], cuts: [] };
 }
 function ppMaxK(c) {
-  if (!pp.balance) return 1;
-  return pp.dense ? Math.max(1, Math.min(c.n, PP_MAX_SPLIT)) : PP_MAX_WIDE;
+  if (pp.layout === 'auto') return PP_MAX_WIDE;
+  return Math.max(1, Math.min(c.nOk + 1, PP_MAX_SPLIT));
 }
 
 // Разбить пункты на k подряд идущих групп с минимальной самой высокой группой
@@ -998,6 +1020,7 @@ function ppFlowSplit(col, k) {
       let b = a + 1;
       while (b < n && cost(a, b + 1) <= H) b++;
       while (b < n && b > a + 1 && !ok[b]) b--;
+      while (b < n && !ok[b]) b++;   // назад некуда — до ближайшего места, где резать можно
       max = Math.max(max, cost(a, b));
       if (b < n) cuts.push(b);
       a = b;
@@ -1066,15 +1089,64 @@ function ppArrange(model, k, r, format) {
 // 2) по одной — делим колонку, пока от этого растёт масштаб (добирает то, что пропустил перебор).
 // Только второй способ застревал, когда несколько колонок одной высоты: деление любой одной
 // ничего не даёт. Больше рядов берём, только если это заметно крупнее
+// Плотная раскладка — ещё и перебор ширины подколонки (замеры model.alts): шире подколонка —
+// ФИО и должности в меньшее число строк. Плотная и авто — свободное место ряда раздаётся колонкам
 function ppLayout(model, format) {
+  let best = null;
+  [model, ...(model.alts || [])].forEach(m => {
+    const lay = ppLayoutOne(m, format);
+    if (lay && (!best || lay.scale > best.scale * 1.01)) best = lay;
+  });
+  if (pp.layout !== 'dept' && best) ppFill(best, format);
+  return best;
+}
+
+function ppLayoutOne(model, format) {
   const n = model.cols.length;
   const maxK = ppMaxK;
   const height = (c, k) => ppColOption(c, k).h;
+  // по одной: делим колонку, пока от этого растёт масштаб
+  const greedy = (k, r, cur) => {
+    for (;;) {
+      let pick = -1, pickLay = null;
+      model.cols.forEach((c, i) => {
+        if (k[i] >= maxK(c)) return;
+        k[i]++;
+        const lay = ppArrange(model, k, r, format);
+        k[i]--;
+        if (lay.scale > (pickLay ? pickLay.scale : cur.scale * 1.01)) { pick = i; pickLay = lay; }
+      });
+      if (pick < 0) return cur;
+      k[pick]++;
+      cur = pickLay;
+    }
+  };
+  // досчёт по рядам: у каждого ряда своя целевая высота (второй ряд может быть ниже первого
+  // и делиться сильнее); остальные ряды при этом не трогаем
+  const byRows = (k, r, cur) => {
+    for (let pass = 0; pass < 2; pass++) {
+      ppArrange(model, k, r, format).rows.forEach(row => {
+        const lo = Math.max(...row.map(i => height(model.cols[i], maxK(model.cols[i]))));
+        const hi = Math.max(...row.map(i => height(model.cols[i], 1)));
+        for (let s = 0; s <= 30 && hi > lo; s++) {
+          const H = lo * Math.pow(hi / lo, s / 30);
+          const k2 = [...k];
+          row.forEach(i => { let j = 1; while (j < maxK(model.cols[i]) && height(model.cols[i], j) > H) j++; k2[i] = j; });
+          const lay = ppArrange(model, k2, r, format);
+          if (lay.scale > cur.scale) { cur = lay; k.splice(0, k.length, ...k2); }
+        }
+      });
+    }
+    return cur;
+  };
   let best = null;
   for (let r = 1; r <= Math.min(PP_MAX_ROWS, Math.max(1, n)); r++) {
-    if (r > 1 && !pp.balance) break;
-    let cur = ppArrange(model, model.cols.map(() => 1), r, format);
-    if (pp.balance && n) {
+    const ones = model.cols.map(() => 1);
+    const kp = [...ones];
+    let plain = greedy(kp, r, ppArrange(model, ones, r, format));   // как раньше — с нуля по одной
+    plain = byRows(kp, r, plain);
+    let cur = ppArrange(model, ones, r, format);
+    if (n) {
       const lo = Math.max(...model.cols.map(c => height(c, maxK(c))));
       const hi = Math.max(...model.cols.map(c => height(c, 1)));
       for (let s = 0; s <= 40 && hi > lo; s++) {
@@ -1088,23 +1160,11 @@ function ppLayout(model, format) {
         if (lay.scale > cur.scale) { cur = lay; cur.k = k; }
       }
     }
-    const k = cur.k ? [...cur.k] : model.cols.map(() => 1);
-    while (pp.balance) {
-      let pick = -1, pickLay = null;
-      model.cols.forEach((c, i) => {
-        if (k[i] >= maxK(c)) return;
-        k[i]++;
-        const lay = ppArrange(model, k, r, format);
-        k[i]--;
-        if (lay.scale > (pickLay ? pickLay.scale : cur.scale * 1.01)) { pick = i; pickLay = lay; }
-      });
-      if (pick < 0) break;
-      k[pick]++;
-      cur = pickLay;
-    }
+    const kc = cur.k ? [...cur.k] : [...ones];
+    cur = byRows(kc, r, greedy(kc, r, cur));
+    if (plain.scale > cur.scale) cur = plain;   // у второго ряда своя высота — целевая высота её не видит
     if (!best || cur.scale > best.scale * 1.05) best = cur;
   }
-  if (pp.balance && !pp.dense && best) ppFill(best, format);
   return best;
 }
 
@@ -1165,13 +1225,13 @@ function ppRender() {
   pages.innerHTML = '';
   // Раскладка и масштаб каждого листа. Листов несколько — у всех один масштаб, по самому плотному:
   // текст во всём комплекте одного размера, маленькая ветка не раздувается на весь лист
-  // Авто-раскладка: мельче PP_MIN_PT не уменьшаем — то, что не влезло по высоте, идёт на следующие листы
-  const minScale = PP_MIN_PT / (PP_BASE_FONT * 0.75);
+  // Авто-раскладка: мельче PP_PAGE_PT не уменьшаем — то, что не влезло по высоте, идёт на следующие листы
+  const minScale = PP_PAGE_PT / (PP_BASE_FONT * 0.75);
   const parts = [];
   let paged = false;
   sheets.forEach((s, si) => {
     const lay = models[si].cols.length ? ppLayout(models[si], pp.format) : null;
-    if (lay && pp.balance && !pp.dense && lay.scale < minScale) {
+    if (lay && pp.layout === 'auto' && lay.scale < minScale) {
       const pg = ppPaginate(s, models[si], pp.format, minScale);
       if (pg.length > 1) { paged = true; pg.forEach(x => parts.push({ sheet: s, ...x })); return; }
     }
@@ -1223,7 +1283,7 @@ function ppRender() {
   // Подсказка про читаемость
   const pt = minPt;
   const best = ppAutoFormat(sheets, models);
-  const small = pt < PP_MIN_PT - 0.05;   // 6,0 pt на листах продолжения — уже не «мелко»
+  const small = pt < PP_MIN_PT - 0.05;
   const fit = document.getElementById('pp-fit');
   fit.className = 'pp-fit' + (small ? ' warn' : '');
   fit.innerHTML = `Текст ≈ ${pt.toFixed(1).replace('.', ',')} pt` + (parts.length > 1 ? ' на всех листах' : '') +
@@ -1232,7 +1292,7 @@ function ppRender() {
     (best && best !== pp.format ? ` <button id="pp-auto">Перейти на ${best}</button>` : '') +
     (small && !best ? ' Уберите часть веток, уровней или сотрудников'
       + (pp.perBranch ? '' : ', напечатайте каждую ветку на своём листе')
-      + (pp.balance && !pp.dense ? ' или включите максимальное уплотнение.' : '.') : '');
+      + (pp.layout !== 'dense' ? ' или выберите плотную раскладку.' : '.') : '');
   const auto = document.getElementById('pp-auto');
   if (auto) auto.onclick = () => { pp.format = best; pp.zoom = null; ppRender(); };
   document.getElementById('pp-branch-info').textContent = pp.perBranch
@@ -1244,7 +1304,7 @@ function ppRender() {
 }
 
 /* ---------- Продолжение на следующих листах (авто-раскладка) ----------
-   Не помещается при PP_MIN_PT — колонки в один ряд, ширины подбираются под лист при этом масштабе,
+   Не помещается при PP_PAGE_PT — колонки в один ряд, ширины подбираются под лист при этом масштабе,
    и каждая колонка продолжается на следующих листах с того места, где кончился предыдущий.
    Колонки на всех листах стоят на тех же местах; рвутся по границе строки (у сетки сотрудников —
    по границе ряда сетки), сверху продолжения — название колонки и отделы с пометкой «продолжение» */

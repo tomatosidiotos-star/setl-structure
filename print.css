@@ -152,9 +152,6 @@ body.pp-open { overflow: hidden; }
 .pp-check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 3px 0; }
 .pp-check input { width: 15px; height: 15px; accent-color: var(--red); flex-shrink: 0; cursor: pointer; }
 .pp-check--top { margin-top: 10px; }
-.pp-check--sub { padding-left: 23px; align-items: flex-start; }
-.pp-check--sub input { margin-top: 1px; }
-.pp-check:has(input:disabled) { opacity: 0.45; cursor: default; }
 
 /* Поиск — компонент страницы .search-wrap; в колонке панели он не должен растягиваться по высоте */
 .pp-group--grow .search-wrap { flex: none; margin-bottom: 8px; }
