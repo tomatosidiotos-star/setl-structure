@@ -1545,11 +1545,10 @@ function ppRender() {
     const head = sheet.querySelector('.pp-sheet__head');
     head.style.setProperty('--hk', ppHeadK(pp.format));
     head.innerHTML = ppHeadHTML(s, si, parts.length);
-    // по ширине структуры; если структура уже шапки (одна группа) — шапка своей ширины, по центру
-    head.style.width = 'max-content';   // собственная ширина шапки (auto растянул бы её на весь лист)
-    const headW = Math.min(innerW, Math.max(size.w * scale, head.scrollWidth));
-    head.style.width = headW + 'px';
-    head.style.marginLeft = Math.max(0, (innerW - headW) / 2) + 'px';
+    // всегда по полям листа, какой бы ширины ни была структура: на всех листах и форматах шапка
+    // на одном месте (как в опубликованной версии) — логотип у левого поля, дата у правого
+    head.style.width = innerW + 'px';
+    head.style.marginLeft = '0px';
   });
 
   const tiles = sh.tiles;
