@@ -1090,7 +1090,7 @@ function ppTreeLayout(model, format, fitW) {
   }
   const target = fitW || (sh.w - sh.pad * 2) * PP_PX_PER_MM / realScale;
   if (cur.w < target - 1) {
-    let lo = PP_COL_W, hi = PP_COL_W * 3;
+    let lo = PP_COL_W, hi = PP_COL_W * 5;   // до ~90 знаков в строке: шире — строки длинные, читать тяжело
     for (let it = 0; it < 20; it++) {
       bw = (lo + hi) / 2;
       if (evaluate().w <= target) lo = bw; else hi = bw;
@@ -1490,7 +1490,10 @@ function ppRender() {
     const lay = models[si].cols.length ? ppLayout(models[si], pp.format) : null;
     if (lay && lay.scale < minScale) {
       const pg = lay.tree ? ppTreePaginate(s, models[si], pp.format, minScale) : ppPaginate(s, models[si], pp.format, minScale);
-      if (pg.length > 1) { paged = true; pg.forEach(x => parts.push({ sheet: s, ...x })); return; }
+      // один лист тоже берём, если он крупнее: раскладка под ширину листа при пороге уместилась по высоте
+      if (pg.length > 1 || (pg.length && pg[0].scale > lay.scale)) {
+        paged = pg.length > 1; pg.forEach(x => parts.push({ sheet: s, ...x })); return;
+      }
     }
     const html = ppContentHTML(s, lay);
     const size = ppMeasure(html);
