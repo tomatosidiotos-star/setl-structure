@@ -437,6 +437,8 @@ function ppDefaults() {
                           // первого уровня) | 'auto' — отделы целиком, ширина по листу, сотрудники сеткой,
                           // продолжение на следующем листе | 'dense' — списки переходят в соседний столбец
     perBranch: false,     // каждая ветка — на своём листе
+    fill: true,           // заполнять всю ширину листа; без галочки колонки не шире обычной + PP_FILL_MAX,
+                          // структура по центру
     excluded: new Set(),  // uid скрытых веток
     open: new Set(),      // раскрытые пункты в дереве выбора
     query: '',            // поиск по веткам
@@ -453,6 +455,7 @@ function ppReset() {
   document.getElementById('pp-photos').checked = pp.photos;
   document.getElementById('pp-team').checked = pp.team;
   document.getElementById('pp-branch').checked = pp.perBranch;
+  document.getElementById('pp-fill').checked = pp.fill;
   const search = document.getElementById('pp-search');
   search.value = '';
   search.dispatchEvent(new Event('input'));
@@ -521,6 +524,7 @@ export function openPrintPreview(payload, opts = {}) {
             <button data-v="dept">По отделам</button><button data-v="auto">Авто</button><button data-v="dense">Плотная</button>
           </div>
           <div class="pp-hint pp-hint--block" id="pp-layout-info"></div>
+          <label class="pp-check pp-check--top"><input type="checkbox" id="pp-fill"${pp.fill ? ' checked' : ''}> Заполнять всю ширину</label>
         </div>
         <div class="pp-group">
           <div class="pp-gtitle">Уровни</div>
@@ -602,6 +606,7 @@ export function openPrintPreview(payload, opts = {}) {
   root.querySelector('#pp-photos').onchange = e => { pp.photos = e.target.checked; ppRender(); };
   root.querySelector('#pp-team').onchange = e => { pp.team = e.target.checked; ppRender(); };
   ppSeg('#pp-layout', v => { pp.layout = v; pp.zoom = null; ppRender(); });
+  root.querySelector('#pp-fill').onchange = e => { pp.fill = e.target.checked; pp.zoom = null; ppRender(); };
   root.querySelector('#pp-branch').onchange = e => { pp.perBranch = e.target.checked; pp.zoom = null; ppRender(); };
   root.querySelector('#pp-all').onclick = () => { pp.excluded.clear(); ppRenderTree(); ppRender(); };
   root.querySelector('#pp-none').onclick = () => { ppAllNodes().forEach(n => pp.excluded.add(n.uid)); ppRenderTree(); ppRender(); };
@@ -648,7 +653,8 @@ function ppSyncControls() {
   mark('#pp-depth', pp.depth === Infinity ? 'all' : String(pp.depth));
   mark('#pp-layout', pp.layout);
   document.getElementById('pp-layout-info').textContent = {
-    dept: 'Колонка делится только между отделами первого уровня — каждый отдел целиком в одном столбце.',
+    dept: pp.fill ? 'Подразделения отделов — рядом, на всю ширину листа; каждый отдел целиком.'
+      : 'Колонка делится только между отделами первого уровня — каждый отдел целиком в одном столбце.',
     auto: 'Отделы не разрываются: ширина по листу, сотрудники сеткой.',
     dense: 'Максимальное уплотнение: списки переходят в соседний столбец с пометкой «продолжение».',
   }[pp.layout] + ` Мельче ${PP_PAGE_PT} pt не уменьшает — продолжение на следующем листе.`;
@@ -1091,13 +1097,16 @@ function ppTreeLayout(model, format, fitW) {
   const target = fitW || (sh.w - sh.pad * 2) * PP_PX_PER_MM / realScale;
   if (cur.w < target - 1) {
     let lo = PP_COL_W, hi = PP_COL_W * 5;   // до ~90 знаков в строке: шире — строки длинные, читать тяжело
+    // ряды колонок — те же: иначе раскладка с широкими блоками ушла бы в другое число рядов,
+    // и масштаб по оценке (высоты замерены при обычной ширине) оказался бы неверным
+    const ok = lay => lay.w <= target + 0.5 && lay.rows.length === cur.rows.length;
     for (let it = 0; it < 20; it++) {
       bw = (lo + hi) / 2;
-      if (evaluate().w <= target) lo = bw; else hi = bw;
+      if (ok(evaluate())) lo = bw; else hi = bw;
     }
     bw = lo;
     const filled = evaluate();
-    if (filled.w <= target + 0.5) { filled.scale = Math.max(filled.scale, realScale); cur = filled; }
+    if (ok(filled)) { filled.scale = Math.max(filled.scale, realScale); cur = filled; }
     else bw = PP_COL_W;
   }
   cur.tree = finish();
@@ -1170,7 +1179,9 @@ const PP_DENSE_W = [260, 300, 350];   // плотная раскладка: ещ
 function ppModel(sheet) {
   const model = ppModelAt(sheet, PP_COL_W);
   if (pp.layout === 'dense' && model.cols.length) model.alts = PP_DENSE_W.map(w => ppModelAt(sheet, w));
-  if (pp.layout === 'dept' && model.cols.length) model.tree = ppTreeModel(sheet);
+  // «По отделам» вширь — только с «Заполнять всю ширину»; без неё — как опубликованная версия:
+  // отделы списком, колонка делится на подколонки только между отделами первого уровня
+  if (pp.layout === 'dept' && pp.fill && model.cols.length) model.tree = ppTreeModel(sheet);
   return model;
 }
 
@@ -1354,7 +1365,7 @@ function ppLayout(model, format) {
     const lay = ppLayoutOne(m, format);
     if (lay && (!best || lay.scale > best.scale * 1.01)) best = lay;
   });
-  if (pp.layout !== 'dept' && best) ppFill(best, format);
+  if (pp.layout !== 'dept' && best) ppFill(best, format, pp.fill, model);
   return best;
 }
 
@@ -1425,12 +1436,12 @@ function ppLayoutOne(model, format) {
   return best;
 }
 
-/* Авто-раскладка: ряды — по ширине листа. Свободное место в ряду делится между колонками поровну
-   (не больше PP_FILL_MAX каждой): строки переносятся реже, колонки становятся ниже. Масштаб от
-   этого не падает — ширина растёт только до той, что и так помещается на лист */
-// byWidth — свободное место пропорционально ширине колонок и без предела (листы продолжения:
-// растут широкие колонки с сеткой сотрудников, узкие списки почти не меняются)
-function ppFill(lay, format, byWidth) {
+/* Авто и плотная: свободное место в ряду раздаётся колонкам — строки переносятся реже, колонки
+   становятся ниже. Масштаб от этого не падает — ширина растёт только до той, что и так помещается */
+// byWidth («Заполнять всю ширину») — пропорционально ширине колонок: сетка сотрудников («Авто») растёт
+// без предела, список — не больше PP_FILL_MAX на подколонку (шире списку ничего не даёт, растянулась бы
+// только карточка). Иначе — поровну, не больше PP_FILL_MAX каждой. Что осталось — поля, структура по центру
+function ppFill(lay, format, byWidth, model) {
   const sh = ppSheetMM(format);
   const target = Math.max(lay.w, (sh.w - sh.pad * 2) * PP_PX_PER_MM / lay.scale);
   const sumW = g => g.reduce((a, i) => a + lay.widths[i], 0) + Math.max(0, g.length - 1) * PP_COL_GAP;
@@ -1442,8 +1453,19 @@ function ppFill(lay, format, byWidth) {
       const free = room - sumW(g);
       if (free <= 0) return;
       if (byWidth) {
-        const total = g.reduce((a, i) => a + lay.widths[i], 0);
-        g.forEach(i => { lay.widths[i] += free * lay.widths[i] / total; });
+        // сетка — у колонки с сотрудниками, которая от ширины заметно ниже (не только реже переносы названий)
+        const grid = i => pp.layout === 'auto' && pp.team && model && model.cols[i].hs[PP_MAX_WIDE] < model.cols[i].hs[1] * 0.9;
+        const cap = new Map(g.map(i => [i, grid(i) ? Infinity : PP_FILL_MAX * ((lay.splits[i] || []).length + 1)]));
+        let left = free;
+        for (let it = 0; it < 10 && left > 0.5; it++) {   // поровну по ширине, упёршиеся в предел — выбывают
+          const open = g.filter(i => cap.get(i) > 0.5);
+          if (!open.length) break;
+          const total = open.reduce((a, i) => a + lay.widths[i], 0), share = left;
+          open.forEach(i => {
+            const add = Math.min(share * lay.widths[i] / total, cap.get(i));
+            lay.widths[i] += add; cap.set(i, cap.get(i) - add); left -= add;
+          });
+        }
       } else g.forEach(i => { lay.widths[i] += Math.min(free / g.length, PP_FILL_MAX); });
     });
     if (hv) hv.half = Math.max(sumW(groups[0]), sumW(groups[1]));
@@ -1591,8 +1613,7 @@ function ppPaginate(sheet, model, format, scale) {
   const lay = { rows: [model.cols.map((c, i) => i)], halves: [null], splits: {},
     widths: model.cols.map((c, i) => opt(i).w), w: rowW(), scale };
   model.cols.forEach((c, i) => { const cuts = opt(i).cuts; if (cuts.length) lay.splits[i] = cuts; });
-  if (pp.layout === 'auto') ppFill(lay, format, true);
-  else if (pp.layout === 'dense') ppFill(lay, format);
+  if (pp.layout !== 'dept') ppFill(lay, format, pp.fill, model);
 
   // замер: положение каждой строки потока от верха колонки и низ каждой дорожки
   const probe = ppProbe(ppContentHTML(sheet, lay));
