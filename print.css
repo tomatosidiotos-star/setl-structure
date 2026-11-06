@@ -368,7 +368,9 @@ body.pp-open { overflow: hidden; }
 .pp-card--branch { width: auto; min-width: 220px; }
 .pp-card--branch .pp-team { display: grid; grid-template-columns: repeat(var(--tc, 1), 196px); column-gap: 12px; }
 /* Авто-раскладка: сотрудники отдела — сеткой по ширине колонки (широкая колонка — несколько столбцов) */
-.pp-chart--wide .pp-list .pp-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); column-gap: 12px; }
+/* min(180px, 100%) — плашка уже 180 px (глубокий уровень в узкой колонке): один столбец по её ширине,
+   иначе столбец вылезал за плашку и ФИО не переносились */
+.pp-chart--wide .pp-list .pp-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); column-gap: 12px; }
 /* Лист продолжения «По отделам» — окно на общую раскладку */
 .pp-window { position: relative; overflow: hidden; }
 /* «По отделам» вширь: подразделения отдела — стопками в ряд под ним, шина сверху; в стопке блоки

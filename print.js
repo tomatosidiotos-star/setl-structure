@@ -3,8 +3,9 @@
 
    Вся структура на одном листе: руководители блока сверху, карточки
    2-го уровня в ряд, под каждой карточкой — дерево-список (кружки и линии,
-   как «Место в структуре» в модалке). Длинный список переливается в соседние
-   подколонки в любом месте — с пометкой «продолжение» у разрезанного отдела.
+   как «Место в структуре» в модалке). Раскладки: «По отделам» (колонка делится
+   между отделами первого уровня или отделы ставятся вширь) и «Авто» (отделы
+   целиком, сотрудники сеткой). Не помещается от 7 pt — продолжение на листах.
    Опция «Каждая ветка — на своём листе»: первый лист — общая схема,
    дальше по листу на каждую ветку, у каждого своя раскладка.
    Слева в предпросмотре: формат листа, глубина, выбор веток.
@@ -104,7 +105,7 @@ const PP_SPLIT_GAP = 16;       // между подколонками длинн
 const PP_ROW_GAP   = 32;       // между рядами карточек — как .pp-cols + .pp-cols в print.css
 const PP_CORRIDOR  = 40;       // проход для ствола в центре ряда — как .pp-corridor
 const PP_MAX_ROWS  = 4;
-const PP_MAX_SPLIT = 16;       // подколонок у одной колонки — не больше (максимальное уплотнение)
+const PP_MAX_SPLIT = 16;       // подколонок у одной колонки — не больше («По отделам»)
 const PP_MAX_WIDE  = 12;       // авто-раскладка: колонка шире обычной не больше чем в 12 раз
 const PP_FILL_MAX  = 220;      // авто-раскладка: добавка ширины колонке при заполнении ряда — не больше, px
 const PP_CONT_H    = 20;       // высота строки «… продолжение» над началом подколонки, px
@@ -446,7 +447,7 @@ function ppDefaults() {
     team: false,          // сотрудники отделов
     layout: 'auto',       // раскладка: 'dept' — по отделам (колонка делится только между отделами
                           // первого уровня) | 'auto' — отделы целиком, ширина по листу, сотрудники сеткой,
-                          // продолжение на следующем листе | 'dense' — списки переходят в соседний столбец
+                          // продолжение на следующем листе
     perBranch: false,     // каждая ветка — на своём листе
     fill: true,           // заполнять всю ширину листа; без галочки колонки не шире обычной + PP_FILL_MAX,
                           // структура по центру
@@ -532,7 +533,7 @@ export function openPrintPreview(payload, opts = {}) {
         <div class="pp-group">
           <div class="pp-gtitle">Раскладка</div>
           <div class="pp-seg" id="pp-layout">
-            <button data-v="dept">По отделам</button><button data-v="auto">Авто</button><button data-v="dense">Плотная</button>
+            <button data-v="dept">По отделам</button><button data-v="auto">Авто</button>
           </div>
           <div class="pp-hint pp-hint--block" id="pp-layout-info"></div>
           <label class="pp-check pp-check--top"><input type="checkbox" id="pp-fill"${pp.fill ? ' checked' : ''}> Заполнять всю ширину</label>
@@ -676,7 +677,6 @@ function ppSyncControls() {
       : pp.fill ? 'Подразделения отделов — рядом, на всю ширину листа; каждый отдел целиком.'
       : 'Колонка делится только между отделами первого уровня — каждый отдел целиком в одном столбце.',
     auto: 'Отделы не разрываются: ширина по листу, сотрудники сеткой.',
-    dense: 'Максимальное уплотнение: списки переходят в соседний столбец с пометкой «продолжение».',
   }[pp.layout] + (banner ? '' : ` Мельче ${PP_PAGE_PT} pt не уменьшает — продолжение на следующем листе.`);
 }
 
@@ -773,9 +773,12 @@ function ppRenderTree() {
 
 function ppPersonName(p) { return pp.fullNames ? p.fullName : p.name; }
 
+// Фото из данных не берём: у всех — заглушка с инициалами (так решили для печати). true — вернуть фото
+const PP_DATA_PHOTOS = false;
+
 function ppPhotoHTML(p) {
   if (!pp.photos) return '';
-  return p.photo
+  return PP_DATA_PHOTOS && p.photo
     ? `<div class="pp-ph"><img src="${ppEsc(p.photo)}" alt=""></div>`
     : `<div class="pp-ph" style="background:${ppAvatarColor(p.fullName)}"><span>${ppEsc(ppInitials(p))}</span></div>`;
 }
@@ -832,7 +835,7 @@ function ppFlow(col, base, overview) {
 }
 
 // Пометка «продолжение» у повторённого названия. В «По отделам» её нет — как в раскладке вширь,
-// где продолжение на листе ничем не помечено; в «Авто» и «Плотной» — есть
+// где продолжение на листе ничем не помечено; в «Авто» — есть
 function ppContMark() { return pp.layout === 'dept' ? '' : ' <span class="pp-cont">продолжение</span>'; }
 
 // Кусок потока [a, b) — дерево-список; отделы, начатые в прошлой подколонке, — с пометкой «продолжение»
@@ -1053,10 +1056,12 @@ function ppTreeLayout(model, format, fitW) {
   const evaluate = () => {
     const sp = M.cols.map(colSize);
     let best = null;
-    // на листах продолжения — один ряд колонок: второй ряд ушёл бы под всю высоту первого, на дальние листы
-    for (let r = 1; r <= (fitW ? 1 : Math.min(PP_MAX_ROWS, Math.max(1, sp.length))); r++) {
+    // на листах продолжения — один ряд колонок: второй ряд ушёл бы под всю высоту первого, на дальние
+    // листы. Больше рядов — только если в один не помещается (узкий лист), и сколько нужно, не больше
+    for (let r = 1; r <= (fitW ? sp.length : Math.min(PP_MAX_ROWS, Math.max(1, sp.length))); r++) {
       const lay = ppArrangeSizes(model, sp, r, format);
       if (!best || score(lay) > score(best) * 1.05) best = lay;
+      if (fitW && lay.w <= fitW + 0.5) break;
     }
     return best;
   };
@@ -1144,8 +1149,13 @@ function ppTreeLayout(model, format, fitW) {
 function ppTreePaginate(sheet, model, format, scale) {
   const sh = ppSheetMM(format);
   const W = (sh.w - sh.pad * 2) * PP_PX_PER_MM / scale;
+  return ppWindowPages(sheet, ppTreeLayout(model, format, W), format, scale);
+}
+
+// Готовая раскладка режется по высоте листа на окна
+function ppWindowPages(sheet, lay, format, scale) {
+  const sh = ppSheetMM(format);
   const Hp = (sh.h - 0.5 - PP_TOP_MM - sh.pad - ppHeadMM(format)) * PP_PX_PER_MM / scale;
-  const lay = ppTreeLayout(model, format, W);
   const probe = ppProbe(ppContentHTML(sheet, lay));
   const pt = probe.getBoundingClientRect().top;
   const H = probe.scrollHeight, Wc = probe.scrollWidth;
@@ -1158,7 +1168,7 @@ function ppTreePaginate(sheet, model, format, scale) {
   // который начинается с самой верхней из них. Что уже было на прошлом листе — на новом прячем
   const out = [];
   let y0 = 0, shownTo = 0;
-  for (let guard = 0; guard < 50; guard++) {
+  for (let guard = 0; guard < 80; guard++) {
     const last = H - y0 <= Hp + 0.5;
     const y1 = last ? H : y0 + Hp;
     const cross = last ? [] : atoms.filter(t => t.a < y1 && t.b > y1 && t.a > y0);
@@ -1199,11 +1209,8 @@ function ppMeasure(html) {
 /* Замер для раскладки: высота «шапки» листа и по каждой колонке — карточка и положение
    каждой строки потока от верха списка. Высота куска потока [a, b) = top[b] − top[a]
    плюс строки «продолжение» над ним (cont[a]) */
-const PP_DENSE_W = [260, 300, 350];   // плотная раскладка: ещё варианты ширины подколонки, px
-
 function ppModel(sheet) {
   const model = ppModelAt(sheet, PP_COL_W);
-  if (pp.layout === 'dense' && model.cols.length) model.alts = PP_DENSE_W.map(w => ppModelAt(sheet, w));
   // «По отделам» вширь — только с «Заполнять всю ширину»; без неё — как опубликованная версия:
   // отделы списком, колонка делится на подколонки только между отделами первого уровня
   // общая схема («Каждая ветка — на своём листе») — только первый уровень без сотрудников: вширь там
@@ -1233,11 +1240,8 @@ function ppModelAt(sheet, colW) {
       E.forEach((e, j) => {
         depth[j] = e.parent < 0 ? 0 : depth[e.parent] + 1;
         cont[j] = depth[j] * PP_CONT_H + (e.kind === 'member' && j > 0 && E[j - 1].kind === 'member' ? 12 : 0);
-        // по отделам — резать только перед отделом первого уровня; плотная — где угодно, но не сразу
-        // после названия отдела и не оставляя под ним одного сотрудника
-        ok[j] = pp.layout === 'dept'
-          ? (j > 0 && e.kind === 'row' && e.level === sheet.base ? 1 : 0)
-          : (j > 0 && e.parent !== j - 1 && !(j > 1 && E[j - 1].kind === 'member' && E[j - 1].parent === j - 2 && e.parent === j - 2) ? 1 : 0);
+        // резать колонку на подколонки — только перед отделом первого уровня («Авто» не режет вовсе)
+        ok[j] = j > 0 && e.kind === 'row' && e.level === sheet.base ? 1 : 0;
       });
       return { base: el.offsetHeight - (root ? root.offsetHeight : 0) + (root ? 10 : 0), n, top, cont, ok, memo: new Map(),
         nOk: ok.reduce((a, x) => a + x, 0), colW,
@@ -1260,8 +1264,8 @@ function ppModelAt(sheet, colW) {
 
 function ppWideW(m, w = PP_COL_W) { return m * w + (m - 1) * PP_SPLIT_GAP; }
 
-// Вариант колонки при «делении» k: максимальное уплотнение — k подколонок потока,
-// авто-раскладка — колонка целиком, шириной в k обычных
+// Вариант колонки при «делении» k: «По отделам» — k подколонок потока (между отделами первого уровня),
+// «Авто» — колонка целиком, шириной в k обычных
 function ppColOption(c, k) {
   if (pp.layout !== 'auto') {
     const s = ppFlowSplit(c, k);
@@ -1382,16 +1386,11 @@ function ppArrangeSizes(model, sp, r, format) {
 //    (перебор H от самой низкой возможной до самой высокой колонки);
 // 2) по одной — делим колонку, пока от этого растёт масштаб (добирает то, что пропустил перебор).
 // Только второй способ застревал, когда несколько колонок одной высоты: деление любой одной
-// ничего не даёт. Больше рядов берём, только если это заметно крупнее
-// Плотная раскладка — ещё и перебор ширины подколонки (замеры model.alts): шире подколонка —
-// ФИО и должности в меньшее число строк. Плотная и авто — свободное место ряда раздаётся колонкам
+// ничего не даёт. Больше рядов берём, только если это заметно крупнее.
+// «Авто» — свободное место ряда раздаётся колонкам
 function ppLayout(model, format) {
   if (model.tree) return ppTreeLayout(model, format);
-  let best = null;
-  [model, ...(model.alts || [])].forEach(m => {
-    const lay = ppLayoutOne(m, format);
-    if (lay && (!best || lay.scale > best.scale * 1.01)) best = lay;
-  });
+  const best = ppLayoutOne(model, format);
   if (pp.layout !== 'dept' && best && format !== 'banner') ppFill(best, format, pp.fill, model);
   return best;
 }
@@ -1463,7 +1462,7 @@ function ppLayoutOne(model, format) {
   return best;
 }
 
-/* Авто и плотная: свободное место в ряду раздаётся колонкам — строки переносятся реже, колонки
+/* «Авто»: свободное место в ряду раздаётся колонкам — строки переносятся реже, колонки
    становятся ниже. Масштаб от этого не падает — ширина растёт только до той, что и так помещается */
 // byWidth («Заполнять всю ширину») — пропорционально ширине колонок: сетка сотрудников («Авто») растёт
 // без предела, список — не больше PP_FILL_MAX на подколонку (шире списку ничего не даёт, растянулась бы
@@ -1625,7 +1624,7 @@ function ppRender() {
     (best && best !== pp.format ? ` <button id="pp-auto">Перейти на ${best}</button>` : '') +
     (small && !best ? ' Уберите часть веток, уровней или сотрудников'
       + (pp.perBranch ? '' : ', напечатайте каждую ветку на своём листе')
-      + (pp.layout !== 'dense' ? ' или выберите плотную раскладку.' : '.') : '');
+      + '.' : '');
   const auto = document.getElementById('pp-auto');
   if (auto) auto.onclick = () => { pp.format = best; pp.zoom = null; ppRender(); };
   document.getElementById('pp-branch-info').textContent = pp.perBranch
@@ -1653,6 +1652,7 @@ function ppPaginate(sheet, model, format, scale) {
   const k = model.cols.map(() => 1);
   const opt = i => ppColOption(model.cols[i], k[i]);
   const rowW = () => k.reduce((a, _, i) => a + opt(i).w, 0) + (n - 1) * PP_COL_GAP;
+  if (rowW() > W) return ppWindowPages(sheet, ppRowsFit(model, k, W, format), format, scale);
   for (;;) {
     let i = 0;
     for (let j = 1; j < n; j++) if (opt(j).h > opt(i).h) i = j;
@@ -1691,6 +1691,25 @@ function ppPaginate(sheet, model, format, scale) {
     room -= over + 4;
   }
   return out.map(o => ({ ...o, scale: Math.min(scale, ppScaleFor(format, o.size)) }));
+}
+
+// Узкий лист (вертикальный A4): колонки даже без делений не встают в один ряд — несколько рядов
+// карточек, как на целом листе (самое малое число рядов, что помещается по ширине); потом самую
+// высокую колонку делим, пока раскладка помещается и становится ниже. Лист режется по высоте окнами
+function ppRowsFit(model, k, W, format) {
+  const n = model.cols.length;
+  let r = 2, lay = ppArrange(model, k, r, format);
+  while (lay.w > W && r < n) lay = ppArrange(model, k, ++r, format);
+  for (let guard = 0; guard < 200; guard++) {
+    let i = 0;
+    for (let j = 1; j < n; j++) if (ppColOption(model.cols[j], k[j]).h > ppColOption(model.cols[i], k[i]).h) i = j;
+    if (k[i] >= ppMaxK(model.cols[i])) break;
+    k[i]++;
+    const next = ppArrange(model, k, r, format);
+    if (next.w > W || next.h >= lay.h) { k[i]--; break; }
+    lay = next;
+  }
+  return lay;
 }
 
 function ppPages(sheet, cols, lay, Hp, top0, n) {
