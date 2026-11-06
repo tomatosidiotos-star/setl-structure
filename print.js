@@ -1163,9 +1163,20 @@ function ppWindowPages(sheet, lay, format, scale) {
   const probe = ppProbe(ppContentHTML(sheet, lay));
   const pt = probe.getBoundingClientRect().top;
   const H = probe.scrollHeight, Wc = probe.scrollWidth;
-  // «атомы» — то, что нельзя резать: карточки, строки отделов, строки сотрудников
-  const atoms = [...probe.querySelectorAll('.pp-card, .pp-lvl-wrap, .pp-label, .pp-sub, .pp-more, .pp-team__row')]
-    .map((e, i) => { e.dataset.a = i; const r = e.getBoundingClientRect(); return { i, a: r.top - pt, b: r.bottom - pt }; });
+  // «атомы» — то, что нельзя резать: карточки, строки сотрудников и шапка отдела целиком (кружок,
+  // название, руководитель, «ещё N» — не врозь по листам). Запас ±2 px: буквы выступают за рамку строки
+  const atoms = [];
+  const add = els => {
+    const i = atoms.length;
+    let a = Infinity, b = -Infinity;
+    els.forEach(e => { e.dataset.a = i; const r = e.getBoundingClientRect(); a = Math.min(a, r.top - pt); b = Math.max(b, r.bottom - pt); });
+    atoms.push({ i, a: a - 2, b: b + 2 });
+  };
+  probe.querySelectorAll('.pp-card, .pp-lvl-wrap, .pp-team__row').forEach(e => add([e]));
+  probe.querySelectorAll('.pp-row').forEach(row => {
+    const parts = row.querySelectorAll(':scope > .pp-dot, :scope > .pp-label, :scope > .pp-sub, :scope > .pp-more');
+    if (parts.length) add([...parts]);
+  });
   const html = probe.innerHTML;
   probe.remove();
   // Режем по краю листа; строки на разрезе прячем и показываем целиком на следующем листе,
