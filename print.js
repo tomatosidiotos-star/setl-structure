@@ -548,7 +548,7 @@ export function openPrintPreview(payload, opts = {}) {
         </div>
         <div class="pp-group">
           <label class="pp-check"><input type="checkbox" id="pp-fullnames" checked> ФИО полностью</label>
-          <label class="pp-check"><input type="checkbox" id="pp-photos" checked> Фото в карточках</label>
+          <label class="pp-check"><input type="checkbox" id="pp-photos" checked> Аватары в карточках</label>
           <label class="pp-check"><input type="checkbox" id="pp-team"> Сотрудники отделов</label>
         </div>
         <div class="pp-group pp-group--grow">
@@ -1152,10 +1152,14 @@ function ppTreePaginate(sheet, model, format, scale) {
   return ppWindowPages(sheet, ppTreeLayout(model, format, W), format, scale);
 }
 
-// Готовая раскладка режется по высоте листа на окна
+// Готовая раскладка режется по высоте листа на окна. В «По отделам» шапка — только на первом листе,
+// на остальных её место занимает структура (noHead)
 function ppWindowPages(sheet, lay, format, scale) {
   const sh = ppSheetMM(format);
-  const Hp = (sh.h - 0.5 - PP_TOP_MM - sh.pad - ppHeadMM(format)) * PP_PX_PER_MM / scale;
+  const noHead = pp.layout === 'dept';
+  const Hp1 = (sh.h - 0.5 - PP_TOP_MM - sh.pad - ppHeadMM(format)) * PP_PX_PER_MM / scale;
+  const HpN = noHead ? (sh.h - 0.5 - sh.pad * 2) * PP_PX_PER_MM / scale : Hp1;
+  const iw = (sh.w - sh.pad * 2) * PP_PX_PER_MM;
   const probe = ppProbe(ppContentHTML(sheet, lay));
   const pt = probe.getBoundingClientRect().top;
   const H = probe.scrollHeight, Wc = probe.scrollWidth;
@@ -1169,6 +1173,7 @@ function ppWindowPages(sheet, lay, format, scale) {
   const out = [];
   let y0 = 0, shownTo = 0;
   for (let guard = 0; guard < 80; guard++) {
+    const Hp = out.length ? HpN : Hp1;
     const last = H - y0 <= Hp + 0.5;
     const y1 = last ? H : y0 + Hp;
     const cross = last ? [] : atoms.filter(t => t.a < y1 && t.b > y1 && t.a > y0);
@@ -1178,7 +1183,8 @@ function ppWindowPages(sheet, lay, format, scale) {
     const h = y1 - y0;
     out.push({
       html: `${style}<div class="pp-window ${id}" style="width:${Wc}px;height:${h}px"><div style="position:absolute;left:0;top:${-y0}px;width:${Wc}px">${html}</div></div>`,
-      size: { w: Wc, h }, scale: Math.min(scale, ppScaleFor(format, { w: Wc, h })),
+      size: { w: Wc, h }, noHead: noHead && out.length > 0,
+      scale: Math.min(scale, out.length && noHead ? iw / Wc : ppScaleFor(format, { w: Wc, h })),
     });
     if (last) break;
     shownTo = y1;
@@ -1572,14 +1578,14 @@ function ppRender() {
   const wmm = sh.w, hmm = sh.h;
   const innerW = (wmm - sh.pad * 2) * PP_PX_PER_MM;
 
-  parts.forEach(({ sheet: s, html, size }, si) => {
+  parts.forEach(({ sheet: s, html, size, noHead }, si) => {
     const scale = common;
 
     const sheet = document.createElement('div');
     sheet.className = 'pp-sheet';
     sheet.style.width = wmm + 'mm';
     sheet.style.height = (hmm - 0.5) + 'mm';   // запас, чтобы не вылез пустой лишний лист
-    sheet.style.padding = `${PP_TOP_MM}mm ${sh.pad}mm ${sh.pad}mm`;
+    sheet.style.padding = `${noHead ? sh.pad : PP_TOP_MM}mm ${sh.pad}mm ${sh.pad}mm`;
     sheet.innerHTML = '<div class="pp-sheet__head"></div><div class="pp-content"></div><div class="pp-grid"></div>';
     pages.appendChild(sheet);
 
@@ -1597,6 +1603,7 @@ function ppRender() {
     // на одном месте (как в опубликованной версии) — логотип у левого поля, дата у правого
     head.style.width = innerW + 'px';
     head.style.marginLeft = '0px';
+    if (noHead) head.style.display = 'none';   // лист продолжения «По отделам» — без шапки
   });
 
   const tiles = sh.tiles;
@@ -1664,7 +1671,10 @@ function ppPaginate(sheet, model, format, scale) {
   const lay = { rows: [model.cols.map((c, i) => i)], halves: [null], splits: {},
     widths: model.cols.map((c, i) => opt(i).w), w: rowW(), scale };
   model.cols.forEach((c, i) => { const cuts = opt(i).cuts; if (cuts.length) lay.splits[i] = cuts; });
-  if (pp.layout !== 'dept') ppFill(lay, format, pp.fill, model);
+  // «По отделам» — как раскладка вширь: общая картинка режется по высоте, на листах продолжения
+  // ни повторённых названий, ни шапки — лист заполняется почти целиком
+  if (pp.layout === 'dept') return ppWindowPages(sheet, lay, format, scale);
+  ppFill(lay, format, pp.fill, model);
 
   // замер: положение каждой строки потока от верха колонки и низ каждой дорожки
   const probe = ppProbe(ppContentHTML(sheet, lay));
