@@ -203,7 +203,8 @@ body.pp-open { overflow: hidden; }
   flex-shrink: 0; background: #fff; overflow: hidden;
   box-shadow: 0 4px 24px rgba(0,0,0,0.12);
 }
-.pp-content { transform-origin: 0 0; width: max-content; font-family: var(--f-body); color: var(--black); }
+.pp-content { transform-origin: 0 0; width: max-content; font-family: var(--f-body); color: var(--black);
+  overflow-wrap: break-word; }   /* слово шире колонки (длинная фамилия, название без пробелов) — переносится, а не вылезает */
 .pp-probe { position: absolute; left: -100000px; top: 0; visibility: hidden; }
 
 /* ---------- Содержимое листа ---------- */
@@ -222,10 +223,10 @@ body.pp-open { overflow: hidden; }
   --hk: 1;
   display: flex; align-items: center; gap: calc(6mm * var(--hk));
   height: calc(12mm * var(--hk)); margin-bottom: calc(8mm * var(--hk));
-  min-width: max-content; box-sizing: border-box;
+  box-sizing: border-box;   /* всегда по полям; длинное название ветки переносится, а не раздвигает шапку */
 }
-.pp-sheet__head .pp-logo { height: calc(9mm * var(--hk)); }
-.pp-sheet__title { font-family: var(--f-exp); font-size: calc(3.6mm * var(--hk)); line-height: 1.25; color: #41484a; }
+.pp-sheet__head .pp-logo { height: calc(9mm * var(--hk)); flex-shrink: 0; }
+.pp-sheet__title { min-width: 0; overflow-wrap: anywhere; font-family: var(--f-exp); font-size: calc(3.6mm * var(--hk)); line-height: 1.25; color: #41484a; }
 .pp-sheet__title b { font-weight: 600; color: var(--black); }
 .pp-sheet__date {
   margin-left: auto; padding-left: calc(8mm * var(--hk)); white-space: nowrap;
@@ -366,6 +367,8 @@ body.pp-open { overflow: hidden; }
 .pp-card .pp-team { margin-top: 10px; }
 /* Карточка ветки над колонками (лист на ветку): сотрудники — в несколько колонок (--tc) */
 .pp-card--branch { width: auto; min-width: 220px; }
+/* текст карточки ветки переносится: иначе длинное название растягивало карточку шире листа */
+.pp-card--branch > .pp-card__person, .pp-card--branch > .pp-card__dept, .pp-card--branch > .pp-card__stats { max-width: 560px; }
 .pp-card--branch .pp-team { display: grid; grid-template-columns: repeat(var(--tc, 1), 196px); column-gap: 12px; }
 /* Авто-раскладка: сотрудники отдела — сеткой по ширине колонки (широкая колонка — несколько столбцов) */
 /* min(180px, 100%) — плашка уже 180 px (глубокий уровень в узкой колонке): один столбец по её ширине,

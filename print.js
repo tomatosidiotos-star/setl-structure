@@ -45,6 +45,7 @@ const PP_TILE_PAD_MM     = 8;    // отступ содержимого от к�
    из ряда A, где текст не мельче PP_BANNER_PT; потом лист обрезается по структуре.
    ppBanner — текущие стороны баннера, мм (уже с учётом ориентации) */
 const PP_BANNER_PT = 12;
+const PP_BANNER_MAX_MM = 5080;   // предел страницы PDF в Acrobat — 200 дюймов
 let ppBanner = [1189, 841];
 
 // Размер листа в мм с учётом ориентации
@@ -808,7 +809,7 @@ function ppCardHTML(n, extraClass, withTeam) {
     ${people.map(ppPersonHTML).join('')}
     ${n.dept ? `<div class="pp-card__dept">${ppEsc(n.dept)}</div>` : ''}
     ${stats ? `<div class="pp-card__stats">${stats}</div>` : ''}
-    ${team ? `<div class="pp-team" style="--tc:${Math.min(6, Math.ceil(team.length / 12))}">${team.map(p => ppMemberHTML(p)).join('')}</div>` : ''}
+    ${team ? `<div class="pp-team" style="--tc:${Math.min(4, Math.ceil(team.length / 12))}">${team.map(p => ppMemberHTML(p)).join('')}</div>` : ''}
   </div>`;
 }
 
@@ -1139,6 +1140,36 @@ function ppTreeLayout(model, format, fitW) {
     if (ok(filled)) { filled.scale = Math.max(filled.scale, realScale); cur = filled; }
     else bw = PP_COL_W;
   }
+  // Один лист: ширина блоков — по настоящему замеру. Шире блок — меньше переносов, раскладка ниже,
+  // но шире; оценка этого не видит (высоты замерены при обычной ширине), и лист упирался в ширину
+  // с пустой третью внизу. Масштаб наибольший там, где упор по высоте сменяется упором по ширине
+  // (не нужно, если лист заведомо мельче порога: уйдёт на листы продолжения со своей раскладкой)
+  if (!fitW && bw > PP_COL_W + 1 && realScale > 0.6 * PP_PAGE_PT / (PP_BASE_FONT * 0.75)) {
+    const cache = M.real || (M.real = new Map());   // замер от формата не зависит — общий для форматов
+    const iw = (sh.w - sh.pad * 2) * PP_PX_PER_MM;
+    const ih = (sh.h - 0.5 - PP_TOP_MM - sh.pad - ppHeadMM(format)) * PP_PX_PER_MM;
+    const real = w => {
+      bw = w;
+      const lay = evaluate();
+      lay.tree = finish();
+      const key = `${w.toFixed(1)}|${[...exp].join(';')}|${JSON.stringify(lay.rows)}`;
+      let size = cache.get(key);
+      if (!size) { size = ppMeasure(ppContentHTML(M.sheet, lay)); cache.set(key, size); }
+      return { lay, w, sw: iw / size.w, sh: ih / size.h, s: Math.min(iw / size.w, ih / size.h, PP_MAX_SCALE) };
+    };
+    const widest = bw;
+    let best = real(widest), lo2 = PP_COL_W, hi2 = widest;
+    const narrow = real(PP_COL_W);
+    if (narrow.s > best.s) best = narrow;
+    for (let it = 0; it < 7; it++) {
+      const r = real((lo2 + hi2) / 2);
+      if (r.s > best.s) best = r;
+      if (r.sw < r.sh) hi2 = r.w; else lo2 = r.w;   // упор по ширине — уже, по высоте — шире
+    }
+    bw = best.w;
+    cur = best.lay;
+    cur.scale = best.s;
+  }
   cur.tree = finish();
   return cur;
 }
@@ -1172,27 +1203,52 @@ function ppWindowPages(sheet, lay, format, scale) {
     els.forEach(e => { e.dataset.a = i; const r = e.getBoundingClientRect(); a = Math.min(a, r.top - pt); b = Math.max(b, r.bottom - pt); });
     atoms.push({ i, a: a - 2, b: b + 2 });
   };
-  probe.querySelectorAll('.pp-card, .pp-lvl-wrap, .pp-team__row').forEach(e => add([e]));
+  // карточка с сотрудниками (ветка) неделима только шапкой — иначе большой отдел выше листа
+  probe.querySelectorAll('.pp-card').forEach(card => {
+    const parts = [...card.children].filter(e => !e.classList.contains('pp-team'));
+    add(parts.length && card.querySelector(':scope > .pp-team') ? parts : [card]);
+  });
+  probe.querySelectorAll('.pp-team__row, .pp-lvl__label').forEach(e => add([e]));
   probe.querySelectorAll('.pp-row').forEach(row => {
     const parts = row.querySelectorAll(':scope > .pp-dot, :scope > .pp-label, :scope > .pp-sub, :scope > .pp-more');
     if (parts.length) add([...parts]);
   });
-  const html = probe.innerHTML;
+  // Блоки (колонки, стопки, отделы, плашки сотрудников) — с закреплённой высотой: на листе остаётся
+  // только то, что в него попадает, у блоков целиком вне листа содержимое убирается, а место —
+  // нет. Иначе на каждом листе была бы вся структура: 80 листов — 80 копий, долго и тяжёлый PDF
+  const blocks = [...probe.querySelectorAll('.pp-col, .pp-hcol, .pp-item, .pp-team')].map((e, k) => {
+    const cs = getComputedStyle(e), r = e.getBoundingClientRect();
+    // дробная высота: offsetHeight округлён, и сотни вложенных блоков набегали бы на целые строки.
+    // min-height — по той же рамке, что box-sizing (на листе — border-box, вместе с отступами)
+    const inner = cs.boxSizing === 'border-box' ? r.height : r.height - parseFloat(cs.paddingTop)
+      - parseFloat(cs.paddingBottom) - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth);
+    e.style.minHeight = inner + 'px';
+    e.dataset.k = k;
+    return { e, a: r.top - pt, b: r.bottom - pt };
+  });
+  blocks.forEach(B => { const p = B.e.parentElement.closest('[data-k]'); B.parent = p ? blocks[+p.dataset.k] : null; });
   probe.remove();
+  const base = probe;
   // Режем по краю листа; строки на разрезе прячем и показываем целиком на следующем листе,
   // который начинается с самой верхней из них. Что уже было на прошлом листе — на новом прячем
   const out = [];
   let y0 = 0, shownTo = 0;
-  for (let guard = 0; guard < 80; guard++) {
+  for (let guard = 0; guard < 1000; guard++) {
     const Hp = out.length ? HpN : Hp1;
     // последний — если всё поместилось или ниже разреза ни одной строки (только хвост линий и отступов)
     const last = H - y0 <= Hp + 0.5 || !atoms.some(t => t.b > y0 + Hp + 0.5);
     const y1 = last ? Math.min(H, y0 + Hp) : y0 + Hp;
-    const cross = last ? [] : atoms.filter(t => t.a < y1 && t.b > y1 && t.a > y0);
+    // кусок выше листа переносить бесполезно — режем по нему
+    const cross = last ? [] : atoms.filter(t => t.a < y1 && t.b > y1 && t.a > y0 && t.b - t.a < Hp * 0.9);
     const hide = atoms.filter(t => t.b > y0 && t.a < y1 && (cross.includes(t) || (t.b <= shownTo && t.a >= 0 && shownTo > y0)));
     const id = 'ppw' + (++ppWinSeq);
     const style = hide.length ? `<style>.${id} [data-a="${hide.map(t => t.i).join(`"],.${id} [data-a="`)}"]{visibility:hidden}</style>` : '';
     const h = y1 - y0;
+    // копия без того, что целиком вне листа (запас 30 px — линии выступают за блок)
+    const out_ = B => B.b < y0 - 30 || B.a > y1 + 30;
+    const copy = base.cloneNode(true), els = copy.querySelectorAll('[data-k]');
+    blocks.forEach((B, k) => { if (out_(B) && !(B.parent && out_(B.parent))) els[k].replaceChildren(); });
+    const html = copy.innerHTML;
     out.push({
       html: `${style}<div class="pp-window ${id}" style="width:${Wc}px;height:${h}px"><div style="position:absolute;left:0;top:${-y0}px;width:${Wc}px">${html}</div></div>`,
       size: { w: Wc, h }, noHead: noHead && out.length > 0,
@@ -1573,16 +1629,22 @@ function ppRender() {
   if (banner) parts.push(ppBannerPart(sheets[0], models[0]));   // баннер — всегда одна страница
   else sheets.forEach((s, si) => {
     const lay = models[si].cols.length ? ppLayout(models[si], pp.format) : null;
-    if (lay && lay.scale < minScale) {
-      const pg = lay.tree ? ppTreePaginate(s, models[si], pp.format, minScale) : ppPaginate(s, models[si], pp.format, minScale);
-      // один лист тоже берём, если он крупнее: раскладка под ширину листа при пороге уместилась по высоте
-      if (pg.length > 1 || (pg.length && pg[0].scale > lay.scale)) {
-        paged = pg.length > 1; pg.forEach(x => parts.push({ sheet: s, ...x })); return;
-      }
-    }
     const html = ppContentHTML(s, lay);
     const size = ppMeasure(html);
-    parts.push({ sheet: s, html, size, scale: ppScaleFor(pp.format, size) });
+    const scale = ppScaleFor(pp.format, size);
+    // решаем по настоящему замеру, не по оценке раскладки: оценка бывает крупнее, и тогда один такой
+    // лист тянул весь комплект (у всех листов общий масштаб) ниже порога
+    if (Math.min(lay ? lay.scale : scale, scale) < minScale) {
+      // без колонок (ветка — одна карточка с большим отделом) — картинка режется по высоте
+      const pg = !lay ? ppWindowPages(s, null, pp.format, minScale)
+        : lay.tree ? ppTreePaginate(s, models[si], pp.format, minScale) : ppPaginate(s, models[si], pp.format, minScale);
+      // один лист тоже берём, если он крупнее: раскладка под ширину листа при пороге уместилась по высоте
+      if (pg.length > 1 || (pg.length && pg[0].scale > scale)) {
+        if (pg.length > 1) paged = true;
+        pg.forEach(x => parts.push({ sheet: s, ...x })); return;
+      }
+    }
+    parts.push({ sheet: s, html, size, scale });
   });
   const common = Math.min(...parts.map(x => x.scale));
   const minPt = ppPt(common);
@@ -1635,8 +1697,14 @@ function ppRender() {
   const fit = document.getElementById('pp-fit');
   fit.className = 'pp-fit' + (small ? ' warn' : '');
   const m = mm => (mm / 1000).toFixed(mm < 995 ? 2 : 1).replace('.', ',');
-  if (banner) fit.innerHTML = `Баннер ${m(wmm)} × ${m(hmm)} м, текст ${PP_BANNER_PT} pt. Размер — по структуре:`
-    + ' колонки обычной ширины, без продолжения на листах. PDF — одной страницей, для полиграфии.';
+  if (banner) {
+    const huge = Math.max(wmm, hmm) > PP_BANNER_MAX_MM;
+    fit.className = 'pp-fit' + (huge ? ' warn' : '');
+    fit.innerHTML = `Баннер ${m(wmm)} × ${m(hmm)} м, текст ${PP_BANNER_PT} pt. Размер — по структуре:`
+      + ' колонки обычной ширины, без продолжения на листах. PDF — одной страницей, для полиграфии.'
+      + (huge ? ` Сторона больше ${m(PP_BANNER_MAX_MM)} м — такой PDF откроется не везде (Acrobat не принимает);`
+        + ' уберите сотрудников, часть веток или уровней.' : '');
+  }
   else fit.innerHTML = `Текст ≈ ${pt.toFixed(1).replace('.', ',')} pt` + (parts.length > 1 ? ' на всех листах' : '') +
     (small ? ' — мелко для печати.' : '') +
     (paged ? ` Целиком по высоте не помещается — продолжение на следующих листах, всего ${parts.length} ${ppPlural(parts.length, ['лист', 'листа', 'листов'])}.` : '') +
@@ -1692,6 +1760,10 @@ function ppPaginate(sheet, model, format, scale) {
   const probe = ppProbe(ppContentHTML(sheet, lay));
   const colsEl = probe.querySelector('.pp-cols');
   const top0 = colsEl ? colsEl.offsetTop : 0;
+  if (top0 > Hp * 0.5) {   // карточки над колонками (ветка с большим отделом) — в пол-листа и выше:
+    probe.remove();         // продолжение колонок не поможет, режем картинку по высоте
+    return ppWindowPages(sheet, lay, format, scale);
+  }
   const cols = [...probe.querySelectorAll('.pp-col')].map((el, i) => {
     const E = sheet.flows[i], m = E.length, ct = el.getBoundingClientRect().top;
     const top = new Float64Array(m + 1);
@@ -1706,11 +1778,11 @@ function ppPaginate(sheet, model, format, scale) {
   // Разрезы по листам и сами листы. Высота продолжения (заголовок, строки «продолжение») — оценка:
   // если лист всё-таки вышел выше, раскладываем ещё раз с запасом на перебор
   let out = [], room = Hp;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 8; attempt++) {
     out = ppPages(sheet, cols, lay, room, top0, n);
     const over = Math.max(...out.map(o => o.size.h)) - Hp;
     if (over <= 0.5) break;
-    room -= over + 4;
+    room -= over + 4 + attempt * 8;   // с каждой попыткой запас больше: перебор бывает от длинных названий
   }
   return out.map(o => ({ ...o, scale: Math.min(scale, ppScaleFor(format, o.size)) }));
 }
