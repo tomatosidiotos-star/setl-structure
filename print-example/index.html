@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Печать оргструктуры — пример</title>
+<link rel="stylesheet" href="../print.css?v=20261109b">
+<!-- Выдуманная структура в формате component.php (window.STRUCTURE_PRINT): люди и отделы случайные -->
+<script src="payload-example.js"></script>
+</head>
+<body>
+<script type="module">
+  // Как print-page.js на странице печати. Открывать через веб-сервер (ES-модули не работают с file://),
+  // на GitHub Pages открывается сразу
+  import { openPrintPreview } from '../print.js?v=20261109b';
+  openPrintPreview(window.STRUCTURE_PRINT, {
+    onClose: () => { document.body.textContent = 'Окно печати закрыто (onClose).'; },
+    banner: true,   // false — без формата «Баннер»
+  });
+</script>
+</body>
+</html>
