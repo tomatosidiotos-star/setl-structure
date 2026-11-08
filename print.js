@@ -1185,8 +1185,9 @@ function ppWindowPages(sheet, lay, format, scale) {
   let y0 = 0, shownTo = 0;
   for (let guard = 0; guard < 80; guard++) {
     const Hp = out.length ? HpN : Hp1;
-    const last = H - y0 <= Hp + 0.5;
-    const y1 = last ? H : y0 + Hp;
+    // последний — если всё поместилось или ниже разреза ни одной строки (только хвост линий и отступов)
+    const last = H - y0 <= Hp + 0.5 || !atoms.some(t => t.b > y0 + Hp + 0.5);
+    const y1 = last ? Math.min(H, y0 + Hp) : y0 + Hp;
     const cross = last ? [] : atoms.filter(t => t.a < y1 && t.b > y1 && t.a > y0);
     const hide = atoms.filter(t => t.b > y0 && t.a < y1 && (cross.includes(t) || (t.b <= shownTo && t.a >= 0 && shownTo > y0)));
     const id = 'ppw' + (++ppWinSeq);
