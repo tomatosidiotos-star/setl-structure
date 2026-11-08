@@ -14,6 +14,7 @@
    ES-модуль, от страницы не зависит (стили — print.css):
      import { openPrintPreview } from './print.js';
      openPrintPreview(window.STRUCTURE_PRINT, { onClose });
+     openPrintPreview(window.STRUCTURE_PRINT, { onClose, banner: false });   // без формата «Баннер» (не админам)
    payload — данные component.php: { graph, head, title, description, logo, board? }.
    board — необязательно: совет директоров и исполнительный директор, уровни над руководителями
    блока (в «Ветках» есть всегда, по умолчанию сняты):
@@ -489,7 +490,8 @@ function ppDemoSource() {
 
 /* Открыть предпросмотр.
    payload — данные страницы печати (window.STRUCTURE_PRINT): { graph, head, title, logo };
-   без него — демо-сайт, данные со страницы. opts.onClose — после закрытия */
+   без него — демо-сайт, данные со страницы. opts.onClose — после закрытия;
+   opts.banner: false — без формата «Баннер» (например, не админам) */
 export function openPrintPreview(payload, opts = {}) {
   if (pp) closePrintPreview();
   const src = payload && payload.graph
@@ -497,7 +499,8 @@ export function openPrintPreview(payload, opts = {}) {
     : ppDemoSource();
   if (!src) return;
   if (!src.data.custom) ppBuildChain(src.data);   // у «Структуры» иерархия уже своя
-  pp = { data: src.data, title: src.title, logo: src.logo, onClose: opts.onClose || null, ...ppDefaults() };
+  pp = { data: src.data, title: src.title, logo: src.logo, onClose: opts.onClose || null,
+    banner: opts.banner !== false, ...ppDefaults() };
   ppInitTop();
 
   const root = document.createElement('div');
@@ -518,7 +521,7 @@ export function openPrintPreview(payload, opts = {}) {
             <button data-v="landscape">Горизонтально</button><button data-v="portrait">Вертикально</button>
           </div>
           <div class="pp-seg" id="pp-format">
-            ${Object.keys(PP_FORMATS).map(f => `<button data-v="${f}">${f}</button>`).join('')}<button data-v="banner">Баннер</button>
+            ${Object.keys(PP_FORMATS).map(f => `<button data-v="${f}">${f}</button>`).join('')}${pp.banner ? '<button data-v="banner">Баннер</button>' : ''}
           </div>
           <div class="pp-fit" id="pp-fit"></div>
         </div>
