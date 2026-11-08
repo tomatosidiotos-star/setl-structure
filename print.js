@@ -573,7 +573,7 @@ export function openPrintPreview(payload, opts = {}) {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 6V1.5h8V6"/><rect x="1.5" y="6" width="13" height="6" rx="1.5"/><path d="M4 10h8v4.5H4z" fill="#fff"/></svg>
           Сохранить PDF / Печать
         </button>
-        <div class="pp-hint pp-hint--block">В окне печати выберите «Сохранить как PDF». Формат и ориентация уже заданы.</div>
+        <div class="pp-hint pp-hint--block" id="pp-print-hint"></div>
       </div>
     </aside>
     <main class="pp-stage" id="pp-stage">
@@ -1196,7 +1196,7 @@ function ppWindowPages(sheet, lay, format, scale) {
   const iw = (sh.w - sh.pad * 2) * PP_PX_PER_MM;
   const probe = ppProbe(ppContentHTML(sheet, lay));
   const pt = probe.getBoundingClientRect().top;
-  const H = probe.scrollHeight, Wc = probe.scrollWidth;
+  const { w: Wc, h: H } = ppBox(probe);
   // «атомы» — то, что нельзя резать: карточки, строки сотрудников и шапка отдела целиком (кружок,
   // название, руководитель, «ещё N» — не врозь по листам). Запас ±2 px: буквы выступают за рамку строки
   const atoms = [];
@@ -1267,6 +1267,13 @@ let ppWinSeq = 0;
 
 /* ---------- Раскладка и масштаб ---------- */
 
+// Размер замера — дробный: scrollWidth округлён вниз, и в Firefox на ширине меньше на долю пикселя
+// какая-то строка переносится иначе — на листе всё ниже сдвигалось на строку
+function ppBox(el) {
+  const r = el.getBoundingClientRect();
+  return { w: Math.max(r.width, el.scrollWidth), h: Math.max(r.height, el.scrollHeight) };
+}
+
 function ppProbe(html) {
   const probe = document.createElement('div');
   probe.className = 'pp-content pp-probe';
@@ -1278,7 +1285,7 @@ function ppProbe(html) {
 // Натуральный размер содержимого (до масштабирования)
 function ppMeasure(html) {
   const probe = ppProbe(html);
-  const size = { w: probe.scrollWidth, h: probe.scrollHeight };
+  const size = ppBox(probe);
   probe.remove();
   return size;
 }
@@ -1692,6 +1699,7 @@ function ppRender() {
      @media print { html, body.pp-open, #pp, .pp-stage, .pp-sheet-wrap, .pp-tiles {
        width: ${pageW}mm !important; min-width: 0 !important; max-width: ${pageW}mm !important; } }`;
   ppRenderTiles(tiles);
+  ppPrintHint(pageW, pageH, tiles);
 
   // Подсказка про читаемость
   const pt = minPt;
@@ -1723,6 +1731,23 @@ function ppRender() {
 
   ppSyncControls();
   ppPlaceSheet();
+}
+
+/* Подпись под кнопкой печати. Safari не берёт размер листа со страницы (@page size) и печатает
+   на бумагу, выбранную в окне печати, — лист обрезается. Ему — что именно выбрать */
+const PP_SAFARI = typeof navigator !== 'undefined'
+  && /safari/i.test(navigator.userAgent) && !/chrome|chromium|crios|fxios|edg|opr|android/i.test(navigator.userAgent);
+function ppPrintHint(pageW, pageH, tiles) {
+  const el = document.getElementById('pp-print-hint');
+  if (!PP_SAFARI) { el.textContent = 'В окне печати выберите «Сохранить как PDF». Формат и ориентация уже заданы.'; return; }
+  const paper = tiles ? pp.tile : pp.format;
+  const orient = pageW > pageH ? 'Альбомная' : 'Книжная';
+  const usual = paper === 'A4' || paper === 'A3';
+  el.innerHTML = `<b>Safari не выставляет формат бумаги сам.</b> В окне печати выберите «Формат бумаги» — `
+    + (paper === 'banner' ? `свой размер ${Math.round(pageW)} × ${Math.round(pageH)} мм` : paper)
+    + `, ориентацию «${orient}», масштаб 100 %; PDF — кнопкой «PDF» внизу окна.`
+    + (usual ? '' : ' Такого формата в списке Safari обычно нет — удобнее открыть печать в Chrome, Edge или Firefox'
+      + ' (там формат выставится сам)' + (paper === 'banner' ? '.' : ' или печатать частями A4/A3.'));
 }
 
 /* ---------- Продолжение на следующих листах (все раскладки) ----------
