@@ -72,7 +72,12 @@
     const face = document.createElement('div');
     face.className = 'fr-face';
     face.style.width = W + 'px'; face.style.height = H + 'px';
-    face.style.clipPath = face.style.webkitClipPath = `url(#${id}c)`;
+    // обрезка по силуэту — маской-картинкой: clip-path: url() Chrome к размытию фона не применяет
+    // (углы и вырез оставались прямоугольными), а маска режет и его
+    const m = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="${SVGNS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><g fill="#000">${shapes}</g></svg>`)}")`;
+    face.style.webkitMaskImage = face.style.maskImage = m;
+    face.style.webkitMaskSize = face.style.maskSize = `${W}px ${H}px`;
+    face.style.webkitMaskRepeat = face.style.maskRepeat = 'no-repeat';
     under.after(face);
     root.classList.add('fr-done');
   }
