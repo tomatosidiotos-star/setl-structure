@@ -125,3 +125,5 @@
 .theme-frost .card-v2-multi__dept-text { font-size: 12px; font-weight: 700; line-height: 1.18; letter-spacing: -.005em; }
 .theme-frost .card-v2-multi__dept--link .card-v2-multi__dept-text { line-height: 1.12; }   /* над названием ещё силуэт города */
 .theme-frost .card-v2-multi__dept--link { padding-top: 5px; padding-bottom: 5px; }   /* силуэт + 2 строки крупного названия (в Firefox ещё рамка 2px) */
+/* точки «щёлкают» из центра (анимация масштаба — в theme-frost.js) */
+.theme-frost .fr-dots circle { transform-box: fill-box; transform-origin: center; }
