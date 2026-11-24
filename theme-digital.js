@@ -48,15 +48,24 @@
       ? '<stop offset="0" stop-color="#D4E4FD"/><stop offset="1" stop-color="#BDD3FA"/>'
       : '<stop offset="0" stop-color="#FBFCFF"/><stop offset="1" stop-color="#F0F3FA"/>';
     const glow = kind === 'back' ? .55 : .95, rim = kind === 'back' ? .8 : 1;
+    const R = Math.max(80, Math.min(W, H) * .8), spot = kind === 'back' ? '#FFFFFF' : '#3C83F6', edge = kind === 'back' ? '#FFFFFF' : '#5B95F7';
     svg.innerHTML = `<defs>
         <linearGradient id="${id}" x1="0" y1="0" x2=".2" y2="1">${fill}</linearGradient>
         <clipPath id="${id}c"><path d="${d}" transform="${shift}"/></clipPath>
         <filter id="${id}b" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="4"/></filter>
+        <radialGradient id="${id}s" class="dg-spot" gradientUnits="userSpaceOnUse" cx="${W / 2}" cy="${H / 3}" r="${R}">
+          <stop offset="0" stop-color="${spot}" stop-opacity="${kind === 'back' ? .5 : .16}"/><stop offset="1" stop-color="${spot}" stop-opacity="0"/></radialGradient>
+        <radialGradient id="${id}e" class="dg-spot" gradientUnits="userSpaceOnUse" cx="${W / 2}" cy="${H / 3}" r="${R * .85}">
+          <stop offset="0" stop-color="${edge}" stop-opacity="1"/><stop offset="1" stop-color="${edge}" stop-opacity="0"/></radialGradient>
       </defs>
       <path d="${d}" transform="${shift}" fill="url(#${id})"/>
       <g clip-path="url(#${id}c)">
         <path d="${d}" transform="${shift}" fill="none" stroke="#fff" stroke-width="14" opacity="${glow}" filter="url(#${id}b)"/>
         <path d="${d}" transform="${shift}" fill="none" stroke="#fff" stroke-width="2.4" opacity="${rim}"/>
+        <g class="dg-glare">   <!-- «прожектор» за курсором: мягкое свечение на листе + подсветка ближайшего участка кромки -->
+          <path d="${d}" transform="${shift}" fill="url(#${id}s)"/>
+          <path d="${d}" transform="${shift}" fill="none" stroke="url(#${id}e)" stroke-width="2.6"/>
+        </g>
       </g>`;
     el.insertBefore(svg, el.firstChild);
     el.classList.add('dg-done', 'dg-' + kind);
@@ -128,6 +137,12 @@
       const y = Math.max(-.5, Math.min(.5, (e.clientY - r.top) / r.height - .5));
       card.style.transform = max ? `perspective(900px) translateY(-4px) rotateX(${(-y * max).toFixed(2)}deg) rotateY(${(x * max).toFixed(2)}deg)` : 'translateY(-4px)';
       card.classList.add('dg-lift');
+      // «прожектор» скользит за курсором по каждому листу карточки (координаты — в системе листа)
+      card.querySelectorAll('.dg-mat').forEach(m => {
+        const mr = m.getBoundingClientRect(), k = m.width.baseVal.value / mr.width;
+        const cx = ((e.clientX - mr.left) * k).toFixed(1), cy = ((e.clientY - mr.top) * k).toFixed(1);
+        m.querySelectorAll('.dg-spot').forEach(g => { g.setAttribute('cx', cx); g.setAttribute('cy', cy); });
+      });
     });
     node.addEventListener('pointerleave', () => { card.style.transform = ''; card.classList.remove('dg-lift'); });
   }
