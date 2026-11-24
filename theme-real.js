@@ -2,7 +2,8 @@
    Тема «Гиперреализм» для полотна структуры (концепт, вариант 1). Подключается на real.html —
    копии сайта; меняет только полотно. Логику сайта не трогает: оборачивает buildTreeV2 и после
    отрисовки «одевает» карточки и линии.
-   Отдел — крафтовая папка с листами, руководитель — полароид на скрепке, куратор — металлическая
+   Фактуры — фото-сканы CC0 с ambientCG (textures/: крафт Paper006, металл Metal009, стена Plaster001,
+   бумага Paper001), подогнаны по цвету. Отдел — крафтовая папка с листами, руководитель — полароид на скрепке, куратор — металлическая
    табличка на гвоздях, связи — синие нитки между гвоздями, фон — светлая крашеная стена.
    ?demo=3 — «Строительный блок 2» урезан до трёх карточек
 ==================================================================== */
@@ -26,31 +27,12 @@
     s.id = 'rl-defs'; s.setAttribute('width', 0); s.setAttribute('height', 0);
     s.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
     s.innerHTML = `<defs>
-      <linearGradient id="rlKraftFront" x1="0" y1="0" x2=".35" y2="1">
-        <stop offset="0" stop-color="#D9B784"/><stop offset=".55" stop-color="#CDA46F"/><stop offset="1" stop-color="#C29763"/></linearGradient>
-      <linearGradient id="rlKraftBack" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#C29763"/><stop offset="1" stop-color="#AE824F"/></linearGradient>
-      <linearGradient id="rlPaper" x1="0" y1="0" x2=".3" y2="1">
-        <stop offset="0" stop-color="#FFFEFB"/><stop offset="1" stop-color="#F1EEE6"/></linearGradient>
-      <linearGradient id="rlMetal" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#F3F4F6"/><stop offset=".42" stop-color="#D3D6DB"/><stop offset=".5" stop-color="#E6E8EB"/><stop offset="1" stop-color="#B5BAC2"/></linearGradient>
       <radialGradient id="rlNail" cx=".36" cy=".32" r=".7">
         <stop offset="0" stop-color="#FFFFFF"/><stop offset=".3" stop-color="#D4D7DC"/><stop offset=".85" stop-color="#7A8089"/><stop offset="1" stop-color="#555A62"/></radialGradient>
-      <filter id="rlKraftGrain" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
-        <feTurbulence type="fractalNoise" baseFrequency=".9 .6" numOctaves="3" seed="7" result="t"/>
-        <feColorMatrix in="t" type="matrix" values="0 0 0 0 .32  0 0 0 0 .2  0 0 0 0 .09  0 0 0 -.9 .5" result="spk"/>
-        <feComposite in="spk" in2="SourceGraphic" operator="in" result="spk2"/>
-        <feTurbulence type="fractalNoise" baseFrequency=".012 .35" numOctaves="2" seed="3" result="f"/>
-        <feColorMatrix in="f" type="matrix" values="0 0 0 0 1  0 0 0 0 .95  0 0 0 0 .85  0 0 0 -.8 .45" result="fib"/>
-        <feComposite in="fib" in2="SourceGraphic" operator="in" result="fib2"/>
-        <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="fib2"/><feMergeNode in="spk2"/></feMerge>
-      </filter>
-      <filter id="rlBrushed" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
-        <feTurbulence type="fractalNoise" baseFrequency=".004 .9" numOctaves="2" seed="11" result="t"/>
-        <feColorMatrix in="t" type="matrix" values="0 0 0 0 .3  0 0 0 0 .32  0 0 0 0 .36  0 0 0 -1 .55" result="b"/>
-        <feComposite in="b" in2="SourceGraphic" operator="in" result="b2"/>
-        <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="b2"/></feMerge>
-      </filter>
+      <linearGradient id="rlKraftLight" x1="0" y1="0" x2=".25" y2="1">   <!-- свет сверху-слева поверх крафта -->
+        <stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#3a2210" stop-opacity=".10"/></linearGradient>
+      <linearGradient id="rlMetalLight" x1="0" y1="0" x2="0" y2="1">   <!-- объём таблички поверх шлифа -->
+        <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset=".55" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#2a2f38" stop-opacity=".22"/></linearGradient>
       <filter id="rlShadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
       <filter id="rlShadowS" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter>
       <filter id="rlThreadSh" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.3"/></filter>
@@ -61,33 +43,45 @@
   /* ---------- Папка: задник с ярлыком, листы, передняя обложка ---------- */
   function rnd(seed) { const x = Math.sin(seed * 9301 + 49297) * 233280; return x - Math.floor(x); }
   let seedN = 0;
+  // текстура-узор в своей SVG: у каждой папки свой сдвиг, чтобы не было видно одинаковый рисунок
+  const TEX = 'textures/';
+  function pattern(id, file, w, h, k) {
+    const dx = Math.round(rnd(k + 3) * w), dy = Math.round(rnd(k + 11) * h);
+    return `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${w}" height="${h}" patternTransform="translate(${-dx},${-dy})">`
+      + `<image href="${TEX}${file}" width="${w}" height="${h}" preserveAspectRatio="none"/></pattern>`;
+  }
   function folderSVG(W, H) {
     const tabW = Math.round(W * .56), tabH = 16, F = 28, r = 9, k = ++seedN;
+    const kp = 'rlk' + k, pp = 'rlp' + k;
     const a1 = (rnd(k) - .5) * 2.4, a2 = (rnd(k + 7) - .5) * 2;
     const back = `M0,${H - r} V8 Q0,0 8,0 H${tabW - 12} C${tabW - 5},0 ${tabW - 3},${tabH} ${tabW + 8},${tabH}`
       + ` H${W - r} Q${W},${tabH} ${W},${tabH + r} V${H - r} Q${W},${H} ${W - r},${H} H${r} Q0,${H} 0,${H - r} Z`;
     const front = `M0,${F + 6} Q0,${F} 6,${F} H${W - 6} Q${W},${F} ${W},${F + 6} V${H - r} Q${W},${H} ${W - r},${H} H${r} Q0,${H} 0,${H - r} Z`;
-    return `
+    return `<defs>${pattern(kp, 'kraft.jpg', 220, 220, k)}${pattern(pp, 'paper.jpg', 160, 160, k + 5)}</defs>
       <path d="${back}" transform="translate(1,7)" fill="#3a2a18" opacity=".32" filter="url(#rlShadow)"/>
-      <path d="${back}" fill="url(#rlKraftBack)" filter="url(#rlKraftGrain)"/>
-      <g transform="rotate(${a2} ${W / 2} ${F})"><rect x="7" y="12" width="${W - 16}" height="${H - 22}" rx="2" fill="#EDE8DC"/></g>
-      <rect x="6" y="11" width="${W - 12}" height="${H - 20}" rx="2" fill="url(#rlPaper)" transform="rotate(${a1} ${W / 2} ${F})"/>
+      <path d="${back}" fill="url(#${kp})"/>
+      <path d="${back}" fill="#4a2c12" opacity=".2"/>
+      <g transform="rotate(${a2} ${W / 2} ${F})"><rect x="7" y="12" width="${W - 16}" height="${H - 22}" rx="2" fill="url(#${pp})"/><rect x="7" y="12" width="${W - 16}" height="${H - 22}" rx="2" fill="#7a6a50" opacity=".1"/></g>
+      <rect x="6" y="11" width="${W - 12}" height="${H - 20}" rx="2" fill="url(#${pp})" transform="rotate(${a1} ${W / 2} ${F})"/>
       <rect x="8" y="${F - 3}" width="${W - 16}" height="8" fill="#3a2a18" opacity=".18" filter="url(#rlShadowS)"/>
-      <path d="${front}" fill="url(#rlKraftFront)" filter="url(#rlKraftGrain)"/>
-      <rect x="2" y="${F}" width="${W - 4}" height="3" rx="1.5" fill="#fff" opacity=".22"/>`;
+      <path d="${front}" fill="url(#${kp})"/>
+      <path d="${front}" fill="url(#rlKraftLight)"/>
+      <rect x="2" y="${F}" width="${W - 4}" height="2.5" rx="1.25" fill="#fff" opacity=".28"/>`;
   }
   function sheetSVG(W, H) {   // зам без подразделения — отдельный лист, приколотый к стене
-    const a = (rnd(++seedN) - .5) * 2;
-    return `
+    const k = ++seedN, a = (rnd(k) - .5) * 2, pp = 'rlp' + k;
+    return `<defs>${pattern(pp, 'paper.jpg', 160, 160, k)}</defs>
       <rect x="2" y="8" width="${W - 4}" height="${H - 6}" rx="2" fill="#3a2a18" opacity=".26" filter="url(#rlShadow)"/>
-      <rect x="3" y="2" width="${W - 6}" height="${H - 4}" rx="2" fill="#E9E4D8" transform="rotate(${a + 1.4} ${W / 2} 6)"/>
-      <rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="2" fill="url(#rlPaper)" transform="rotate(${a} ${W / 2} 6)"/>`;
+      <rect x="3" y="2" width="${W - 6}" height="${H - 4}" rx="2" fill="url(#${pp})" transform="rotate(${a + 1.4} ${W / 2} 6)"/>
+      <rect x="3" y="2" width="${W - 6}" height="${H - 4}" rx="2" fill="#7a6a50" opacity=".1" transform="rotate(${a + 1.4} ${W / 2} 6)"/>
+      <rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="2" fill="url(#${pp})" transform="rotate(${a} ${W / 2} 6)"/>`;
   }
   function plaqueSVG(W) {   // табличка куратора: шлифованный металл, фаска, гвозди по краям
-    const y = 3, h = 42;
-    return `
+    const y = 3, h = 42, k = ++seedN, mp = 'rlm' + k;
+    return `<defs>${pattern(mp, 'metal.jpg', 360, 180, k)}</defs>
       <rect x="2" y="${y + 5}" width="${W - 4}" height="${h}" rx="6" fill="#20242c" opacity=".35" filter="url(#rlShadow)"/>
-      <rect x="0" y="${y}" width="${W}" height="${h}" rx="6" fill="url(#rlMetal)" filter="url(#rlBrushed)"/>
+      <rect x="0" y="${y}" width="${W}" height="${h}" rx="6" fill="url(#${mp})"/>
+      <rect x="0" y="${y}" width="${W}" height="${h}" rx="6" fill="url(#rlMetalLight)"/>
       <rect x="1" y="${y + .5}" width="${W - 2}" height="2" rx="1" fill="#fff" opacity=".9"/>
       <rect x="1" y="${y + h - 2.5}" width="${W - 2}" height="2" rx="1" fill="#5b6069" opacity=".35"/>
       ${nail(11, y + h / 2)}${nail(W - 11, y + h / 2)}`;
