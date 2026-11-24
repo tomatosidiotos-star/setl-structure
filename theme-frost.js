@@ -101,9 +101,9 @@
       const o = offsetIn(s, owner), box = document.createElement('div');
       const x = o.x + s.offsetWidth - 64, y = o.y + 54;   // правый край листов — у правого края карточки; в покое — за ней
       box.className = 'fr-sheets';
-      box.style.left = x + 'px'; box.style.top = (y - 60) + 'px'; box.style.paddingTop = '60px';   // запас сверху — место, куда листы выезжают
+      box.style.left = x + 'px'; box.style.top = (y - 80) + 'px'; box.style.paddingTop = '80px';   // запас сверху — место, куда листы выезжают
       box.style.webkitMaskImage = box.style.maskImage = `url("data:image/svg+xml,${inv}")`;
-      box.style.webkitMaskPosition = box.style.maskPosition = `${-x - P}px ${-(y - 60) - P}px`;
+      box.style.webkitMaskPosition = box.style.maskPosition = `${-x - P}px ${-(y - 80) - P}px`;
       box.style.webkitMaskSize = box.style.maskSize = `${W + 2 * P}px ${H + 2 * P}px`;
       box.style.webkitMaskRepeat = box.style.maskRepeat = 'no-repeat';
       box.innerHTML = '<i class="fr-sheet fr-sheet--2"></i><i class="fr-sheet fr-sheet--1"></i>';
