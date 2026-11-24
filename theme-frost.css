@@ -96,3 +96,26 @@
 /* подложка отдела снизу — вплотную к краю карточки: без белого пикселя между её толщиной и толщиной карточки */
 .theme-frost .fr-done .card-v2-multi__dept-wrap { border-bottom-width: 0 !important; }
 .theme-frost .fr-done .card-v2-multi__dept { position: relative; top: 1px; }   /* перекрывает край белой основы (силуэт чуть шире кусков) */
+
+/* ---------- Подсветка пути до верха при наведении на карточку (theme-frost.js) ---------- */
+.theme-frost #tree-svg path { transition: opacity .35s ease; }
+.theme-frost #tree-svg.fr-dim path:not(.fr-hot):not(.fr-flow) { opacity: .4; }   /* остальные линии притухают */
+.theme-frost #tree-svg .fr-hot {
+  stroke: #3C83F6 !important; stroke-width: 3px !important; opacity: 0;
+  filter: drop-shadow(0 0 4px rgba(60, 131, 246, .55));
+  transition: opacity .4s ease;
+}
+.theme-frost #tree-svg .fr-flow {   /* бегущий импульс — сверху вниз по пути */
+  stroke: #fff !important; stroke-width: 1.6px !important; stroke-dasharray: 2 16; opacity: 0;
+  animation: fr-flow 1.2s linear infinite; transition: opacity .4s ease;
+}
+.theme-frost #tree-svg .fr-hot.on { opacity: 1; }
+.theme-frost #tree-svg .fr-flow.on { opacity: .9; }
+@keyframes fr-flow { to { stroke-dashoffset: -18; } }
+.theme-frost .fr-dots .fr-dot-hot {
+  fill: #3C83F6; stroke: #fff; stroke-width: 1.5; opacity: 0;
+  transform-box: fill-box; transform-origin: center; transform: scale(.4);
+  transition: opacity .3s ease, transform .45s cubic-bezier(.34, 1.56, .64, 1);
+}
+.theme-frost .fr-dots .fr-dot-hot.on { opacity: 1; transform: scale(1); }
+@media (prefers-reduced-motion: reduce) { .theme-frost #tree-svg .fr-flow { display: none; } }

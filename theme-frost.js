@@ -132,6 +132,48 @@
     inner.appendChild(layer);
   }
 
+  /* ---------- Подсветка пути: от карточки под курсором до верха структуры ---------- */
+  // линия ведёт к карточке (data-key = v2NodeKey); её начало (px, py) — низ родительской карточки
+  function chainFor(node) {
+    const inner = document.getElementById('canvas-inner'), svg = document.getElementById('tree-svg');
+    const nodes = [...inner.querySelectorAll(':scope > .tree-node')], out = [];
+    let cur = node;
+    for (let guard = 0; cur && guard < 30; guard++) {
+      const key = typeof v2NodeKey === 'function' ? v2NodeKey(cur) : null;
+      const line = key && svg.querySelector(`path[data-key="${CSS.escape(key)}"]`);
+      if (!line) break;
+      out.push(line);
+      const g = JSON.parse(line.dataset.geom || '{}');
+      cur = nodes.find(n => n !== cur && g.px >= n.offsetLeft - 1 && g.px <= n.offsetLeft + n.offsetWidth + 1
+        && g.py >= n.offsetTop - 1 && g.py <= n.offsetTop + n.offsetHeight + 4);
+    }
+    return out;
+  }
+  let hot = [];
+  function highlight(node) {
+    const svg = document.getElementById('tree-svg'), dotsLayer = document.querySelector('#canvas-inner > .fr-dots');
+    const old = hot; hot = [];
+    old.forEach(el => el.classList.remove('on'));
+    setTimeout(() => old.forEach(el => el.remove()), 450);   // гаснут плавно, потом убираем
+    const chain = node ? chainFor(node) : [];
+    svg.classList.toggle('fr-dim', chain.length > 0);
+    if (!chain.length) return;
+    chain.forEach(p => {
+      const lit = p.cloneNode(); lit.removeAttribute('data-key'); lit.setAttribute('class', 'fr-hot');
+      const flow = p.cloneNode(); flow.removeAttribute('data-key'); flow.setAttribute('class', 'fr-flow');
+      svg.append(lit, flow); hot.push(lit, flow);
+      if (dotsLayer) {
+        const g = JSON.parse(p.dataset.geom);
+        [[g.px, g.py], [g.cx, g.cy]].forEach(([x, y]) => {
+          const c = document.createElementNS(SVGNS, 'circle');
+          c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 4.5); c.setAttribute('class', 'fr-dot-hot');
+          dotsLayer.appendChild(c); hot.push(c);
+        });
+      }
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => hot.forEach(el => el.classList.add('on'))));
+  }
+
   /* ---------- Одеть отрисованное дерево ---------- */
   function decorate() {
     const inner = document.getElementById('canvas-inner');
@@ -144,6 +186,8 @@
         sheets(root, root.querySelector('.card-v3__header') || root);   // у наборной — только при наведении на шапку
         root.querySelectorAll('.card-v3__sub').forEach(sub => { dress(sub); sheets(sub, sub); });
       } else { dress(root); sheets(root, root); }
+      node.addEventListener('pointerenter', () => highlight(node));
+      node.addEventListener('pointerleave', () => highlight(null));
     });
     dots();
   }
