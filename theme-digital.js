@@ -41,7 +41,7 @@
     svg.setAttribute('width', W); svg.setAttribute('height', H);
     const P = 8;   // задний лист выступает за передние по бокам и снизу — видно, что отделы лежат в папке куратора
     svg.innerHTML = kind === 'back'
-      ? `<defs><linearGradient id="${id}" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#E1E7F6"/><stop offset="1" stop-color="#D2DAF0"/></linearGradient></defs>
+      ? `<defs><linearGradient id="${id}" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#D4E4FD"/><stop offset="1" stop-color="#BDD3FA"/></linearGradient></defs>
          <path d="${backD(W + 2 * P, H + P, 18, 14)}" transform="translate(${-P},0)" fill="url(#${id})"/>`
       : `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FBFCFE"/></linearGradient></defs>
          <path d="${frontD(W, H)}" fill="url(#${id})"/>`;
@@ -101,6 +101,24 @@
     requestAnimationFrame(() => requestAnimationFrame(() => hot.forEach(el => el.classList.add('on'))));
   }
 
+  /* ---------- Наведение: карточка приподнимается и чуть наклоняется вслед за курсором ---------- */
+  // спокойно, без отскоков: поворот до 5° (у широкой наборной — меньше), плавное догоняние курсора
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function tilt(node, card) {
+    if (REDUCED) return;
+    // Firefox рисует наклонённый (3D) слой в пониженном разрешении — текст мылится; там только подъём
+    const FF = /Firefox\//.test(navigator.userAgent);
+    const max = FF ? 0 : card.classList.contains('card-v3') ? 2.5 : 5;
+    node.addEventListener('pointermove', e => {
+      const r = card.getBoundingClientRect();
+      const x = Math.max(-.5, Math.min(.5, (e.clientX - r.left) / r.width - .5));
+      const y = Math.max(-.5, Math.min(.5, (e.clientY - r.top) / r.height - .5));
+      card.style.transform = max ? `perspective(900px) translateY(-4px) rotateX(${(-y * max).toFixed(2)}deg) rotateY(${(x * max).toFixed(2)}deg)` : 'translateY(-4px)';
+      card.classList.add('dg-lift');
+    });
+    node.addEventListener('pointerleave', () => { card.style.transform = ''; card.classList.remove('dg-lift'); });
+  }
+
   /* ---------- Одеть отрисованное дерево ---------- */
   function decorate() {
     const inner = document.getElementById('canvas-inner');
@@ -114,6 +132,7 @@
       } else dress(root, 'front');
       node.addEventListener('pointerenter', () => highlight(node));
       node.addEventListener('pointerleave', () => highlight(null));
+      tilt(node, root);
     });
     dots();
   }
