@@ -68,7 +68,7 @@
 .theme-real .card-v3__sub .card-v2-mh__wrap::before { left: 24px; top: -8px; height: 20px; }
 .theme-real .card-v3__sub .card-v2-mh__body { margin-top: -16px; }
 .theme-real .card-v3__sub .card-v2-mh__wrap .card-v2__photo-initials { font-size: 9px; }
-.theme-real .card-v2-multi .card-v2__name { color: #22180D; text-shadow: 0 .5px 0 rgba(255, 235, 200, .4); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.theme-real .card-v2-multi .card-v2__name, .theme-real .card-v3__sub .card-v2__name { color: #4A2A12; text-shadow: 0 .5px 0 rgba(255, 238, 210, .45);   /* ФИО — тёмно-коричневое */ white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .theme-real .card-v2-multi .card-v2__role, .theme-real .card-v3__sub .card-v2__role { color: #3F2E1D; font-size: 7.5px; text-shadow: 0 .5px 0 rgba(255, 235, 200, .35); }
 .theme-real .card-v2-mh__body:hover .card-v2__name,
 .theme-real .card-v2-mh__body:hover .card-v2__role { color: #24479F; }
