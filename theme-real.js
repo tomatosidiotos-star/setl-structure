@@ -61,8 +61,10 @@
       <path d="${back}" transform="translate(1,7)" fill="#3a2a18" opacity=".32" filter="url(#rlShadow)"/>
       <path d="${back}" fill="url(#${kp})"/>
       <path d="${back}" fill="#4a2c12" opacity=".2"/>
-      <g transform="rotate(${a2} ${W / 2} ${F})"><rect x="7" y="12" width="${W - 16}" height="${H - 22}" rx="2" fill="url(#${pp})"/><rect x="7" y="12" width="${W - 16}" height="${H - 22}" rx="2" fill="#7a6a50" opacity=".1"/></g>
-      <rect x="6" y="11" width="${W - 12}" height="${H - 20}" rx="2" fill="url(#${pp})" transform="rotate(${a1} ${W / 2} ${F})"/>
+      <g class="rl-sheet rl-sheet--2"><g transform="rotate(${a2} ${W / 2} ${F})"><rect x="7" y="12" width="${W - 16}" height="${H - 22}" rx="2" fill="url(#${pp})"/><rect x="7" y="12" width="${W - 16}" height="${H - 22}" rx="2" fill="#7a6a50" opacity=".1"/></g></g>
+      <g class="rl-sheet rl-sheet--1"><rect x="6" y="11" width="${W - 12}" height="${H - 20}" rx="2" fill="url(#${pp})" transform="rotate(${a1} ${W / 2} ${F})"/>
+        <rect x="16" y="17" width="${Math.round(W * .32)}" height="2" rx="1" fill="#C9C3B6" transform="rotate(${a1} ${W / 2} ${F})"/>
+        <rect x="16" y="22" width="${Math.round(W * .48)}" height="2" rx="1" fill="#D6D1C5" transform="rotate(${a1} ${W / 2} ${F})"/></g>
       <rect x="8" y="${F - 3}" width="${W - 16}" height="8" fill="#3a2a18" opacity=".18" filter="url(#rlShadowS)"/>
       <path d="${front}" fill="url(#${kp})"/>
       <path d="${front}" fill="url(#rlKraftLight)"/>
@@ -218,6 +220,20 @@
       }
       root.querySelectorAll('.card-v2-mh__wrap .card-v2__photo').forEach((ph, j) => {
         if (!ph.closest('.v2-deps')) ph.style.setProperty('--rl-rot', ((rnd(i * 5 + j) - .6) * 9).toFixed(1) + 'deg');
+      });
+      // кнопка раскрытия — в левый нижний угол своей папки (у папок наборной сайт ставит её по центру папки)
+      const folders = root.classList.contains('card-v3') ? [...root.querySelectorAll('.card-v3__sub')] : [root];
+      const leftIn = el => { let x = 0; for (let e = el; e && e !== node; e = e.offsetParent) x += e.offsetLeft; return x; };
+      node.querySelectorAll(':scope > .fold-btn:not(.fold-btn--side)').forEach(btn => {
+        const c = btn.style.left ? parseFloat(btn.style.left) : node.offsetWidth / 2;   // сайт: left = центр папки
+        const f = folders.find(f => c >= leftIn(f) - 1 && c <= leftIn(f) + f.offsetWidth + 1) || root;
+        btn.style.left = (leftIn(f) + 14) + 'px';
+      });
+      // листы выдвигаются у той папки, на которую навели: у обычной карточки — она сама, у наборной — каждая папка
+      const peekers = root.classList.contains('card-v3') ? [...root.querySelectorAll('.card-v3__sub')] : [root];
+      peekers.forEach(f => {
+        f.addEventListener('pointerenter', () => f.classList.add('rl-peek'));
+        f.addEventListener('pointerleave', () => f.classList.remove('rl-peek'));
       });
       node.addEventListener('pointerenter', () => { root.classList.add('rl-lift'); highlight(node); });
       node.addEventListener('pointerleave', () => { root.classList.remove('rl-lift'); highlight(null); });
