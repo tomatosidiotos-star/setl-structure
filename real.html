@@ -4436,13 +4436,8 @@ function makeV2Photo(name, photo, fullName) {
 function v2IsDeputy(person) { return !!(person && (person.deputy || /^заместитель/i.test((person.role || '').trim()))); }
 function v2PutAvatar(wrap, person) {
   if (person.deps && person.deps.length) v2PutDepsStack(wrap, person.deps);
-  const ph = makeV2Photo(person.name, person.photo, person.fullName);
-  if (!v2IsDeputy(person)) { wrap.appendChild(ph); return; }
-  const box = document.createElement('div');
-  box.className = 'v2-ava';
-  box.append(ph);
-  box.insertAdjacentHTML('beforeend', '<span class="v2-zam" title="Заместитель">Зам.</span>');
-  wrap.appendChild(box);
+  // отметку «Зам.» на аватарке убрали — заказчик от неё отказался (2026-11); v2IsDeputy оставлена, если вернут
+  wrap.appendChild(makeV2Photo(person.name, person.photo, person.fullName));
 }
 
 // Вариант на сравнение: замы — стопкой аватарок у правого края карточки руководителя (deps у человека).
