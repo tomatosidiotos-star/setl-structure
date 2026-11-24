@@ -1,5 +1,5 @@
 /* ====================================================================
-   Переключатель версий нового вида структуры (концепт): «Мульт», «Игра» и «Цифра».
+   Переключатель версий нового вида структуры (концепт): «Текущая» (основной сайт), «Мульт», «Игра» и «Цифра».
    Подключён на frost.html («Мульт» — матовое стекло), real.html («Игра» — гиперреализм)
    и digital.html («Цифра» — спокойный digital).
    Встаёт в шапку блока справа вместо описания блока; текущая версия выбрана.
@@ -7,6 +7,7 @@
 ==================================================================== */
 (function () {
   const VERSIONS = [
+    { title: 'Текущая', file: 'index.html' },   // основной сайт в нынешнем стиле
     { title: 'Мульт', file: 'frost.html' },
     { title: 'Игра', file: 'real.html' },
     { title: 'Цифра', file: 'digital.html' },
@@ -32,6 +33,17 @@
     .ver-switch__btn[aria-pressed="true"] { background: #e2221c; color: #fff; cursor: default; }
   `;
   document.head.appendChild(css);
+
+  // «Структура» (кнопка на главной, custom-structure.js) рисуется своим кодом — тему на ней не показываем:
+  // пока на полотне «Структура», класс темы с <html> снимаем, в остальных деревьях — возвращаем
+  const root = document.documentElement;
+  const themes = [...root.classList].filter(c => /^theme-/.test(c));
+  const tree = document.getElementById('view-tree');
+  if (tree && themes.length) {
+    const sync = () => themes.forEach(t => root.classList.toggle(t, !tree.classList.contains('is-custom')));
+    new MutationObserver(sync).observe(tree, { attributes: true, attributeFilter: ['class'] });
+    sync();
+  }
 
   const slot = document.querySelector('.tv-head__desc');
   if (!slot) return;
