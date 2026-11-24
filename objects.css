@@ -4,7 +4,7 @@
 ==================================================================== */
 
 /* ---------- Раздел «Объекты строительства» — в стиле главной: заголовок на фоне, белые карточки дирекций ---------- */
-.obj-panel { padding-top: 8px; }   /* отступ сверху — общий gap главной (16px) + немного воздуха перед заголовком */
+.obj-panel { padding-top: 8px; padding-bottom: 40px; }   /* внизу страницы — воздух, чтобы карточки не упирались в край */   /* отступ сверху — общий gap главной (16px) + немного воздуха перед заголовком */
 .obj-section { margin: 0 0 16px; font-family: var(--f-exp); font-weight: 600; font-size: 20px; line-height: 1.2; color: var(--black); }
 .obj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .obj-card { background: #fff; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; }
