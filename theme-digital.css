@@ -50,13 +50,19 @@
 
 /* ---------- Подложка отдела: светлая плашка, название — главное (крупно, тёмно-синим) ---------- */
 .theme-digital .card-v2-multi__dept {
-  background: #F1F4FA; border: 0; border-radius: 12px; color: #1B3A6B;
+  background: #FFFFFF; border: 0; border-radius: 12px; color: #1B3A6B;
   padding-top: 8px; padding-bottom: 8px;
-  transition: background .2s ease;
+  /* белая плашка лежит на листе отдельным слоем: мягкая тень + светлая кромка */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .95), 0 1px 2px rgba(30, 40, 80, .06), 0 6px 14px -6px rgba(40, 52, 110, .18);
+  transition: background .25s ease, box-shadow .25s ease;
 }
-.theme-digital .card-v2-multi__dept:hover { background: linear-gradient(175deg, #D4E4FD, #C3D8FB); }   /* голубой, в тон листу куратора */
+.theme-digital .card-v2-multi__dept:hover {   /* голубая, со свечением и кромкой — как лист куратора */
+  background: linear-gradient(175deg, #D4E4FD, #BDD3FA);
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, .8), inset 0 0 0 1.2px rgba(255, 255, 255, .9), 0 8px 18px -8px rgba(40, 90, 180, .35);
+}
 .theme-digital .card-v2-multi__dept-text { font-size: 12px; font-weight: 700; line-height: 1.18; }
-.theme-digital .card-v2-multi__dept--link { box-shadow: inset 0 0 0 1.5px #3C83F6; padding-top: 5px; padding-bottom: 5px; }
+.theme-digital .card-v2-multi__dept--link { box-shadow: inset 0 0 0 1.5px #3C83F6, 0 1px 2px rgba(30, 40, 80, .06), 0 6px 14px -6px rgba(40, 52, 110, .18); padding-top: 5px; padding-bottom: 5px; }
+.theme-digital .card-v2-multi__dept--link:hover { box-shadow: inset 0 0 0 1.5px #3C83F6, inset 0 0 12px rgba(255, 255, 255, .8), 0 8px 18px -8px rgba(40, 90, 180, .35); }
 .theme-digital .card-v2-multi__dept--link .card-v2-multi__dept-text { line-height: 1.12; }
 
 /* ---------- Кнопка раскрытия — как на сайте (с количеством), в стиле листов ---------- */
