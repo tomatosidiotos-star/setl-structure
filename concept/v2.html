@@ -33,7 +33,7 @@ body { font-family: var(--f-body); color: #000; background: #fff; }
 
 /* ---------- Полотно ---------- */
 .canvas {
-  position: relative; height: 760px; border-radius: 28px; overflow: hidden;
+  position: relative; height: 760px; border-radius: 28px; overflow: hidden; overflow: clip;   /* clip — полотно не прокручивается (Safari прокручивал его к наклонённой карточке) */
   background: radial-gradient(120% 90% at 50% 0%, #FBFCFE 0%, #F2F5FA 60%, #EEF1F7 100%);
   perspective: 1800px;
 }
@@ -46,11 +46,11 @@ body { font-family: var(--f-body); color: #000; background: #fff; }
 
 .board {
   position: absolute; left: 50%; top: 50%; width: 1180px; height: 640px; margin: -330px 0 0 -590px;
-  transform-style: preserve-3d; transform: rotateX(10deg); will-change: transform;
+  transform: rotateX(10deg); will-change: transform;   /* в 3D наклоняется только полотно; внутри — плоско (Safari/Firefox) */
 }
 /* тетрадная сетка: едва видная, прозрачность неравномерная, по ней гуляет свет */
 .grid {
-  position: absolute; inset: -240px -320px; transform: translateZ(-1px);
+  position: absolute; inset: -240px -320px;
   background-image:
     linear-gradient(to right, rgba(76, 141, 246, .16) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(76, 141, 246, .16) 1px, transparent 1px);
@@ -73,12 +73,12 @@ body { font-family: var(--f-body); color: #000; background: #fff; }
 @keyframes shimmer { from { -webkit-mask-position: 100% 0; mask-position: 100% 0; } to { -webkit-mask-position: 0 100%; mask-position: 0 100%; } }
 
 /* территория ветки — мягкая полупрозрачная подложка под рядом подразделений */
-.terr { position: absolute; border-radius: 36px; transform: translateZ(1px);
+.terr { position: absolute; border-radius: 36px;
   background: linear-gradient(100deg, rgba(76, 141, 246, .10), rgba(242, 132, 63, .08) 55%, rgba(233, 71, 79, .09));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7); backdrop-filter: blur(2px); }
 
 /* ---------- Линии-трубки ---------- */
-.tubes { position: absolute; inset: 0; overflow: visible; transform: translateZ(2px); pointer-events: none; }
+.tubes { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
 .tubes .shadow { fill: none; stroke: rgba(40, 60, 110, .16); stroke-width: 9; filter: blur(4px); }
 .tubes .base { fill: none; stroke: #2F6FD6; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
 .tubes .body { fill: none; stroke: #5B9BF7; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
@@ -91,11 +91,11 @@ body { font-family: var(--f-body); color: #000; background: #fff; }
 @keyframes flow { to { stroke-dashoffset: -20; } }
 
 /* ---------- Карточка-папка ---------- */
-.node { position: absolute; transform-style: preserve-3d; transform: translateZ(18px); }
-.folder { position: relative; transform-style: preserve-3d; transition: transform .45s var(--ease), filter .45s var(--ease); }
+.node { position: absolute; }
+.folder { position: relative; transition: transform .45s var(--ease), filter .45s var(--ease); }
 .folder > svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.folder__in { position: relative; transform: translateZ(4px); color: #fff; }
-.node:hover > .folder, .sub:hover > .folder { transform: translateZ(14px) rotateX(-3deg) rotateY(4deg) scale(1.035); filter: saturate(1.15) hue-rotate(-8deg) brightness(1.03); }
+.folder__in { position: relative; color: #fff; }
+.node:hover > .folder, .sub:hover > .folder { transform: perspective(900px) translateY(-4px) rotateX(-3deg) rotateY(4deg) scale(1.035); filter: saturate(1.15) hue-rotate(-8deg) brightness(1.03); }
 
 .person { display: flex; align-items: center; gap: 12px; padding: 18px 18px 0; min-height: 76px; }
 .ava { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; overflow: hidden;
@@ -110,7 +110,7 @@ body { font-family: var(--f-body); color: #000; background: #fff; }
 
 /* подложка под названием отдела — матовое белое стекло с толщиной и свечением */
 .plate {
-  position: relative; margin: 14px 12px 14px; padding: 13px 14px 14px; border-radius: 16px; transform: translateZ(10px);
+  position: relative; margin: 14px 12px 14px; padding: 13px 14px 14px; border-radius: 16px;
   background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.86));
   backdrop-filter: blur(10px) saturate(1.3);
   box-shadow:
@@ -124,8 +124,8 @@ body { font-family: var(--f-body); color: #000; background: #fff; }
 .plate__go { position: absolute; right: 10px; top: 10px; width: 20px; height: 20px; color: #3C83F6; }
 
 /* наборная карточка: внутри — свои папки, приподнятые над подложкой */
-.subs { display: flex; gap: 12px; padding: 10px 12px 14px; transform-style: preserve-3d; }
-.sub { position: relative; transform-style: preserve-3d; transform: translateZ(12px); }
+.subs { display: flex; gap: 12px; padding: 10px 12px 14px; }
+.sub { position: relative; }
 
 @media (prefers-reduced-motion: reduce) {
   .blob, .grid::after, .tubes .flow { animation: none; }
