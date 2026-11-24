@@ -119,3 +119,9 @@
 }
 .theme-frost .fr-dots .fr-dot-hot.on { opacity: 1; transform: scale(1); }
 @media (prefers-reduced-motion: reduce) { .theme-frost #tree-svg .fr-flow { display: none; } }
+
+/* ---------- Отдел главнее ФИО: название крупнее, жирнее и тёмно-синее (люди — чёрные) ---------- */
+.theme-frost .card-v2-multi__dept { padding-top: 8px; padding-bottom: 8px; color: #1B3A6B; }   /* поля меньше — 3 строки крупного текста помещаются */
+.theme-frost .card-v2-multi__dept-text { font-size: 12px; font-weight: 700; line-height: 1.18; letter-spacing: -.005em; }
+.theme-frost .card-v2-multi__dept--link .card-v2-multi__dept-text { line-height: 1.12; }   /* над названием ещё силуэт города */
+.theme-frost .card-v2-multi__dept--link { padding-top: 5px; padding-bottom: 5px; }   /* силуэт + 2 строки крупного названия (в Firefox ещё рамка 2px) */
