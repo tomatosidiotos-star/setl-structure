@@ -40,11 +40,24 @@
     svg.setAttribute('class', 'dg-mat dg-mat--' + kind);
     svg.setAttribute('width', W); svg.setAttribute('height', H);
     const P = 8;   // задний лист выступает за передние по бокам и снизу — видно, что отделы лежат в папке куратора
-    svg.innerHTML = kind === 'back'
-      ? `<defs><linearGradient id="${id}" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#D4E4FD"/><stop offset="1" stop-color="#BDD3FA"/></linearGradient></defs>
-         <path d="${backD(W + 2 * P, H + P, 18, 14)}" transform="translate(${-P},0)" fill="url(#${id})"/>`
-      : `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FBFCFE"/></linearGradient></defs>
-         <path d="${frontD(W, H)}" fill="url(#${id})"/>`;
+    // кромка и внутреннее свечение, как в рефе: белое осветление вдоль краёв изнутри + тонкая светлая кромка
+    // (кромка — половина обводки внутри формы, обрезана по ней: читается как край стекла, не как контур)
+    const d = kind === 'back' ? backD(W + 2 * P, H + P, 18, 14) : frontD(W, H);
+    const shift = kind === 'back' ? `translate(${-P},0)` : '';
+    const fill = kind === 'back'
+      ? '<stop offset="0" stop-color="#D4E4FD"/><stop offset="1" stop-color="#BDD3FA"/>'
+      : '<stop offset="0" stop-color="#FBFCFF"/><stop offset="1" stop-color="#F0F3FA"/>';
+    const glow = kind === 'back' ? .55 : .95, rim = kind === 'back' ? .8 : 1;
+    svg.innerHTML = `<defs>
+        <linearGradient id="${id}" x1="0" y1="0" x2=".2" y2="1">${fill}</linearGradient>
+        <clipPath id="${id}c"><path d="${d}" transform="${shift}"/></clipPath>
+        <filter id="${id}b" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="4"/></filter>
+      </defs>
+      <path d="${d}" transform="${shift}" fill="url(#${id})"/>
+      <g clip-path="url(#${id}c)">
+        <path d="${d}" transform="${shift}" fill="none" stroke="#fff" stroke-width="14" opacity="${glow}" filter="url(#${id}b)"/>
+        <path d="${d}" transform="${shift}" fill="none" stroke="#fff" stroke-width="2.4" opacity="${rim}"/>
+      </g>`;
     el.insertBefore(svg, el.firstChild);
     el.classList.add('dg-done', 'dg-' + kind);
   }
