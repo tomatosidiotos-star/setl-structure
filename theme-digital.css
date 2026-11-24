@@ -89,9 +89,5 @@
   .theme-digital .dg-mat--front { transition: none; }
 }
 
-/* «прожектор» за курсором: проявляется при наведении и плавно гаснет */
-.theme-digital .dg-glare { opacity: 0; transition: opacity .35s ease; }
-.theme-digital .dg-lift .dg-glare { opacity: 1; }
 /* аватарка куратора — чуть меньше, чтобы не выпирала на низкой полосе листа */
 .theme-digital .card-v3__head-wrap .card-v2__photo { width: 26px; height: 26px; margin-top: 2px; }
-@media (prefers-reduced-motion: reduce) { .theme-digital .dg-glare { display: none; } }
