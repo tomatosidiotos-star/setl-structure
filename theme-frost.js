@@ -69,7 +69,7 @@
         <filter id="${id}b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
       </defs>
       <g filter="url(#${id}b)" opacity=".16"><g transform="translate(0,${T + 6})" fill="#1789BE">${shapes}</g></g>
-      <rect x="-4" y="0" width="${W + 8}" height="${H + T + 4}" fill="url(#${id}e)" opacity=".85" mask="url(#${id}m)"/>`;
+      <rect x="-4" y="0" width="${W + 8}" height="${H + T + 4}" fill="url(#${id}e)" mask="url(#${id}m)"/>`;
     root.insertBefore(under, root.firstChild);
     // лицевая сторона: HTML-слой, чтобы работало размытие фона (backdrop-filter), обрезан по силуэту
     const face = document.createElement('div');
