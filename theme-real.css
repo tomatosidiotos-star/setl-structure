@@ -131,6 +131,7 @@
 
 /* ---------- Кнопка раскрытия — в левом нижнем углу папки (по центру её перекрывал гвоздь с нитками) ---------- */
 .theme-real .fold-btn:not(.fold-btn--side) { left: 14px; right: auto; transform: none; }
+.theme-real .fold-btn.rl-fold-center { left: 50% !important; transform: translateX(-50%); }
 
 /* ---------- Листы в папке: при наведении выдвигается передний, за ним — задний ---------- */
 .theme-real .rl-sheet { transition: transform .5s cubic-bezier(.2, .85, .25, 1); }

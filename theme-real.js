@@ -202,7 +202,9 @@
   }
 
   /* ---------- Одеть отрисованное дерево ---------- */
+  const FOLD_AT = new Map();   // ключ сворачивания узла → центр ветвящейся папки (для свёрнутых веток, где ниток нет)
   function decorate() {
+    const siteLines = [...document.querySelectorAll('#tree-svg path[data-geom]')].map(p => JSON.parse(p.dataset.geom));
     const inner = document.getElementById('canvas-inner');
     if (!inner) return;
     const nodes = [...inner.querySelectorAll(':scope > .tree-node')];
@@ -232,9 +234,20 @@
       const folders = root.classList.contains('card-v3') ? [...root.querySelectorAll('.card-v3__sub')] : [root];
       const leftIn = el => { let x = 0; for (let e = el; e && e !== node; e = e.offsetParent) x += e.offsetLeft; return x; };
       node.querySelectorAll(':scope > .fold-btn:not(.fold-btn--side)').forEach(btn => {
-        const c = btn.style.left ? parseFloat(btn.style.left) : node.offsetWidth / 2;   // сайт: left = центр папки
+        // какая папка ветвится: сайт иногда даёт кнопке её центр (left), иначе — по ниткам к детям, иначе — запомненное место
+        let c = btn.style.left && !btn.dataset.rlMoved ? parseFloat(btn.style.left) : null;
+        if (c === null) {
+          const bottom = node.offsetTop + node.offsetHeight, x0 = node.offsetLeft;
+          const from = siteLines.find(g => Math.abs(g.py - bottom) < 14 && g.px >= x0 && g.px <= x0 + node.offsetWidth);
+          if (from) c = from.px - x0;
+        }
+        const key = node.dataset.foldKey || '';
+        if (c === null && FOLD_AT.has(key)) c = FOLD_AT.get(key);
+        if (c === null && folders.length === 1) c = node.offsetWidth / 2;
+        if (c === null) { btn.classList.add('rl-fold-center'); return; }   // не понять, чья ветка, — по центру, как на сайте
+        FOLD_AT.set(key, c);
         const f = folders.find(f => c >= leftIn(f) - 1 && c <= leftIn(f) + f.offsetWidth + 1) || root;
-        btn.style.left = (leftIn(f) + 14) + 'px';
+        btn.style.left = (leftIn(f) + 14) + 'px'; btn.dataset.rlMoved = '1';
       });
       // листы выдвигаются у той папки, на которую навели: у обычной карточки — она сама, у наборной — каждая папка
       const peekers = root.classList.contains('card-v3') ? [...root.querySelectorAll('.card-v3__sub')] : [root];
