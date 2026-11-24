@@ -141,3 +141,13 @@
 @media (prefers-reduced-motion: reduce) {
   .theme-real .rl-sheet, .theme-real .card-v2-multi__dept { transition: none; animation: none !important; }
 }
+
+/* ---------- Несколько руководителей одного отдела: папки рядом, отдел — алюминиевая табличка под ними ---------- */
+.theme-real .rl-multi .card-v2-multi__dept-wrap { padding: 8px 26px 4px; }   /* текст — внутри таблички, между гвоздями */
+.theme-real .rl-multi .card-v2-multi__dept,
+.theme-real .rl-multi .card-v2-multi__dept:hover {   /* гравировка на металле: без бумажной наклейки и без покачивания */
+  background: none; box-shadow: none; transform: none; animation: none;
+  color: #2f333a; text-shadow: 0 1px 0 rgba(255, 255, 255, .75);
+  font-size: 12px; padding: 0 4px;
+}
+.theme-real .rl-multi .card-v2-multi__dept:hover { color: #24479F; }

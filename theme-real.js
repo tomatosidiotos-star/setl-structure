@@ -78,8 +78,8 @@
       <rect x="3" y="2" width="${W - 6}" height="${H - 4}" rx="2" fill="#7a6a50" opacity=".1" transform="rotate(${a + 1.4} ${W / 2} 6)"/>
       <rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="2" fill="url(#${pp})" transform="rotate(${a} ${W / 2} 6)"/>`;
   }
-  function plaqueSVG(W) {   // табличка куратора: шлифованный металл, фаска, гвозди по краям
-    const y = 3, h = 42, k = ++seedN, mp = 'rlm' + k;
+  function plaqueSVG(W, y = 3, h = 42) {   // табличка: шлифованный металл, фаска, гвозди по краям
+    const k = ++seedN, mp = 'rlm' + k;
     return `<defs>${pattern(mp, 'metal.jpg', 360, 180, k)}</defs>
       <rect x="2" y="${y + 5}" width="${W - 4}" height="${h}" rx="6" fill="#20242c" opacity=".35" filter="url(#rlShadow)"/>
       <rect x="0" y="${y}" width="${W}" height="${h}" rx="6" fill="url(#${mp})"/>
@@ -216,7 +216,14 @@
         root.querySelectorAll('.card-v3__sub').forEach(sub =>
           dress(sub, sub.classList.contains('card-v3__sub--nodept') ? sheetSVG(sub.offsetWidth, sub.offsetHeight) : folderSVG(sub.offsetWidth, sub.offsetHeight)));
       } else {
-        dress(root, root.classList.contains('card-v2-multi--nodept') ? sheetSVG(root.offsetWidth, root.offsetHeight) : folderSVG(root.offsetWidth, root.offsetHeight));
+        const heads = [...root.querySelectorAll(':scope > .card-v2-multi__heads > .card-v2')];
+        const deptWrap = root.querySelector(':scope > .card-v2-multi__dept-wrap');
+        if (heads.length > 1 && deptWrap) {   // несколько руководителей одного отдела: у каждого своя папка, отдел — табличка под ними
+          root.classList.add('rl-multi');
+          const folders = heads.map(h => `<g transform="translate(${h.offsetLeft},0)">${folderSVG(h.offsetWidth, h.offsetHeight)}</g>`).join('');
+          dress(root, folders + plaqueSVG(root.offsetWidth, deptWrap.offsetTop + 8, deptWrap.offsetHeight - 12));
+        } else
+          dress(root, root.classList.contains('card-v2-multi--nodept') ? sheetSVG(root.offsetWidth, root.offsetHeight) : folderSVG(root.offsetWidth, root.offsetHeight));
       }
       root.querySelectorAll('.card-v2-mh__wrap .card-v2__photo').forEach((ph, j) => {
         if (!ph.closest('.v2-deps')) ph.style.setProperty('--rl-rot', ((rnd(i * 5 + j) - .6) * 9).toFixed(1) + 'deg');
