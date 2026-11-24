@@ -5,6 +5,7 @@
    — Клик по дирекции — её дерево объектов; клик по объекту — то же дерево, объект в центре и подсвечен.
    — Дерево объектов рисует обычная отрисовка сайта (buildTreeV2) по рыбным данным; карточки в нём
      перевёрнуты: объект сверху, ответственный снизу (класс .is-objects у #view-tree).
+   На основном сайте (index.html) раздел тот же, а деревья открываются на digital.html («Цифра»).
    Данные — РЫБА: настоящая база объектов придёт из отдельного источника. Где сидят дирекции —
    как в реальной структуре: Группа строительных компаний → Департамент строительства → Дирекции №1–4.
 ==================================================================== */
@@ -81,7 +82,14 @@
     document.getElementById('view-tree').classList.toggle('is-objects', isObj);
     return origOpen.apply(this, arguments);
   };
+  // деревья объектов показываем в стиле «Цифры»: на других страницах (основной сайт) — переход на digital.html
+  const DIGITAL = document.documentElement.classList.contains('theme-digital') || /digital\.html$/.test(location.pathname);
   function openDirection(d, objectName) {
+    if (!DIGITAL) {
+      location.href = 'digital.html' + (objectName ? '?obj=' + encodeURIComponent(objectName) : '')
+        + '#tree/' + CO + '/' + d.id + '/' + encodeURIComponent(d.name);
+      return;
+    }
     openTree(CO, d.id, d.name);
     if (!objectName) return;
     setTimeout(() => focusObject(objectName), 250);   // после отрисовки и «одевания» карточек
@@ -126,4 +134,7 @@
   const origRender = renderLanding;
   renderLanding = function () { origRender.apply(this, arguments); mountLanding(); };   // eslint-disable-line no-global-assign
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountLanding); else mountLanding();
+  // пришли с основного сайта по клику на объект (?obj=…) — когда дерево откроется, ставим объект в центр
+  const want = new URLSearchParams(location.search).get('obj');
+  if (want && DIGITAL) window.addEventListener('load', () => setTimeout(() => focusObject(want), 400));
 })();

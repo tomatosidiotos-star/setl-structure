@@ -2045,7 +2045,7 @@ body {
   </style>
   <link rel="stylesheet" href="print.css?v=20261109b"><!-- ?v= — версия: после обновления браузер берёт новый файл, а не кэш -->
 <link rel="stylesheet" href="theme-digital.css?v=9"><!-- концепт: тема «Цифра» для полотна -->
-<link rel="stylesheet" href="objects.css?v=7"><!-- концепт: табы «Сотрудники / Объекты» и структура объектов -->
+<link rel="stylesheet" href="objects.css?v=7"><!-- концепт: раздел «Объекты строительства» и структура объектов -->
 </head>
 <body>
 <div class="demo-layout">
@@ -6830,9 +6830,9 @@ buildGlobalSearchIndex();
 // дерево объектов (#tree/…/obj-…) откроется после objects.js — его откроет theme-digital.js, тут данных ещё нет
 if (!/^#tree\/[^/]+\/obj-/.test(location.hash)) restoreFromHash();
 </script>
-<script src="objects.js?v=2"></script>
+<script src="objects.js?v=3"></script>
 <script src="theme-digital.js?v=9"></script>
-<script src="version-switch.js?v=4"></script>
+<script src="version-switch.js?v=5"></script>
 <script src="custom-structure.js?v=20261027c"></script>
 <script type="module">
   // Печать — ES-модуль (тот же файл уходит на прод). Здесь без данных: демо берёт их со страницы
