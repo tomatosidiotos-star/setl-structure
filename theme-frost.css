@@ -15,11 +15,9 @@
 .theme-frost .fr-done .card-v2-mh__surface svg { visibility: hidden; }
 
 .theme-frost .fr-under { position: absolute; left: 0; top: 0; z-index: -2; overflow: visible; pointer-events: none; }
-.theme-frost .fr-face {
+.theme-frost .fr-face {   /* обычная карточка — непрозрачно белая; матовое стекло — только у подложки куратора (--curator) */
   position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none;
-  background: linear-gradient(170deg, rgba(255, 255, 255, .82) 0%, rgba(255, 255, 255, .62) 100%);
-  -webkit-backdrop-filter: blur(10px) saturate(1.15);
-          backdrop-filter: blur(10px) saturate(1.15);
+  background: #fff;
 }
 
 /* ---------- Плашка подразделения — голубоватое матовое стекло с лёгкой толщиной ---------- */
@@ -63,3 +61,34 @@
 .theme-frost .fr-peek > .fr-sheets .fr-sheet--1 { transform: translate(-3px, -50px) rotate(-5deg); }
 .theme-frost .fr-peek > .fr-sheets .fr-sheet--2 { transform: translate(-1px, -40px) rotate(6deg); transition-delay: .16s; }   /* задний — с задержкой */
 @media (prefers-reduced-motion: reduce) { .theme-frost .fr-sheet { transition: opacity .2s; } }
+
+/* ---------- Наведение: папка еле заметно поворачивается ---------- */
+.theme-frost .fr-done { transition: transform .6s cubic-bezier(.22, .9, .25, 1); transform-origin: 50% 60%; }
+.theme-frost .fr-peek { transform: rotate(-1.2deg); }
+.theme-frost .card-v3.fr-peek { transform: rotate(-.6deg); }   /* наборная широкая — поворот меньше, чтобы край не уходил далеко */
+
+/* ---------- Наведение на подложку отдела: плавное увеличение с мягким «доводом» ---------- */
+.theme-frost .card-v2-multi__dept {
+  transition: transform .5s cubic-bezier(.34, 1.45, .64, 1), background .25s ease;
+}
+.theme-frost .card-v2-multi__dept:hover { transform: scale(1.045); }
+
+/* ---------- Наборная: внешнее стекло (подложка куратора) — темнее-голубое, текст куратора белый ---------- */
+.theme-frost .fr-face--curator {
+  background: linear-gradient(170deg, rgba(86, 146, 236, .9) 0%, rgba(58, 118, 222, .86) 100%);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+          backdrop-filter: blur(10px) saturate(1.3);
+}
+.theme-frost .card-v3 .card-v3__name { color: #fff; }
+.theme-frost .card-v3 .card-v3__role { color: rgba(255, 255, 255, .82); }
+.theme-frost .card-v3__head-wrap:hover .card-v3__name,
+.theme-frost .card-v3__head-wrap:hover .card-v3__role { color: #DDEBFF; }
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-frost .fr-done, .theme-frost .card-v2-multi__dept { transition: none; }
+  .theme-frost .fr-peek, .theme-frost .card-v2-multi__dept:hover { transform: none; }
+}
+/* Firefox: внутренние тени у подложки при повороте/увеличении превращают её скругления в «пилюлю» —
+   там без них: блик и толщину заменяет рамка, у отдела-ссылки голубая рамка — обычная */
+.fr-ff.theme-frost .card-v2-multi__dept { box-shadow: none; border: 1px solid rgba(255, 255, 255, .9); border-bottom: 2px solid rgba(160, 196, 238, .7); }
+.fr-ff.theme-frost .card-v2-multi__dept--link { box-shadow: none; border: 2px solid var(--link-blue); }

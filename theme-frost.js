@@ -1,7 +1,8 @@
 /* ====================================================================
    Тема «Матовое стекло» для полотна структуры (концепт). Подключается на frost.html — копии
    сайта; фон, линии, карточки и анимации — сайта, без изменений, кроме:
-   — карточка: лёгкое утолщение (торец снизу), полупрозрачная, матовое стекло (размытие фона);
+   — карточка: лёгкое утолщение (торец снизу), непрозрачно белая; у наборной подложка куратора —
+     голубое матовое стекло, текст куратора белый;
    — плашка подразделения: голубоватое матовое стекло (theme-frost.css);
    — на концах линий — непрозрачные точки.
    Логику сайта не трогает: оборачивает buildTreeV2 и после отрисовки «одевает» карточки.
@@ -9,6 +10,8 @@
 ==================================================================== */
 (function () {
   document.documentElement.classList.add('theme-frost');
+  // Firefox искажает скругления подложек с внутренними тенями при повороте/увеличении — для него свои стили
+  if (/Firefox\//.test(navigator.userAgent)) document.documentElement.classList.add('fr-ff');
   const DEMO = new URLSearchParams(location.search).get('demo') === '3';
   const SVGNS = 'http://www.w3.org/2000/svg';
   const T = 4;   // толщина карточки, px
@@ -51,7 +54,7 @@
 
   /* ---------- Стекло: тень + торец (SVG) и матовая лицевая сторона (div с размытием фона) ---------- */
   let uid = 0;
-  function dress(root, exclude) {
+  function dress(root, exclude, curator) {   // curator — внешнее стекло наборной: темнее-голубое
     const shapes = pieces(root, exclude);
     if (!shapes) return;
     const W = root.offsetWidth, H = root.offsetHeight, id = 'fr' + (++uid);
@@ -62,7 +65,7 @@
         <clipPath id="${id}c">${shapes}</clipPath>
         <mask id="${id}m" maskUnits="userSpaceOnUse" x="-40" y="-40" width="${W + 80}" height="${H + 80}">
           <g transform="translate(0,${T})" fill="#fff">${shapes}</g><g fill="#000">${shapes}</g></mask>
-        <linearGradient id="${id}e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D6E6F8"/><stop offset="1" stop-color="#AFC9EA"/></linearGradient>
+        <linearGradient id="${id}e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${curator ? '#4F86D9' : '#D6E6F8'}"/><stop offset="1" stop-color="${curator ? '#3466B8' : '#AFC9EA'}"/></linearGradient>
         <filter id="${id}b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
       </defs>
       <g filter="url(#${id}b)" opacity=".16"><g transform="translate(0,${T + 6})" fill="#1789BE">${shapes}</g></g>
@@ -70,7 +73,7 @@
     root.insertBefore(under, root.firstChild);
     // лицевая сторона: HTML-слой, чтобы работало размытие фона (backdrop-filter), обрезан по силуэту
     const face = document.createElement('div');
-    face.className = 'fr-face';
+    face.className = 'fr-face' + (curator ? ' fr-face--curator' : '');
     face.style.width = W + 'px'; face.style.height = H + 'px';
     // обрезка по силуэту — маской-картинкой: clip-path: url() Chrome к размытию фона не применяет
     // (углы и вырез оставались прямоугольными), а маска режет и его
@@ -137,7 +140,7 @@
       const root = node.querySelector(':scope > .card-v2-multi, :scope > .card-v3');
       if (!root || root.classList.contains('fr-done')) return;
       if (root.classList.contains('card-v3')) {
-        dress(root, '.card-v3__sub');
+        dress(root, '.card-v3__sub', true);
         sheets(root, root.querySelector('.card-v3__header') || root);   // у наборной — только при наведении на шапку
         root.querySelectorAll('.card-v3__sub').forEach(sub => { dress(sub); sheets(sub, sub); });
       } else { dress(root); sheets(root, root); }
