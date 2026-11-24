@@ -36,7 +36,15 @@
     }
     return out.join('');
   }
-  const STOPS = ramp([[0, '#FF7A3D'], [.45, '#FF5B5B'], [.75, '#9C7BDC'], [1, '#6EC9F5']]);
+  // ?palette=kraft — крафт как у папок: от карамельного (снизу-слева) к светлому беж (вверх-вправо),
+  // текст тёмный; линии остаются голубыми, путь подсвечивается ярко-голубым
+  const KRAFT = new URLSearchParams(location.search).get('palette') === 'kraft';
+  if (KRAFT) document.documentElement.classList.add('gl-kraft');
+  const STOPS = KRAFT
+    ? ramp([[0, '#B5835A'], [.4, '#C49A6C'], [.75, '#D8B58A'], [1, '#EAD3B0']])
+    : ramp([[0, '#FF7A3D'], [.45, '#FF5B5B'], [.75, '#9C7BDC'], [1, '#6EC9F5']]);
+  const HOT_STOPS = KRAFT ? ramp([[0, '#2E8BE6'], [1, '#7FD3FA']]) : STOPS;
+  const SHADOW = KRAFT ? '#5a3a22' : '#4a2f6e', SIDE = KRAFT ? '#4a2c18' : '#3a1d52';
 
   /* ---------- Демо: блок 2 из трёх карточек ---------- */
   function trim(data) {
@@ -132,9 +140,9 @@
     let body;
     if (kind === 'jelly') {
       body = `
-        <g filter="url(#${id}b10)" opacity=".22"><rect x="6" y="${T + 10}" width="${W - 12}" height="${H}" rx="24" fill="#4a2f6e" clip-path="${clipSide}"/></g>
+        <g filter="url(#${id}b10)" opacity=".22"><rect x="6" y="${T + 10}" width="${W - 12}" height="${H}" rx="24" fill="${SHADOW}" clip-path="${clipSide}"/></g>
         <rect width="${W}" height="${H + T}" fill="url(#${id}g)" clip-path="${clipSide}"/>
-        <rect width="${W}" height="${H + T}" fill="#3a1d52" opacity=".16" clip-path="${clipSide}"/>
+        <rect width="${W}" height="${H + T}" fill="${SIDE}" opacity=".16" clip-path="${clipSide}"/>
         <g clip-path="${clip}">
           <rect width="${W}" height="${H}" fill="url(#${id}g)" opacity=".96"/>
           <rect width="${W}" height="${H}" fill="url(#${id}sss)"/>
@@ -144,7 +152,7 @@
         </g>`;
     } else {   // стеклянная оболочка наборной карточки: почти прозрачная, кольцо свечения внутри, широкий блик
       body = `
-        <g filter="url(#${id}b10)" opacity=".14"><rect x="8" y="${T + 12}" width="${W - 16}" height="${H}" rx="24" fill="#4a2f6e" clip-path="${clipSide}"/></g>
+        <g filter="url(#${id}b10)" opacity=".14"><rect x="8" y="${T + 12}" width="${W - 16}" height="${H}" rx="24" fill="${SHADOW}" clip-path="${clipSide}"/></g>
         <rect width="${W}" height="${H + T}" fill="#fff" opacity=".45" clip-path="${clipSide}"/>
         <g clip-path="${clip}">
           <rect width="${W}" height="${H}" fill="#fff" opacity=".5"/>
@@ -162,7 +170,7 @@
   function tubeDefs(svg) {
     const defs = document.createElementNS(SVGNS, 'defs');
     defs.innerHTML = `
-      <linearGradient id="glHotGrad" gradientUnits="userSpaceOnUse" x1="${bbox.x}" y1="${bbox.y + bbox.h}" x2="${bbox.x + bbox.w}" y2="${bbox.y}">${STOPS}</linearGradient>
+      <linearGradient id="glHotGrad" gradientUnits="userSpaceOnUse" x1="${bbox.x}" y1="${bbox.y + bbox.h}" x2="${bbox.x + bbox.w}" y2="${bbox.y}">${HOT_STOPS}</linearGradient>
       <filter id="glTube" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
         <feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="b"/>
         <feSpecularLighting in="b" surfaceScale="2.6" specularConstant=".85" specularExponent="22" lighting-color="#ffffff" result="s"><feDistantLight azimuth="235" elevation="48"/></feSpecularLighting>
