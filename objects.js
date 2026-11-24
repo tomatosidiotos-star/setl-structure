@@ -1,8 +1,7 @@
 /* ====================================================================
    «Объекты» — вторая структура (концепт, на странице «Цифра» — digital.html).
-   — На главной под советом директоров — табы «Сотрудники / Объекты» (красные, корешки как у листов «Цифры»).
-     «Сотрудники» — главная как есть; «Объекты» — каталог: поиск + дирекции департамента строительства
-     со списками объектов.
+   — На главной внизу, под компаниями, — раздел «Объекты строительства»: дирекции департамента строительства,
+     в карточке — объекты 2-го уровня (вложенные — только в дереве). Поиск — общий, отдельного нет.
    — Клик по дирекции — её дерево объектов; клик по объекту — то же дерево, объект в центре и подсвечен.
    — Дерево объектов рисует обычная отрисовка сайта (buildTreeV2) по рыбным данным; карточки в нём
      перевёрнуты: объект сверху, ответственный снизу (класс .is-objects у #view-tree).
@@ -74,7 +73,6 @@
       persons: d.objects,
     };
   });
-  const flat = list => list.flatMap(o => [o, ...flat(o.children || [])]);
 
   /* ---------- Дерево объектов: перевёрнутые карточки, найденный объект — в центре и подсвечен ---------- */
   const origOpen = openTree;
@@ -99,70 +97,32 @@
     plate.classList.remove('obj-found'); void plate.offsetWidth; plate.classList.add('obj-found');
   }
 
-  /* ---------- Главная: табы и каталог ---------- */
-  let tab = 'people';
+  /* ---------- Главная: раздел «Объекты строительства» под компаниями ---------- */
+  // дирекции департамента строительства; в карточке — только объекты 2-го уровня (вложенные — в дереве)
   function mountLanding() {
-    const view = document.getElementById('view-landing'), dirs = document.getElementById('directors-row');
-    if (!view || !dirs || view.querySelector('.obj-tabs')) return;
-    const tabs = document.createElement('div');
-    tabs.className = 'obj-tabs';
-    tabs.setAttribute('role', 'tablist');
-    tabs.innerHTML = `<button class="obj-tab" role="tab" data-tab="people">Сотрудники</button><button class="obj-tab" role="tab" data-tab="objects">Объекты</button>`;
-    dirs.after(tabs);
-    const panel = document.createElement('div');
+    const view = document.getElementById('view-landing'), companies = document.getElementById('companies-row');
+    if (!view || !companies || view.querySelector('.obj-panel')) return;
+    const panel = document.createElement('section');
     panel.className = 'obj-panel';
-    panel.innerHTML = `
-      <div class="lnd-search-wrap obj-search">
-        <input type="text" class="lnd-search-input" id="obj-search" placeholder="Найти объект или дирекцию" autocomplete="off">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="lnd-search-icon"><circle cx="6.5" cy="6.5" r="4" stroke="#7c7c7c" stroke-width="1.5"/><line x1="9.5" y1="9.5" x2="13.5" y2="13.5" stroke="#7c7c7c" stroke-width="1.5" stroke-linecap="round"/></svg>
-      </div>
-      <div class="obj-section">Департамент строительства</div>
-      <div class="obj-grid"></div>
-      <div class="obj-empty" hidden>Ничего не нашлось</div>`;
-    tabs.after(panel);
+    panel.innerHTML = `<h2 class="obj-section">Объекты строительства</h2><div class="obj-grid"></div>`;
+    companies.after(panel);
     const grid = panel.querySelector('.obj-grid');
     DIRS.forEach(d => {
       const card = document.createElement('div');
       card.className = 'obj-card';
-      card.dataset.dir = d.id;
       card.innerHTML = `
         <button class="obj-card__head" type="button">
           <span class="obj-card__title">${d.name}</span>
           <span class="obj-card__lead"><span class="obj-ava">${initials(d.head.name)}</span>${d.head.name}</span>
         </button>
-        <div class="obj-chips">${flat(d.objects).map(o => `<button class="obj-chip${(o.children || []).length ? '' : ''}" type="button" data-name="${o.dept.name.replace(/"/g, '&quot;')}">${o.dept.name}</button>`).join('')}</div>`;
+        <div class="obj-chips">${d.objects.map(o => `<button class="obj-chip" type="button" data-name="${o.dept.name.replace(/"/g, '&quot;')}">${o.dept.name}</button>`).join('')}</div>`;
       card.querySelector('.obj-card__head').addEventListener('click', () => openDirection(d));
       card.querySelectorAll('.obj-chip').forEach(c => c.addEventListener('click', () => openDirection(d, c.dataset.name)));
       grid.appendChild(card);
     });
-    tabs.addEventListener('click', e => { const b = e.target.closest('.obj-tab'); if (b) setTab(b.dataset.tab); });
-    panel.querySelector('#obj-search').addEventListener('input', e => filter(e.target.value));
-    setTab(tab);
-  }
-  function setTab(t) {
-    tab = t;
-    const view = document.getElementById('view-landing');
-    view.classList.toggle('obj-mode', t === 'objects');
-    view.querySelectorAll('.obj-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
-  }
-  function filter(q) {
-    q = q.trim().toLowerCase();
-    let any = false;
-    document.querySelectorAll('.obj-card').forEach(card => {
-      const d = DIRS.find(x => x.id === card.dataset.dir);
-      const dirHit = !q || d.name.toLowerCase().includes(q) || d.head.name.toLowerCase().includes(q);
-      let chipHit = false;
-      card.querySelectorAll('.obj-chip').forEach(c => {
-        const hit = !!q && c.dataset.name.toLowerCase().includes(q);
-        c.classList.toggle('is-hit', hit); chipHit = chipHit || hit;
-      });
-      const show = dirHit || chipHit;
-      card.hidden = !show; any = any || show;
-    });
-    document.querySelector('.obj-empty').hidden = any;
   }
 
-  // главная перерисовывается при каждом возврате — табы и каталог живут рядом с её рядами, их не трогает
+  // главная перерисовывается при каждом возврате — раздел живёт рядом с её рядами, их перерисовка его не трогает
   const origRender = renderLanding;
   renderLanding = function () { origRender.apply(this, arguments); mountLanding(); };   // eslint-disable-line no-global-assign
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountLanding); else mountLanding();
