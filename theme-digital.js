@@ -1,0 +1,135 @@
+/* ====================================================================
+   Тема «Цифра» для полотна структуры (концепт, вариант 3): спокойный «рабочий» digital.
+   Подключается на digital.html — копии сайта; меняет только полотно.
+   Форма — папка из двух листов:
+   — передний лист (с невысокой ступенькой справа сверху) — сама карточка;
+   — задний лист (с язычком слева) — куратор: на нём лежат передние листы его отделов.
+   Линии — тонкие серые с цветными точками-портами; на наведении путь до верха подсвечивается.
+   Логику сайта не трогает: оборачивает buildTreeV2 и после отрисовки «одевает» карточки.
+   ?demo=3 — «Строительный блок 2» урезан до трёх карточек
+==================================================================== */
+(function () {
+  document.documentElement.classList.add('theme-digital');
+  const DEMO = new URLSearchParams(location.search).get('demo') === '3';
+  const SVGNS = 'http://www.w3.org/2000/svg';
+
+  function trim(data) {
+    const d = JSON.parse(JSON.stringify(data));
+    d.persons = d.persons.filter(p => p.id === 'v2-pokr' || p.id === 'v2-ersh');
+    d.persons.forEach(p => { delete p.children; delete p.childBlock; (p.nested || []).forEach(n => { delete n.children; delete n.childBlock; }); });
+    return d;
+  }
+
+  /* ---------- Формы листов ---------- */
+  // передний лист: слева верх выше, на ~62% ширины — плавная ступенька вниз
+  function frontD(W, H, r = 16, s = 10) {
+    const a = Math.round(W * .62), b = a + 20;
+    return `M0,${r} Q0,0 ${r},0 H${a} C${a + 10},0 ${b - 10},${s} ${b},${s} H${W - r} Q${W},${s} ${W},${s + r}`
+      + ` V${H - r} Q${W},${H} ${W - r},${H} H${r} Q0,${H} 0,${H - r} Z`;
+  }
+  // задний лист: язычок слева сверху, справа — ниже на s
+  function backD(W, H, r = 16, s = 12) {
+    const t = Math.round(Math.min(W * .42, 260)), b = t + 24;
+    return `M0,${r} Q0,0 ${r},0 H${t} C${t + 12},0 ${b - 12},${s} ${b},${s} H${W - r} Q${W},${s} ${W},${s + r}`
+      + ` V${H - r} Q${W},${H} ${W - r},${H} H${r} Q0,${H} 0,${H - r} Z`;
+  }
+  let uid = 0;
+  function dress(el, kind) {
+    const W = el.offsetWidth, H = el.offsetHeight, id = 'dg' + (++uid);
+    const svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('class', 'dg-mat dg-mat--' + kind);
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    const P = 8;   // задний лист выступает за передние по бокам и снизу — видно, что отделы лежат в папке куратора
+    svg.innerHTML = kind === 'back'
+      ? `<defs><linearGradient id="${id}" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#E1E7F6"/><stop offset="1" stop-color="#D2DAF0"/></linearGradient></defs>
+         <path d="${backD(W + 2 * P, H + P, 18, 14)}" transform="translate(${-P},0)" fill="url(#${id})"/>`
+      : `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FBFCFE"/></linearGradient></defs>
+         <path d="${frontD(W, H)}" fill="url(#${id})"/>`;
+    el.insertBefore(svg, el.firstChild);
+    el.classList.add('dg-done', 'dg-' + kind);
+  }
+
+  /* ---------- Точки-порты на концах линий ---------- */
+  function dots() {
+    const inner = document.getElementById('canvas-inner'), svg = document.getElementById('tree-svg');
+    inner.querySelectorAll(':scope > .dg-dots').forEach(n => n.remove());
+    const seen = new Set(), out = [];
+    const put = (x, y) => { const k = Math.round(x) + ',' + Math.round(y); if (!seen.has(k)) { seen.add(k); out.push(`<circle cx="${x}" cy="${y}" r="3"/>`); } };
+    svg.querySelectorAll('path[data-geom]').forEach(p => { const g = JSON.parse(p.dataset.geom); put(g.px, g.py); put(g.cx, g.cy); });
+    const layer = document.createElementNS(SVGNS, 'svg');
+    layer.setAttribute('class', 'dg-dots' + (rebuilding ? ' dg-dots--wait' : ''));
+    layer.innerHTML = out.join('');
+    inner.appendChild(layer);
+    if (rebuilding) setTimeout(() => layer.classList.remove('dg-dots--wait'), 460);   // после перестройки линий — проявляются
+  }
+
+  /* ---------- Подсветка пути до верха ---------- */
+  function chainFor(node) {
+    const inner = document.getElementById('canvas-inner'), svg = document.getElementById('tree-svg');
+    const nodes = [...inner.querySelectorAll(':scope > .tree-node')], out = [];
+    let cur = node;
+    for (let guard = 0; cur && guard < 30; guard++) {
+      const key = v2NodeKey(cur), line = key && svg.querySelector(`path[data-key="${CSS.escape(key)}"]`);
+      if (!line) break;
+      out.push(line);
+      const g = JSON.parse(line.dataset.geom || '{}');
+      cur = nodes.find(n => n !== cur && g.px >= n.offsetLeft - 1 && g.px <= n.offsetLeft + n.offsetWidth + 1
+        && g.py >= n.offsetTop - 1 && g.py <= n.offsetTop + n.offsetHeight + 4);
+    }
+    return out;
+  }
+  let hot = [];
+  function highlight(node) {
+    const svg = document.getElementById('tree-svg'), dl = document.querySelector('#canvas-inner > .dg-dots');
+    const old = hot; hot = [];
+    old.forEach(el => el.classList.remove('on'));
+    setTimeout(() => old.forEach(el => el.remove()), 300);
+    const chain = node ? chainFor(node) : [];
+    svg.classList.toggle('dg-dim', chain.length > 0);
+    chain.forEach(p => {
+      const c = p.cloneNode(); c.removeAttribute('data-key'); c.setAttribute('class', 'dg-hot');
+      svg.appendChild(c); hot.push(c);
+      if (dl) {
+        const g = JSON.parse(p.dataset.geom);
+        [[g.px, g.py], [g.cx, g.cy]].forEach(([x, y]) => {
+          const d = document.createElementNS(SVGNS, 'circle');
+          d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('r', 3.5); d.setAttribute('class', 'dg-dot-hot');
+          dl.appendChild(d); hot.push(d);
+        });
+      }
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => hot.forEach(el => el.classList.add('on'))));
+  }
+
+  /* ---------- Одеть отрисованное дерево ---------- */
+  function decorate() {
+    const inner = document.getElementById('canvas-inner');
+    if (!inner) return;
+    inner.querySelectorAll(':scope > .tree-node').forEach(node => {
+      const root = node.querySelector(':scope > .card-v2-multi, :scope > .card-v3');
+      if (!root || root.classList.contains('dg-done')) return;
+      if (root.classList.contains('card-v3')) {   // куратор — задний лист, его отделы — передние листы на нём
+        dress(root, 'back');
+        root.querySelectorAll('.card-v3__sub').forEach(sub => dress(sub, 'front'));
+      } else dress(root, 'front');
+      node.addEventListener('pointerenter', () => highlight(node));
+      node.addEventListener('pointerleave', () => highlight(null));
+    });
+    dots();
+  }
+
+  /* ---------- Подключение ---------- */
+  let rebuilding = false;
+  const origBuild = buildTreeV2;
+  buildTreeV2 = function (data) {   // eslint-disable-line no-global-assign
+    if (DEMO && data === ORG_DATA.trees.construction2) data = trim(data);
+    origBuild(data);
+    requestAnimationFrame(() => { decorate(); rebuilding = false; });
+  };
+  // при раскрытии/сворачивании линии сайта перетекают ~420 мс — точки на это время прячем, потом проявляем
+  if (typeof v2Rebuild === 'function') {
+    const origRebuild = v2Rebuild;
+    v2Rebuild = function (...a) { rebuilding = true; return origRebuild.apply(this, a); };   // eslint-disable-line no-global-assign
+  }
+  if (document.getElementById('view-tree') && location.hash.startsWith('#tree/')) restoreFromHash();
+})();

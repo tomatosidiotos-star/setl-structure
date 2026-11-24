@@ -1,0 +1,76 @@
+/* ====================================================================
+   Тема «Цифра» для полотна структуры (концепт, вариант 3). Подключена на digital.html.
+   Светлый холодный фон с точечной сеткой, листы-папки без обводок с мягкими тенями,
+   тонкие серые линии с цветными портами, подсветка пути одним акцентом
+==================================================================== */
+
+/* ---------- Фон: светлый холодный градиент в сиреневый, едва заметная точечная сетка ---------- */
+.theme-digital .canvas-wrapper {
+  background-color: #EEF1F8;
+  background-image:
+    radial-gradient(circle, rgba(120, 132, 176, .22) 1px, transparent 1.2px),
+    radial-gradient(80% 70% at 85% 0%, rgba(214, 205, 245, .55), rgba(214, 205, 245, 0) 70%),
+    linear-gradient(160deg, #F4F6FC 0%, #ECEFF8 55%, #EEEAF7 100%);
+  background-size: 22px 22px, auto, auto;
+}
+
+/* ---------- Листы: родная белая сборка прозрачная, под ней — форма листа ---------- */
+.theme-digital .card-v2-multi, .theme-digital .card-v3, .theme-digital .card-v3__sub { filter: none; position: relative; z-index: 0; }
+.theme-digital .dg-done .card-v2-mh__wrap, .theme-digital .dg-done .card-v2-mh__body, .theme-digital .dg-done .card-v3__head-wrap,
+.theme-digital .dg-done .card-v3__cards, .theme-digital .dg-done .card-v2-multi__dept-wrap {
+  background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+}
+.theme-digital .dg-done .card-v2-mh__surface svg { visibility: hidden; }
+.theme-digital .dg-mat { position: absolute; left: 0; top: 0; z-index: -1; overflow: visible; pointer-events: none; }
+.theme-digital .dg-mat--front {   /* мягкие многослойные тени, без обводок */
+  filter: drop-shadow(0 1px 1.5px rgba(30, 40, 80, .07)) drop-shadow(0 8px 18px rgba(40, 52, 110, .10)) drop-shadow(0 22px 34px rgba(40, 52, 110, .08));
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), filter .25s ease;
+}
+.theme-digital .dg-mat--back { filter: drop-shadow(0 1px 1.5px rgba(30, 40, 80, .06)) drop-shadow(0 10px 24px rgba(40, 52, 110, .10)); }
+/* наведение: передний лист чуть приподнимается */
+.theme-digital .tree-node:hover > .card-v2-multi > .dg-mat--front,
+.theme-digital .card-v3__sub:hover > .dg-mat--front {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 2px 2px rgba(30, 40, 80, .08)) drop-shadow(0 12px 24px rgba(40, 52, 110, .14)) drop-shadow(0 28px 40px rgba(40, 52, 110, .10));
+}
+
+/* ---------- Текст ---------- */
+.theme-digital .card-v2__name { color: #171B26; }
+.theme-digital .card-v2__role { color: #8A90A2; }
+.theme-digital .card-v2__photo { box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(40, 52, 110, .18); }
+/* куратор — на заднем листе */
+.theme-digital .card-v3__name { color: #171B26; }
+.theme-digital .card-v3__role { color: #7C8397; }
+
+/* ---------- Подложка отдела: светлая плашка, название — главное (крупно, тёмно-синим) ---------- */
+.theme-digital .card-v2-multi__dept {
+  background: #F1F4FA; border: 0; border-radius: 12px; color: #1B3A6B;
+  padding-top: 8px; padding-bottom: 8px;
+  transition: background .2s ease;
+}
+.theme-digital .card-v2-multi__dept:hover { background: #E7EEFC; }
+.theme-digital .card-v2-multi__dept-text { font-size: 12px; font-weight: 700; line-height: 1.18; }
+.theme-digital .card-v2-multi__dept--link { box-shadow: inset 0 0 0 1.5px #3C83F6; padding-top: 5px; padding-bottom: 5px; }
+.theme-digital .card-v2-multi__dept--link .card-v2-multi__dept-text { line-height: 1.12; }
+
+/* ---------- Кнопка раскрытия — как на сайте (с количеством), в стиле листов ---------- */
+.theme-digital .fold-btn {
+  border: 0; border-radius: 8px; background: #fff; color: #3C83F6;
+  box-shadow: 0 1px 2px rgba(30, 40, 80, .10), 0 4px 10px rgba(40, 52, 110, .14);
+}
+.theme-digital .fold-btn:hover { background: #3C83F6; color: #fff; }
+
+/* ---------- Линии: тонкие серые; порты — синие точки ---------- */
+.theme-digital #tree-svg path { stroke: #B6BDD0 !important; stroke-width: 1.3px !important; transition: opacity .25s ease; }
+.theme-digital #tree-svg.dg-dim path:not(.dg-hot) { opacity: .45; }
+.theme-digital #tree-svg .dg-hot { stroke: #EC4F86 !important; stroke-width: 2px !important; opacity: 0; transition: opacity .25s ease; }
+.theme-digital #tree-svg .dg-hot.on { opacity: 1; }
+.theme-digital .dg-dots { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; z-index: 1; transition: opacity .25s ease; }
+.theme-digital .dg-dots--wait { opacity: 0; transition: none; }
+.theme-digital .dg-dots circle { fill: #3C83F6; stroke: #fff; stroke-width: 1.5; }
+.theme-digital .dg-dots .dg-dot-hot { fill: #EC4F86; opacity: 0; transition: opacity .25s ease; }
+.theme-digital .dg-dots .dg-dot-hot.on { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-digital .dg-mat--front { transition: none; }
+}
