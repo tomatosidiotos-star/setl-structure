@@ -1,0 +1,41 @@
+/* ====================================================================
+   Тема «Матовое стекло» для полотна структуры (концепт). Подключена на frost.html.
+   Фон и линии — сайта. Карточки — те же, но белая сборка становится полупрозрачным
+   матовым стеклом с лёгким утолщением; плашки подразделений — голубоватое матовое стекло
+==================================================================== */
+
+/* фильтр-тень у карточек сайта мешает размытию фона под стеклом — тень рисует theme-frost.js */
+.theme-frost .card-v2-multi, .theme-frost .card-v3, .theme-frost .card-v3__sub { filter: none; position: relative; z-index: 0; }
+
+/* родная белая сборка — прозрачная, вместо неё одна сплошная поверхность по силуэту */
+.theme-frost .fr-done .card-v2-mh__wrap, .theme-frost .fr-done .card-v2-mh__body, .theme-frost .fr-done .card-v3__head-wrap,
+.theme-frost .fr-done .card-v3__cards, .theme-frost .fr-done .card-v2-multi__dept-wrap {
+  background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+}
+.theme-frost .fr-done .card-v2-mh__surface svg { visibility: hidden; }
+
+.theme-frost .fr-under { position: absolute; left: 0; top: 0; z-index: -2; overflow: visible; pointer-events: none; }
+.theme-frost .fr-face {
+  position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(170deg, rgba(255, 255, 255, .82) 0%, rgba(255, 255, 255, .62) 100%);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+          backdrop-filter: blur(10px) saturate(1.15);
+}
+
+/* ---------- Плашка подразделения — голубоватое матовое стекло с лёгкой толщиной ---------- */
+.theme-frost .card-v2-multi__dept {
+  background: linear-gradient(175deg, rgba(222, 238, 255, .78) 0%, rgba(200, 224, 252, .62) 100%);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3);
+          backdrop-filter: blur(8px) saturate(1.3);
+  border-color: rgba(255, 255, 255, .75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 2px 0 rgba(150, 190, 236, .55);
+}
+.theme-frost .card-v2-multi__dept:hover, .theme-frost .card-v2-multi__dept.hl {
+  background: linear-gradient(175deg, rgba(208, 230, 255, .9) 0%, rgba(186, 216, 252, .8) 100%) !important;
+}
+/* отдел-ссылка: голубая рамка сайта остаётся, к ней — та же толщина */
+.theme-frost .card-v2-multi__dept--link { box-shadow: inset 0 0 0 2px var(--link-blue), 0 2px 0 rgba(150, 190, 236, .55); }
+
+/* ---------- Точки на концах линий: непрозрачные, цвета линий; над карточками, под кнопкой сворачивания ---------- */
+.theme-frost .fr-dots { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; z-index: 1; }
+.theme-frost .fr-dots circle { fill: var(--canvas-line); }
