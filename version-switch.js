@@ -17,7 +17,9 @@
   const css = document.createElement('style');
   css.textContent = `
     /* описание блока на этих страницах не показываем — на его месте переключатель */
-    .vs-on #tv-desc, .vs-on #btn-block-more { display: none !important; }
+    .vs-on #view-tree:not(.is-custom) #tv-desc, .vs-on #view-tree:not(.is-custom) #btn-block-more { display: none !important; }
+    /* экран «Структура» (кнопка на главной) — без версий: переключатель там не показываем */
+    #view-tree.is-custom .ver-switch { display: none; }
     /* кнопки небольшие — справа от названия при любой ширине (сайт на узком переносит описание под название) */
     .vs-on .tv-head { flex-direction: row !important; align-items: center !important; flex-wrap: wrap; }
     .vs-on .tv-head__desc { flex: 0 0 auto; padding-left: 0 !important; margin-left: auto; align-items: flex-end; justify-content: center; }
