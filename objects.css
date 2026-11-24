@@ -1,0 +1,87 @@
+/* ====================================================================
+   «Объекты» (концепт, digital.html): табы на главной, каталог дирекций и объектов,
+   перевёрнутые карточки в дереве объектов. Логика — objects.js
+==================================================================== */
+
+/* ---------- Табы «Сотрудники / Объекты»: красные корешки на линии, как язычки листов «Цифры» ---------- */
+.obj-tabs {
+  display: flex; align-items: flex-end; gap: 6px;
+  margin-top: 40px; padding-left: 2px;
+  border-bottom: 2px solid #E2221C;
+}
+.obj-tab {
+  position: relative; height: 40px; padding: 0 14px 0 20px; margin-right: 22px;
+  border: 0; border-radius: 12px 0 0 0; cursor: pointer;
+  background: #FCE4E3; color: #D33831;
+  font-family: var(--f-exp); font-weight: 600; font-size: 16px; line-height: 1;
+  transition: background .2s ease, color .2s ease;
+}
+.obj-tab::after {   /* скос справа — как ступенька у язычка папки */
+  content: ''; position: absolute; top: 0; right: -22px; width: 24px; height: 40px; background: inherit;
+  clip-path: path('M0,0 C9,0 11,6 14,16 C17,28 18,40 24,40 L0,40 Z');
+}
+.obj-tab:hover { background: #FAD3D1; }
+.obj-tab[aria-selected="true"] { background: #E2221C; color: #fff; cursor: default; }
+
+/* ---------- Что видно под табами ---------- */
+.obj-panel { display: none; }
+#view-landing.obj-mode .obj-panel { display: block; }
+#view-landing.obj-mode #bo-landing, #view-landing.obj-mode #companies-row { display: none; }
+#view-landing:not(.obj-mode) .obj-tabs + .obj-panel + #bo-landing { margin-top: 24px; }
+
+/* ---------- Каталог: поиск, дирекции, объекты ---------- */
+.obj-search { margin-top: 24px; max-width: 560px; }
+.obj-section { margin: 28px 0 12px; font-family: var(--f-exp); font-weight: 600; font-size: 20px; color: var(--black); }
+.obj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.obj-card {
+  background: #fff; border-radius: 20px; padding: 6px;
+  box-shadow: 0 1px 2px rgba(30, 40, 80, .06), 0 10px 24px -10px rgba(40, 52, 110, .18);
+  display: flex; flex-direction: column;
+}
+.obj-card[hidden] { display: none; }
+.obj-card__head {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left;
+  padding: 14px 14px 12px; border: 0; border-radius: 14px; background: #F1F4FA; cursor: pointer;
+  transition: background .2s ease;
+}
+.obj-card__head:hover { background: linear-gradient(175deg, #D4E4FD, #C3D8FB); }
+.obj-card__title { font-family: var(--f-exp); font-weight: 700; font-size: 16px; line-height: 1.2; color: #1B3A6B; }
+.obj-card__lead { display: inline-flex; align-items: center; gap: 8px; font-family: var(--f-exp); font-size: 13px; color: #4a5063; }
+.obj-ava {
+  width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  background: #E4E8F2; color: #5a6072; font-size: 9px; font-weight: 600;
+}
+.obj-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 8px 10px; }
+.obj-chip {
+  border: 0; border-radius: 10px; padding: 7px 11px; cursor: pointer; text-align: left;
+  background: #F5F6FA; color: #2a2f3d; font-family: var(--f-exp); font-size: 12.5px; line-height: 1.25;
+  transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.obj-chip:hover { background: #E7EEFC; color: #1B3A6B; }
+.obj-chip.is-hit { background: #3C83F6; color: #fff; box-shadow: 0 4px 12px -4px rgba(60, 131, 246, .55); }
+.obj-empty { margin-top: 16px; font-family: var(--f-exp); color: #7c7c7c; }
+
+/* ---------- Дерево объектов: карточка перевёрнута — объект сверху, ответственный снизу в строку ---------- */
+#view-tree.is-objects .card-v2-multi { flex-direction: column-reverse; }
+#view-tree.is-objects .card-v2-multi .card-v2 { flex-direction: row; align-items: center; }
+#view-tree.is-objects .card-v2-multi .card-v2-mh__header { width: auto; align-self: center; }
+#view-tree.is-objects .card-v2-multi .card-v2-mh__wrap { padding: 0 0 0 14px; height: auto; flex: none; }
+#view-tree.is-objects .card-v2-multi .card-v2-mh__surface { display: none; }
+#view-tree.is-objects .card-v2-multi .card-v2-mh__body { margin-top: 0; padding: 0 14px 0 10px; justify-content: center; }
+#view-tree.is-objects .card-v2-multi .card-v2-mh__text { flex: none; }
+#view-tree.is-objects .card-v2-multi__dept-wrap { border-radius: 20px 20px 0 0; }
+/* версии «Мульт / Игра» для объектов не собраны — переключатель в дереве объектов не показываем */
+#view-tree.is-objects .ver-switch { display: none; }
+
+/* найденный объект — мягкая голубая вспышка вокруг плашки */
+#view-tree .card-v2-multi__dept.obj-found { animation: obj-found 2.4s ease-out 1; }
+@keyframes obj-found {
+  0%   { box-shadow: 0 0 0 0 rgba(60, 131, 246, .0); }
+  15%  { box-shadow: 0 0 0 4px rgba(60, 131, 246, .55), 0 0 22px 4px rgba(60, 131, 246, .35); }
+  100% { box-shadow: 0 0 0 10px rgba(60, 131, 246, 0), 0 0 22px 4px rgba(60, 131, 246, 0); }
+}
+
+/* поле поиска в каталоге — белое: каталог стоит прямо на сером фоне страницы, без белой подложки */
+.obj-search.lnd-search-wrap { background: #fff; box-shadow: 0 1px 2px rgba(30, 40, 80, .05), 0 6px 16px -8px rgba(40, 52, 110, .16); }
+/* в дереве объектов юридические лица холдинга ни к чему */
+#view-tree.is-objects #btn-legal-open { display: none !important; }
