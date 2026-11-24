@@ -133,6 +133,9 @@
     inner.appendChild(root);
     layer = { root, threads: root.firstChild, nails: root.lastChild };
     const lines = [...svg.querySelectorAll('path[data-key]')].map(p => ({ key: p.dataset.key, g: JSON.parse(p.dataset.geom || '{}') }));
+    // гвоздь у верхнего края карточки-ребёнка; у наборной табличка поднята на 10px — гвоздь выше
+    const plaqueKeys = new Set([...inner.querySelectorAll(':scope > .tree-node')].filter(n => n.querySelector(':scope > .card-v3')).map(v2NodeKey));
+    const topPin = key => plaqueKeys.has(key) ? -3 : 7;
     const nails = new Map(), pin = (x, y, r) => nails.set(Math.round(x) + ',' + Math.round(y), [x, y, r]);
     const groups = new Map();
     lines.forEach(l => {   // у одного родителя на одной высоте — одна группа
@@ -144,7 +147,7 @@
       const { px, py, midY } = list[0].g, P = { x: px, y: py - 8 };
       pin(P.x, P.y);
       if (list.length < 5) {   // мало детей — каждая нитка от гвоздя к гвоздю
-        list.forEach(l => { const C = { x: l.g.cx, y: l.g.cy + 7 }; pin(C.x, C.y); addThread(P, C, [l.key]); });
+        list.forEach(l => { const C = { x: l.g.cx, y: l.g.cy + topPin(l.key) }; pin(C.x, C.y); addThread(P, C, [l.key]); });
         return;
       }
       // много детей — общая натянутая нитка над рядом и короткие отводы вниз
@@ -156,7 +159,7 @@
         const keys = list.filter(l => Math.min(px, l.g.cx) <= x1 && x2 <= Math.max(px, l.g.cx)).map(l => l.key);
         addThread({ x: x1, y: by }, { x: x2, y: by }, keys, true);
       }
-      list.forEach(l => { const C = { x: l.g.cx, y: l.g.cy + 7 }; pin(C.x, C.y); addThread({ x: l.g.cx, y: by }, C, [l.key], true); });
+      list.forEach(l => { const C = { x: l.g.cx, y: l.g.cy + topPin(l.key) }; pin(C.x, C.y); addThread({ x: l.g.cx, y: by }, C, [l.key], true); });
     });
     layer.nails.innerHTML = [...nails.values()].map(([x, y, r]) => nail(x, y, r)).join('');
   }
@@ -214,7 +217,7 @@
       const root = node.querySelector(':scope > .card-v2-multi, :scope > .card-v3');
       if (!root || root.classList.contains('rl-done')) return;
       if (root.classList.contains('card-v3')) {
-        dress(root, plaqueSVG(root.offsetWidth));
+        dress(root, plaqueSVG(root.offsetWidth, -10));   // табличка поднята: под ней полароиды папок выглядывают как у обычных
         root.querySelectorAll('.card-v3__sub').forEach(sub =>
           dress(sub, sub.classList.contains('card-v3__sub--nodept') ? sheetSVG(sub.offsetWidth, sub.offsetHeight) : folderSVG(sub.offsetWidth, sub.offsetHeight)));
       } else {
