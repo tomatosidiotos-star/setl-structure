@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Структура — концепт</title>
+<style>
+@font-face { font-family: 'TT Commons Pro'; src: url('../Fonts/TT_Commons_Pro_Regular.otf') format('opentype'); font-weight: 400; }
+@font-face { font-family: 'TT Commons Pro'; src: url('../Fonts/TT_Commons_Pro_Bold.otf') format('opentype'); font-weight: 700; }
+@font-face { font-family: 'TT Commons Pro Expanded'; src: url('../Fonts/TT_Commons_Pro_Expanded_Regular.otf') format('opentype'); font-weight: 400; }
+@font-face { font-family: 'TT Commons Pro Expanded'; src: url('../Fonts/TT_Commons_Pro_Expanded_DemiBold.otf') format('opentype'); font-weight: 600; }
+
+:root {
+  --red: #ED1C24;
+  --black: #0B0D0E;
+  --gray: #41484A;
+  --gray-2: #6B7275;
+  --line: #A9B4C0;          /* связи между уровнями */
+  --bg: #F3F5F8;
+  --card: #FFFFFF;
+  --f-body: 'TT Commons Pro', sans-serif;
+  --f-exp: 'TT Commons Pro Expanded', sans-serif;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--f-body); color: var(--black); background: var(--bg); min-height: 100vh; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ---------- Шапка ---------- */
+.top {
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 24px;
+  padding: 18px 32px; background: rgba(243, 245, 248, .86); backdrop-filter: blur(12px);
+}
+.top__title { font-family: var(--f-exp); font-weight: 600; font-size: 15px; }
+.top__badge { font-size: 12px; color: var(--red); border: 1px solid rgba(237, 28, 36, .3); border-radius: 100px; padding: 3px 10px; }
+.crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; }
+.crumbs button { color: var(--gray-2); padding: 4px 8px; border-radius: 8px; }
+.crumbs button:hover { color: var(--black); background: #fff; }
+.crumbs b { font-weight: 400; color: var(--black); padding: 4px 8px; }
+.crumbs i { font-style: normal; color: #B5BDC4; }
+.top__right { margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 14px; color: var(--gray-2); }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.switch input { appearance: none; width: 34px; height: 20px; border-radius: 100px; background: #D5DADF; position: relative; transition: background .2s; cursor: pointer; }
+.switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s var(--ease); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.switch input:checked { background: var(--red); }
+.switch input:checked::after { transform: translateX(14px); }
+.top a { color: var(--gray-2); }
+
+/* ---------- Полотно ---------- */
+.wrap { position: relative; overflow: hidden; padding: 24px 24px 80px; }
+.view { position: relative; width: max-content; margin: 0 auto; transform-origin: top left; padding: 8px 8px 40px; }
+.links { position: absolute; inset: 0; overflow: visible; pointer-events: none; z-index: 1; }   /* над территориями, под карточками */
+.links path { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: opacity .25s, stroke .25s, stroke-width .25s; }
+.links .port { stroke-width: 2; fill: #fff; transition: opacity .25s, transform .25s; transform-box: fill-box; transform-origin: center; }
+.links.dim path:not(.on):not(.flow), .links.dim .port:not(.on) { opacity: .18; }
+.links path.on { stroke: var(--red) !important; stroke-width: 2.5; }
+.links .port.on { stroke: var(--red) !important; transform: scale(1.25); }
+/* бегущий импульс по выделенному пути — от руководителя вниз */
+.links path.flow { stroke: var(--red); stroke-width: 2.5; stroke-dasharray: 2 14; animation: flow 1.1s linear infinite; opacity: .9; }
+@keyframes flow { to { stroke-dashoffset: -16; } }
+
+.level { display: flex; flex-direction: column; align-items: center; gap: 64px; position: relative; }
+.cols { display: flex; gap: 36px; align-items: flex-start; }
+.col { width: 296px; display: flex; flex-direction: column; }
+
+/* ---------- Карточка-портрет: человек на первом плане (куратор, голова ветки) ---------- */
+.portrait {
+  position: relative; z-index: 2; background: var(--card); border-radius: 24px; padding: 22px 22px 18px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 12px 32px -12px rgba(16, 24, 40, .18);
+  transform-style: preserve-3d; transition: transform .35s var(--ease), box-shadow .35s var(--ease);
+  cursor: default; will-change: transform;
+}
+.portrait.can-open { cursor: pointer; }
+.portrait__ava {
+  width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--f-exp); font-weight: 600; font-size: 22px; color: rgba(0,0,0,.55);
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--c); margin-bottom: 16px;
+  transform: translateZ(36px);   /* при наклоне аватар «выходит» из карточки */
+}
+.portrait__name { font-family: var(--f-exp); font-weight: 600; font-size: 17px; line-height: 1.2; transform: translateZ(20px); }
+.portrait__role { margin-top: 4px; font-size: 14px; line-height: 1.25; color: var(--gray-2); transform: translateZ(14px); }
+.portrait__dept {
+  margin-top: 14px; display: inline-block; padding: 7px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 12%, #fff); color: color-mix(in srgb, var(--c) 80%, #000);
+  font-family: var(--f-exp); font-weight: 600; font-size: 13px; line-height: 1.25; transform: translateZ(10px);
+}
+.portrait__stats { margin-top: 10px; font-size: 13px; color: var(--gray-2); }
+.portrait--hero { width: 420px; display: grid; grid-template-columns: auto 1fr; column-gap: 20px; align-items: center; padding: 22px 26px; }
+.portrait--hero .portrait__ava { width: 88px; height: 88px; font-size: 26px; margin: 0; grid-row: span 4; }
+.portrait--hero .portrait__over { font-size: 13px; color: var(--red); margin-bottom: 4px; }
+.portrait--hero .portrait__title { font-family: var(--f-exp); font-weight: 600; font-size: 20px; line-height: 1.2; }
+
+/* ---------- Территория куратора: подразделения на его ветке ---------- */
+.terr {
+  position: relative; margin-top: 30px; padding: 18px 16px 18px 40px; border-radius: 22px;
+  background: color-mix(in srgb, var(--c) 6%, transparent);
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+/* ---------- Плитка подразделения: название на первом плане ---------- */
+.tile {
+  position: relative; z-index: 2; background: var(--card); border-radius: 14px; padding: 14px 14px 12px;
+  border: 1px solid rgba(16, 24, 40, .07); transform-style: preserve-3d;
+  transition: transform .3s var(--ease), box-shadow .3s var(--ease), border-color .3s;
+}
+.tile:hover { border-color: color-mix(in srgb, var(--c) 45%, transparent); box-shadow: 0 10px 24px -12px rgba(16, 24, 40, .25); }
+.tile.can-open { cursor: pointer; }
+.tile__name { font-family: var(--f-exp); font-weight: 600; font-size: 14px; line-height: 1.25; }
+.tile__head { margin-top: 8px; display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--gray); }
+.tile__head .mini { width: 22px; height: 22px; font-size: 9px; }
+.tile__vacant { color: #A0A7AC; }
+.tile__foot { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stack { display: flex; align-items: center; }
+.stack .mini { margin-left: -4px; box-shadow: 0 0 0 2px #fff; font-size: 8px; }
+.stack .mini:first-child { margin-left: 0; }
+.stack__more { margin-left: 6px; font-size: 12px; color: var(--gray-2); }
+.open {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px 4px 10px; border-radius: 100px;
+  font-size: 12px; color: color-mix(in srgb, var(--c) 85%, #000); background: color-mix(in srgb, var(--c) 10%, #fff);
+}
+.open svg { transition: transform .25s var(--ease); }
+.tile:hover .open svg, .portrait:hover .open svg { transform: translateX(2px); }
+.mini {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  font-family: var(--f-exp); font-weight: 600; font-size: 9px; color: rgba(0,0,0,.55);
+}
+
+/* ---------- Появление ---------- */
+.anim .portrait, .anim .tile { opacity: 0; transform: translateY(14px) scale(.98); }
+.anim.go .portrait, .anim.go .tile { opacity: 1; transform: none; transition: opacity .5s var(--ease), transform .6s var(--ease); transition-delay: var(--d, 0ms); }
+
+/* Переход между уровнями — View Transitions: плитка перетекает в верхнюю карточку следующего уровня */
+::view-transition-old(root) { animation: vt-out .45s var(--ease) both; }
+::view-transition-new(root) { animation: vt-in .55s var(--ease) both; }
+.back ::view-transition-old(root) { animation-name: vt-out-back; }
+.back ::view-transition-new(root) { animation-name: vt-in-back; }
+::view-transition-group(focus) { animation-duration: .55s; animation-timing-function: var(--ease); }
+@keyframes vt-out { to { opacity: 0; transform: scale(1.06); filter: blur(6px); } }
+@keyframes vt-in { from { opacity: 0; transform: scale(.96); } }
+@keyframes vt-out-back { to { opacity: 0; transform: scale(.94); filter: blur(6px); } }
+@keyframes vt-in-back { from { opacity: 0; transform: scale(1.04); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim .portrait, .anim .tile { opacity: 1; transform: none; }
+  ::view-transition-old(root), ::view-transition-new(root), ::view-transition-group(focus) { animation: none; }
+  .links path.flow { animation: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top__title">Структура</div>
+  <span class="top__badge">концепт</span>
+  <nav class="crumbs" id="crumbs"></nav>
+  <div class="top__right">
+    <label class="switch"><input type="checkbox" id="motion" checked> Движение и 3D</label>
+    <a href="../">Текущий вид</a>
+  </div>
+</header>
+<main class="wrap" id="wrap"><div class="view" id="view"></div></main>
+
+<script>
+/* ====================================================================
+   Концепт оргструктуры. Данные — рыба.
+   Узел: { name — подразделение, head — руководитель { name, role } или null,
+           people — человек в подразделении, kids — подразделения ниже }
+==================================================================== */
+const DATA = {
+  name: 'Строительный блок', over: 'Группа компаний Setl',
+  head: { name: 'Ершов Владимир Вячеславович', role: 'Заместитель генерального директора' }, people: 6,
+  kids: [
+    { name: 'Дирекция по строительству №2', head: { name: 'Кинешемцев Михаил Владимирович', role: 'Руководитель дирекции' }, people: 8, kids: [
+      { name: 'ЖК «Дворцовый фасад»', head: { name: 'Блинов Андрей Павлович', role: 'Заместитель руководителя дирекции' }, people: 12, kids: [
+        { name: 'Очередь 1, S = 15 000 м²', head: { name: 'Трембач Роман Андреевич', role: 'Руководитель проекта' }, people: 6 },
+        { name: 'Очередь 2, участок 6', head: { name: 'Горобец Владимир Андреевич', role: 'Руководитель проекта' }, people: 9 },
+        { name: 'Очередь 3, участок 12', head: { name: 'Дробницкий Кирилл Андреевич', role: 'Руководитель проекта' }, people: 7 },
+      ] },
+      { name: 'ЖК «Сэтл Лофт»', head: { name: 'Исаев Павел Олегович', role: 'Руководитель проекта' }, people: 10 },
+      { name: 'Отдел технического надзора', head: { name: 'Соколова Ирина Викторовна', role: 'Начальник отдела' }, people: 8 },
+      { name: 'Группа сметного контроля', head: { name: 'Петрова Анна Сергеевна', role: 'Руководитель группы' }, people: 5 },
+    ] },
+    { name: 'Производственно-коммерческий департамент', head: { name: 'Баранов Олег Владимирович', role: 'Директор департамента' }, people: 5, kids: [
+      { name: 'Отдел договорной работы', head: { name: 'Медведева Ольга Игоревна', role: 'Начальник отдела' }, people: 9 },
+      { name: 'Отдел снабжения', head: { name: 'Ковалёв Денис Сергеевич', role: 'Начальник отдела' }, people: 14, kids: [
+        { name: 'Группа закупок', head: { name: 'Орлова Мария Андреевна', role: 'Руководитель группы' }, people: 6 },
+        { name: 'Складское хозяйство', head: { name: 'Титов Артём Николаевич', role: 'Руководитель группы' }, people: 8 },
+      ] },
+      { name: 'Отдел логистики', head: null, people: 4 },
+      { name: 'Отдел планирования', head: { name: 'Лебедев Глеб Романович', role: 'Начальник отдела' }, people: 6 },
+    ] },
+    { name: 'Служба качества', head: { name: 'Сафонова Анна Игоревна', role: 'Руководитель службы' }, people: 3, kids: [
+      { name: 'Испытательная лаборатория', head: { name: 'Зуев Константин Ильич', role: 'Начальник лаборатории' }, people: 7 },
+      { name: 'Отдел приёмки объектов', head: { name: 'Никитина Елена Павловна', role: 'Начальник отдела' }, people: 10 },
+      { name: 'Группа охраны труда', head: { name: 'Фомин Игорь Алексеевич', role: 'Руководитель группы' }, people: 4 },
+    ] },
+    { name: 'Инженерно-техническая дирекция', head: { name: 'Голубев Сергей Петрович', role: 'Технический директор' }, people: 4, kids: [
+      { name: 'Отдел главного энергетика', head: { name: 'Чуксаев Дмитрий Алексеевич', role: 'Главный энергетик' }, people: 6 },
+      { name: 'Отдел подготовки проектов', head: { name: 'Шаламов Александр Александрович', role: 'Начальник отдела' }, people: 8, kids: [
+        { name: 'BIM-группа', head: { name: 'Попов Максим Сергеевич', role: 'Руководитель группы' }, people: 5 },
+        { name: 'Группа ПОС и ППР', head: { name: 'Кузьмина Дарья Олеговна', role: 'Руководитель группы' }, people: 4 },
+      ] },
+      { name: 'Отдел СМР', head: { name: 'Леденев Константин Александрович', role: 'Начальник отдела' }, people: 15 },
+    ] },
+  ],
+};
+
+// Цвета «территорий» кураторов; дальше вглубь ветка сохраняет свой цвет
+const HUES = ['#E5484D', '#3C83F6', '#12A594', '#8E4EC6', '#F0811A', '#0090FF'];
+const AVA = ['#F2D9D4', '#D4EAE2', '#D4DEF0', '#E0D8F0', '#F0E8D4', '#D0E8E4', '#EDD8E8', '#E0EAD0'];
+const SUR = ['Иванова', 'Смирнов', 'Кузнецова', 'Попов', 'Васильева', 'Петров', 'Соколова', 'Михайлов', 'Новикова', 'Фёдоров', 'Морозова', 'Волков'];
+const NAM = ['Анна', 'Иван', 'Мария', 'Олег', 'Елена', 'Денис', 'Ольга', 'Павел'];
+
+const hashColor = s => { let h = 0; for (const ch of s) h = ch.charCodeAt(0) + ((h << 5) - h); return AVA[Math.abs(h) % AVA.length]; };
+const inits = s => s.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const plural = (n, f) => f[(n % 10 === 1 && n % 100 !== 11) ? 0 : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 1 : 2];
+const peopleIn = n => (n.people || 0) + (n.kids || []).reduce((a, k) => a + peopleIn(k), 0);
+const deptsIn = n => (n.kids || []).reduce((a, k) => a + 1 + deptsIn(k), 0);
+const ava = (name, cls = 'mini') => `<span class="${cls}" style="background:${hashColor(name)}">${esc(inits(name))}</span>`;
+const chevron = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+// придумать людей отдела для стопки аватарок
+function crowd(n, seed) {
+  const out = [];
+  for (let i = 0; i < Math.min(3, n); i++) out.push(`${SUR[(seed + i * 5) % SUR.length]} ${NAM[(seed + i * 3) % NAM.length]}`);
+  return out;
+}
+
+const motionOn = () => document.getElementById('motion').checked && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- Отрисовка уровня ---------- */
+let path = [];        // путь от корня: узлы
+let hueOf = new Map();
+
+function headHTML(n) {
+  const h = n.head;
+  const stats = `${deptsIn(n)} ${plural(deptsIn(n), ['подразделение', 'подразделения', 'подразделений'])} · ${peopleIn(n)} ${plural(peopleIn(n), ['человек', 'человека', 'человек'])}`;
+  return `<div class="portrait portrait--hero tilt" data-id="hero" style="--c:var(--red)">
+    ${ava(h ? h.name : n.name, 'portrait__ava')}
+    <div class="portrait__over">${esc(path.length > 1 ? path[path.length - 2].name : n.over || '')}</div>
+    <div class="portrait__title">${esc(n.name)}</div>
+    ${h ? `<div class="portrait__role">${esc(h.name)} — ${esc(h.role.toLowerCase())}</div>` : ''}
+    <div class="portrait__stats">${stats}</div>
+  </div>`;
+}
+
+function columnHTML(k, i) {
+  const c = hueOf.get(k);
+  const h = k.head;
+  const open = k.kids && k.kids.length;
+  const tiles = (k.kids || []).map((t, j) => tileHTML(t, c, i, j)).join('');
+  return `<div class="col" style="--c:${c}">
+    <div class="portrait tilt${open ? '' : ''}" data-col="${i}" style="--d:${120 + i * 70}ms">
+      ${ava(h ? h.name : k.name, 'portrait__ava')}
+      <div class="portrait__name">${esc(h ? h.name : 'Без руководителя')}</div>
+      ${h ? `<div class="portrait__role">${esc(h.role)}</div>` : ''}
+      <div class="portrait__dept">${esc(k.name)}</div>
+      <div class="portrait__stats">${peopleIn(k)} ${plural(peopleIn(k), ['человек', 'человека', 'человек'])}</div>
+    </div>
+    ${tiles ? `<div class="terr" data-terr="${i}">${tiles}</div>` : ''}
+  </div>`;
+}
+
+function tileHTML(t, c, i, j) {
+  const open = t.kids && t.kids.length;
+  const people = crowd(t.people || 0, i * 7 + j * 3);
+  return `<div class="tile tilt${open ? ' can-open' : ''}" data-col="${i}" data-tile="${j}" style="--c:${c};--d:${260 + i * 70 + j * 45}ms">
+    <div class="tile__name">${esc(t.name)}</div>
+    <div class="tile__head">${t.head ? `${ava(t.head.name)}<span>${esc(t.head.name)}</span>` : '<span class="tile__vacant">Руководитель не назначен</span>'}</div>
+    <div class="tile__foot">
+      <div class="stack">${people.map(p => ava(p)).join('')}${t.people > 3 ? `<span class="stack__more">+${t.people - 3}</span>` : ''}</div>
+      ${open ? `<span class="open">${t.kids.length} ${plural(t.kids.length, ['отдел', 'отдела', 'отделов'])} ${chevron}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function render(node) {
+  const view = document.getElementById('view');
+  // цвета: у первого уровня — свои, ниже — цвет родительской ветки
+  const base = path.length > 1 ? hueOf.get(path[1]) : null;
+  (node.kids || []).forEach((k, i) => hueOf.set(k, base || HUES[i % HUES.length]));
+  (node.kids || []).forEach(k => (k.kids || []).forEach(t => hueOf.set(t, hueOf.get(k))));
+  view.innerHTML = `<svg class="links" id="links"></svg>
+    <div class="level${motionOn() ? ' anim' : ''}" id="level">
+      ${headHTML(node)}
+      ${node.kids && node.kids.length ? `<div class="cols">${node.kids.map(columnHTML).join('')}</div>` : ''}
+    </div>`;
+  renderCrumbs();
+  bindLevel(node);
+  fit();
+  drawLinks();
+  if (motionOn()) requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById('level').classList.add('go')));
+}
+
+function renderCrumbs() {
+  document.getElementById('crumbs').innerHTML = path.map((n, i) => i < path.length - 1
+    ? `<button data-i="${i}">${esc(n.name)}</button><i>/</i>` : `<b>${esc(n.name)}</b>`).join('');
+  document.querySelectorAll('#crumbs button').forEach(b => b.onclick = () => go(path.slice(0, +b.dataset.i + 1), true));
+}
+
+/* ---------- Масштаб под ширину окна ---------- */
+let scale = 1;
+function fit() {
+  const view = document.getElementById('view'), wrap = document.getElementById('wrap');
+  view.style.transform = '';
+  const w = view.offsetWidth, avail = wrap.clientWidth - 48;
+  scale = Math.min(1, avail / w);
+  view.style.transform = scale < 1 ? `scale(${scale})` : '';
+  view.style.marginLeft = scale < 1 ? '0' : '';
+  wrap.style.height = scale < 1 ? (view.offsetHeight * scale + 104) + 'px' : '';
+}
+
+/* ---------- Связи: явные, у каждой — свой руководитель; кружки-порты на концах ---------- */
+// у каждого пути — список «цепочек», к которым он относится (для подсветки пути до верха)
+function drawLinks(animate = true) {
+  const view = document.getElementById('view'), svg = document.getElementById('links');
+  // положение без учёта transform (появление, наклон): по offset-цепочке до полотна
+  const box = el => {
+    let l = 0, t = 0, e = el;
+    while (e && e !== view) { l += e.offsetLeft; t += e.offsetTop; e = e.offsetParent; }
+    return { l, t, r: l + el.offsetWidth, b: t + el.offsetHeight };
+  };
+  svg.setAttribute('width', view.offsetWidth); svg.setAttribute('height', view.offsetHeight);
+  const R = 14;
+  const parts = [];
+  const add = (d, color, chains, depth) => parts.push({ d, color, chains, depth });
+  const port = (x, y, color, chains, depth) => parts.push({ port: [x, y], color, chains, depth });
+
+  const hero = view.querySelector('[data-id="hero"]');
+  const cols = [...view.querySelectorAll('.col')];
+  if (hero && cols.length) {
+    const h = box(hero), hx = (h.l + h.r) / 2;
+    const tops = cols.map(c => box(c.querySelector('.portrait')));
+    const railY = (h.b + Math.min(...tops.map(t => t.t))) / 2;
+    const P = 5;   // кружок-порт — снаружи у края карточки, целиком виден
+    port(hx, h.b + P, 'var(--line)', tops.map((_, i) => 'c' + i), 0);
+    tops.forEach((t, i) => {
+      const cx = (t.l + t.r) / 2, s = Math.sign(cx - hx), r = Math.min(R, Math.abs(cx - hx) / 2);
+      const d = Math.abs(cx - hx) < 1 ? `M${hx},${h.b + P} V${t.t - P}`
+        : `M${hx},${h.b + P} V${railY - r} Q${hx},${railY} ${hx + s * r},${railY} H${cx - s * r} Q${cx},${railY} ${cx},${railY + r} V${t.t - P}`;
+      add(d, 'var(--line)', ['c' + i], 0);
+      port(cx, t.t - P, 'var(--line)', ['c' + i], 1);
+    });
+  }
+  // ветка куратора: от карточки вниз и вдоль левого края территории; к каждой плитке — отвод с портом
+  cols.forEach((col, i) => {
+    const terr = col.querySelector('.terr');
+    if (!terr) return;
+    const color = getComputedStyle(col).getPropertyValue('--c').trim();
+    const p = box(col.querySelector('.portrait')), tr = box(terr);
+    const px = (p.l + p.r) / 2, sx = tr.l + 20;
+    port(px, p.b + 5, color, [...col.querySelectorAll('.tile')].map((_, j) => `c${i}t${j}`).concat('c' + i), 1);
+    col.querySelectorAll('.tile').forEach((tile, j) => {
+      const t = box(tile), ty = t.t + 24;
+      const d = `M${px},${p.b + 5} V${tr.t - R} Q${px},${tr.t} ${px - R},${tr.t} H${sx + R} Q${sx},${tr.t} ${sx},${tr.t + R} V${ty - R} Q${sx},${ty} ${sx + R},${ty} H${t.l - 5}`;
+      add(d, color, [`c${i}t${j}`], 2);
+      port(t.l - 5, ty, color, [`c${i}t${j}`], 3);
+    });
+  });
+
+  svg.innerHTML = parts.map((p, k) => p.port
+    ? `<circle class="port" data-ch="${p.chains.join(' ')}" cx="${p.port[0]}" cy="${p.port[1]}" r="4.5" style="stroke:${p.color}" data-depth="${p.depth}"/>`
+    : `<path data-ch="${p.chains.join(' ')}" d="${p.d}" style="stroke:${p.color}" data-depth="${p.depth}"/>`).join('');
+
+  if (animate && motionOn()) {   // линии прорисовываются сверху вниз, порты «включаются» следом
+    svg.querySelectorAll('path').forEach(el => {
+      const L = el.getTotalLength();
+      el.style.strokeDasharray = L; el.style.strokeDashoffset = L;
+      el.animate([{ strokeDashoffset: L }, { strokeDashoffset: 0 }],
+        { duration: 700, delay: 250 + +el.dataset.depth * 260, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' })
+        .onfinish = () => { el.style.strokeDasharray = ''; el.style.strokeDashoffset = ''; };
+    });
+    svg.querySelectorAll('.port').forEach(el => el.animate([{ opacity: 0, transform: 'scale(0)' }, { opacity: 1, transform: 'scale(1)' }],
+      { duration: 300, delay: 450 + +el.dataset.depth * 260, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'backwards' }));
+  }
+}
+
+/* ---------- Подсветка пути до верха ---------- */
+function highlight(chain) {
+  const svg = document.getElementById('links');
+  svg.querySelectorAll('.flow').forEach(e => e.remove());
+  if (!chain) { svg.classList.remove('dim'); svg.querySelectorAll('.on').forEach(e => e.classList.remove('on')); return; }
+  const col = chain.match(/^c\d+/)[0];
+  svg.classList.add('dim');
+  svg.querySelectorAll('[data-ch]').forEach(e => {
+    const ch = e.dataset.ch.split(' ');
+    e.classList.toggle('on', ch.includes(chain) || ch.includes(col) && e.dataset.depth <= 1);
+  });
+  if (motionOn()) svg.querySelectorAll('path.on').forEach(p => { const f = p.cloneNode(); f.classList.remove('on'); f.classList.add('flow'); svg.appendChild(f); });
+}
+
+/* ---------- 3D: карточка наклоняется вслед за курсором ---------- */
+function tilt(el, max) {
+  el.addEventListener('pointermove', e => {
+    if (!motionOn()) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+    el.style.transition = 'transform .08s linear, box-shadow .35s';
+    el.style.transform = `perspective(900px) rotateY(${x * max}deg) rotateX(${-y * max}deg) translateZ(6px)`;
+    if (el.classList.contains('portrait')) el.style.boxShadow = `${-x * 18}px ${14 - y * 10}px 40px -14px rgba(16,24,40,.28), 0 1px 2px rgba(16,24,40,.06)`;
+  });
+  el.addEventListener('pointerleave', () => { el.style.transition = ''; el.style.transform = ''; el.style.boxShadow = ''; });
+}
+
+function bindLevel(node) {
+  const view = document.getElementById('view');
+  view.querySelectorAll('.portrait').forEach(el => tilt(el, 10));
+  view.querySelectorAll('.tile').forEach(el => tilt(el, 6));
+  view.querySelectorAll('.col').forEach((col, i) => {
+    const k = node.kids[i];
+    col.querySelector('.portrait').addEventListener('pointerenter', () => highlight('c' + i));
+    col.querySelector('.portrait').addEventListener('pointerleave', () => highlight(null));
+    if (k.kids && k.kids.length) {
+      const p = col.querySelector('.portrait');
+      p.classList.add('can-open');
+      p.addEventListener('click', () => open(p, k));
+    }
+    col.querySelectorAll('.tile').forEach((tile, j) => {
+      tile.addEventListener('pointerenter', () => highlight(`c${i}t${j}`));
+      tile.addEventListener('pointerleave', () => highlight(null));
+      const t = k.kids[j];
+      if (t.kids && t.kids.length) tile.addEventListener('click', () => open(tile, t, k));
+    });
+  });
+}
+
+/* ---------- Переход внутрь: плитка перетекает в верхнюю карточку ---------- */
+function open(el, node, parent) {
+  const next = parent ? [...path, parent, node] : [...path, node];
+  if (parent) hueOf.set(parent, hueOf.get(parent));
+  el.style.viewTransitionName = 'focus';
+  go(next, false);
+}
+
+function go(nextPath, back) {
+  const apply = () => {
+    path = nextPath;
+    render(path[path.length - 1]);
+    const hero = document.querySelector('[data-id="hero"]');
+    if (hero) hero.style.viewTransitionName = 'focus';
+  };
+  if (!document.startViewTransition || !motionOn()) { apply(); window.scrollTo(0, 0); return; }
+  document.documentElement.classList.toggle('back', back);
+  const vt = document.startViewTransition(apply);
+  vt.finished.finally(() => {
+    document.documentElement.classList.remove('back');
+    const hero = document.querySelector('[data-id="hero"]');
+    if (hero) hero.style.viewTransitionName = '';
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.getElementById('motion').addEventListener('change', () => render(path[path.length - 1]));
+window.addEventListener('resize', () => { fit(); drawLinks(false); });
+document.fonts.ready.then(() => { path = [DATA]; render(DATA); });
+</script>
+</body>
+</html>
