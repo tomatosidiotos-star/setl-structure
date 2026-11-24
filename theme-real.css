@@ -1,0 +1,102 @@
+/* ====================================================================
+   Тема «Гиперреализм» для полотна структуры (концепт, вариант 1).
+   Подключена на real.html (копия сайта), меняет только полотно.
+   Материалы (папки, листы, табличка, гвозди, нитки) рисует theme-real.js; здесь — стена,
+   полароиды, ярлыки отделов, текст и отключение белой сборки карточек
+==================================================================== */
+
+/* ---------- Стена: светлая, почти белая крашеная, с лёгкой фактурой штукатурки и светом сверху ---------- */
+.theme-real .canvas-wrapper {
+  background-color: #EEECE7;
+  background-image:
+    radial-gradient(120% 90% at 25% -10%, rgba(255, 255, 255, .85), rgba(255, 255, 255, 0) 62%),
+    radial-gradient(90% 70% at 100% 110%, rgba(150, 130, 100, .10), rgba(150, 130, 100, 0) 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .4 0 0 0 0 .33 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: auto, auto, 240px 240px;
+  box-shadow: inset 0 0 90px rgba(110, 90, 60, .10);
+}
+
+/* родные линии сайта прячем — вместо них нитки (слой .rl-strings) */
+.theme-real #tree-svg path, .theme-real #tree-svg line { stroke: transparent !important; }
+
+/* ---------- Белая сборка карточки становится прозрачной, под ней — материалы ---------- */
+.theme-real .card-v2-multi, .theme-real .card-v3, .theme-real .card-v3__sub { filter: none; position: relative; z-index: 0; }
+.theme-real .card-v2-mh__wrap, .theme-real .card-v2-mh__body, .theme-real .card-v3__head-wrap,
+.theme-real .card-v3__cards, .theme-real .card-v2-multi__dept-wrap {
+  background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+}
+.theme-real .card-v2-mh__surface svg { visibility: hidden; }
+.theme-real .rl-mat { position: absolute; left: 0; top: 0; z-index: -1; overflow: visible; pointer-events: none; }
+
+/* подъём карточки при наведении — как будто её чуть потянули от стены */
+.theme-real .card-v2-multi, .theme-real .card-v3 { transition: translate .35s cubic-bezier(.2, .8, .2, 1); }
+.theme-real .rl-lift { translate: 0 -3px; }
+
+/* ---------- Полароид: белая рамка с широким низом, на скрепке ---------- */
+.theme-real .card-v2-mh__wrap { padding: 10px 0 0 12px; }
+.theme-real .card-v2-mh__wrap > .card-v2__photo,
+.theme-real .card-v2-mh__wrap > .v2-ava > .card-v2__photo {
+  width: 34px; height: 34px; border-radius: 1px; box-sizing: content-box;
+  border: 4px solid #FBFAF5; border-bottom-width: 12px;
+  box-shadow: 0 1px 2px rgba(40, 28, 15, .28), 0 6px 10px -4px rgba(40, 28, 15, .35);
+  transform: rotate(var(--rl-rot, -3deg));
+}
+.theme-real .card-v2-mh__wrap > .card-v2__photo .card-v2__photo-initials,
+.theme-real .card-v2-mh__wrap > .v2-ava .card-v2__photo-initials { font-size: 11px; color: #3b3b3b; }
+.theme-real .card-v2-mh__wrap > .card-v2__photo--vacant { background: #E4E1DA; box-shadow: inset 0 0 0 1px rgba(0,0,0,.04), 0 1px 2px rgba(40, 28, 15, .2); }
+/* скрепка поверх рамки */
+.theme-real .card-v2-mh__wrap::before {
+  content: ''; position: absolute; left: 31px; top: 3px; width: 9px; height: 24px; z-index: 2; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23f4f5f7'/%3E%3Cstop offset='.5' stop-color='%23a7adb6'/%3E%3Cstop offset='1' stop-color='%23e1e4e8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M6.6 6.5V18a2.6 2.6 0 0 1-5.2 0V4.2a1.9 1.9 0 0 1 3.8 0v12.6a.8.8 0 0 1-1.6 0V6.6' fill='none' stroke='url(%23g)' stroke-width='1.15' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / contain;
+  filter: drop-shadow(.6px 1.2px .6px rgba(30, 25, 20, .35));
+  transform: rotate(8deg);
+}
+.theme-real .v2-zam { bottom: -3px; }
+
+/* ---------- Имя и должность — «напечатаны» на обложке папки, справа от полароида ---------- */
+.theme-real .card-v2-mh__body { margin-top: -22px; padding: 7px 10px 8px 62px; position: relative; }
+.theme-real .card-v2-multi .card-v2__name { color: #22180D; text-shadow: 0 .5px 0 rgba(255, 235, 200, .4); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.theme-real .card-v2-multi .card-v2__role, .theme-real .card-v3__sub .card-v2__role { color: #3F2E1D; font-size: 7.5px; text-shadow: 0 .5px 0 rgba(255, 235, 200, .35); }
+.theme-real .card-v2-mh__body:hover .card-v2__name,
+.theme-real .card-v2-mh__body:hover .card-v2__role { color: #24479F; }
+/* на листе (зам без подразделения) — те же цвета, бумага светлее */
+.theme-real .card-v2-multi--nodept .card-v2__role, .theme-real .card-v3__sub--nodept .card-v2__role { color: #6b6256; }
+
+/* ---------- Ярлык отдела — белая бумажная наклейка на обложке ---------- */
+.theme-real .card-v2-multi__dept-wrap { padding: 5px 10px 13px; }
+.theme-real .card-v2-multi__dept {
+  background: linear-gradient(170deg, #FFFEFA, #F5F1E6); border: 0; border-radius: 3px; padding: 8px 10px;
+  color: #22190F;
+  box-shadow: 0 1px 1.5px rgba(60, 40, 20, .28), 0 4px 8px -3px rgba(60, 40, 20, .25);
+  transform: rotate(-.6deg);
+}
+.theme-real .card-v2-multi__dept:hover, .theme-real .card-v2-multi__dept.hl { background: #FFF6DC !important; }
+.theme-real .card-v2-multi__dept--link { padding: 5px 10px; box-shadow: 0 1px 1.5px rgba(60, 40, 20, .28), 0 4px 8px -3px rgba(60, 40, 20, .25); }
+
+/* ---------- Табличка куратора: гравировка на металле, гвозди по краям ---------- */
+.theme-real .card-v3__head-wrap { padding: 10px 0 0 26px; }
+.theme-real .card-v3__name { color: #2f333a; text-shadow: 0 1px 0 rgba(255, 255, 255, .8); }
+.theme-real .card-v3__role { color: #4d535c; font-size: 7.5px; text-shadow: 0 1px 0 rgba(255, 255, 255, .7); }
+.theme-real .card-v3__head-wrap .card-v2__photo { box-shadow: 0 0 0 1.5px #e9ebee, 0 0 0 2.5px #9aa0a8, 0 2px 3px 1px rgba(30, 34, 40, .3); }
+.theme-real .card-v3__head-wrap:hover .card-v3__name, .theme-real .card-v3__head-wrap:hover .card-v3__role { color: #24479F; }
+
+/* ---------- Кнопка сворачивания — шляпка-кнопка ---------- */
+.theme-real .fold-btn { background: #FBFAF5; border: 0; color: #24479F; box-shadow: 0 1px 1px rgba(40, 28, 15, .3), 0 4px 8px -3px rgba(40, 28, 15, .35); }
+
+/* ---------- Нитки ---------- */
+.theme-real .rl-strings { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; z-index: 5; }
+.theme-real .rl-thread path { fill: none; stroke-linecap: round; }
+.theme-real .rl-thread__sh { stroke: #1d2540; stroke-width: 2.2; opacity: .2; transform: translate(2px, 4px); filter: url(#rlThreadSh); }
+.theme-real .rl-thread__main { stroke: #2B4FB8; stroke-width: 1.7; transition: stroke .3s, stroke-width .3s; }
+.theme-real .rl-thread__strand { stroke: #6F8FE0; stroke-width: .6; stroke-dasharray: 1.2 1.6; opacity: .55; }
+.theme-real .rl-thread.hot .rl-thread__main { stroke: #2F6BFF; stroke-width: 2.3; }
+.theme-real .rl-thread.hot .rl-thread__strand { stroke: #9DBBFF; opacity: .7; }
+.theme-real .rl-thread.hot .rl-thread__sh { opacity: .3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-real .card-v2-multi, .theme-real .card-v3 { transition: none; }
+}
+
+/* ярлык отдела-ссылки (силуэт города + 2 строки) — чуть меньше полей, чтобы название не обрезалось */
+.theme-real .card-v2-multi__dept-wrap:has(.card-v2-multi__dept--link) { padding: 3px 8px 9px; }
+.theme-real .card-v2-multi__dept--link { padding: 4px 9px; }
