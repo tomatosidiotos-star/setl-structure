@@ -217,21 +217,18 @@
     requestAnimationFrame(() => hot && hot.forEach(p => p.classList.add('on')));
   }
 
-  /* ---------- Движение: лёгкое покачивание и плавное увеличение на пружине ---------- */
+  /* ---------- Движение: только плавное увеличение на пружине при наведении (само по себе ничего не качается) ---------- */
   const bodies = [];
   function animate() {
     if (REDUCED) return;
-    let t0 = performance.now();
-    (function tick(now) {
-      const t = (now - t0) / 1000;
+    (function tick() {
       bodies.forEach(b => {
         if (!b.el.isConnected) return;
         b.v += (b.target - b.s) * 0.06 - b.v * 0.22; b.s += b.v;   // пружина масштаба
-        b.el.style.translate = `0 ${Math.sin(t * 0.9 + b.phase) * 2.2}px`;
         b.el.style.scale = b.s.toFixed(4);
       });
       requestAnimationFrame(tick);
-    })(t0);
+    })();
   }
   let animating = false;
 
