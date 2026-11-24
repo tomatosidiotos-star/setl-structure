@@ -127,3 +127,9 @@
 .theme-frost .card-v2-multi__dept--link { padding-top: 5px; padding-bottom: 5px; }   /* силуэт + 2 строки крупного названия (в Firefox ещё рамка 2px) */
 /* точки «щёлкают» из центра (анимация масштаба — в theme-frost.js) */
 .theme-frost .fr-dots circle { transform-box: fill-box; transform-origin: center; }
+
+/* ---------- Зам — как подложка куратора: голубое матовое стекло, имя и должность белые ---------- */
+.theme-frost .fr-deputy .card-v2__name { color: #fff; }
+.theme-frost .fr-deputy .card-v2__role { color: rgba(255, 255, 255, .82); }
+.theme-frost .fr-deputy .card-v2-mh__body:hover .card-v2__name,
+.theme-frost .fr-deputy .card-v2-mh__body:hover .card-v2__role { color: #DDEBFF; }

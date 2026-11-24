@@ -346,7 +346,14 @@
         dress(root, '.card-v3__sub', true);
         sheets(root, root.querySelector('.card-v3__header') || root);   // у наборной — только при наведении на шапку
         root.querySelectorAll('.card-v3__sub').forEach(sub => { dress(sub); sheets(sub, sub); });
-      } else { dress(root); sheets(root, root); }
+      } else {
+        // зам (должность «Заместитель…») — как подложка куратора: голубое стекло, белый текст
+        const roles = [...root.querySelectorAll('.card-v2__role')].map(r => r.textContent.trim());
+        const deputy = roles.length > 0 && roles.every(r => /^заместитель/i.test(r));
+        dress(root, null, deputy);
+        if (deputy) root.classList.add('fr-deputy');
+        sheets(root, root);
+      }
       node.addEventListener('pointerenter', () => highlight(node));
       node.addEventListener('pointerleave', () => highlight(null));
     });
