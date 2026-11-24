@@ -82,6 +82,37 @@
     root.classList.add('fr-done');
   }
 
+  /* ---------- Листы в папке: при наведении из-за выреза (угла папки) выглядывают уголки листов ---------- */
+  // owner — карточка или под-карточка наборной; trigger — на что наводим; листы — за матовой лицевой стороной
+  function sheets(owner, trigger) {
+    const own = [...owner.querySelectorAll('.card-v2-mh__surface')].filter(s => {
+      const sub = s.closest('.card-v3__sub');
+      return owner.classList.contains('card-v3__sub') ? sub === owner : !sub;
+    });
+    if (!own.length) return;
+    const face = owner.querySelector(':scope > .fr-face');
+    // листы видны только снаружи силуэта карточки (маска «всё, кроме карточки») — так они выходят
+    // из-за папки одинаково во всех браузерах (Safari рисовал их поверх стекла)
+    const W = owner.offsetWidth, H = owner.offsetHeight, P = 40;
+    const inv = encodeURIComponent(`<svg xmlns="${SVGNS}" width="${W + 2 * P}" height="${H + 2 * P}"><defs><mask id="m">`
+      + `<rect width="100%" height="100%" fill="#fff"/><g transform="translate(${P},${P})" fill="#000">${pieces(owner)}</g></mask></defs>`
+      + `<rect width="100%" height="100%" fill="#000" mask="url(#m)"/></svg>`);
+    own.forEach(s => {
+      const o = offsetIn(s, owner), box = document.createElement('div');
+      const x = o.x + s.offsetWidth - 64, y = o.y + 54;   // правый край листов — у правого края карточки; в покое — за ней
+      box.className = 'fr-sheets';
+      box.style.left = x + 'px'; box.style.top = (y - 60) + 'px'; box.style.paddingTop = '60px';   // запас сверху — место, куда листы выезжают
+      box.style.webkitMaskImage = box.style.maskImage = `url("data:image/svg+xml,${inv}")`;
+      box.style.webkitMaskPosition = box.style.maskPosition = `${-x - P}px ${-(y - 60) - P}px`;
+      box.style.webkitMaskSize = box.style.maskSize = `${W + 2 * P}px ${H + 2 * P}px`;
+      box.style.webkitMaskRepeat = box.style.maskRepeat = 'no-repeat';
+      box.innerHTML = '<i class="fr-sheet fr-sheet--2"></i><i class="fr-sheet fr-sheet--1"></i>';
+      owner.insertBefore(box, face);   // перед лицевой стороной в DOM — значит, под ней
+    });
+    trigger.addEventListener('pointerenter', () => owner.classList.add('fr-peek'));
+    trigger.addEventListener('pointerleave', () => owner.classList.remove('fr-peek'));
+  }
+
   /* ---------- Непрозрачные точки на концах линий ---------- */
   function dots() {
     const inner = document.getElementById('canvas-inner'), svg = document.getElementById('tree-svg');
@@ -107,8 +138,9 @@
       if (!root || root.classList.contains('fr-done')) return;
       if (root.classList.contains('card-v3')) {
         dress(root, '.card-v3__sub');
-        root.querySelectorAll('.card-v3__sub').forEach(sub => dress(sub));
-      } else dress(root);
+        sheets(root, root.querySelector('.card-v3__header') || root);   // у наборной — только при наведении на шапку
+        root.querySelectorAll('.card-v3__sub').forEach(sub => { dress(sub); sheets(sub, sub); });
+      } else { dress(root); sheets(root, root); }
     });
     dots();
   }
