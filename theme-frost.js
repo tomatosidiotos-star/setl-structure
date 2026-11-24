@@ -131,12 +131,16 @@
     layer.innerHTML = out.join('');
     inner.appendChild(layer);
     if (pendingDots) {   // идёт раскрытие ветки: новые точки появляются, когда до них дотянулась линия
-      const { at, t0 } = pendingDots, now = performance.now();
+      const { at, moves, moveDelay, t0 } = pendingDots, now = T0 !== null ? t0 : performance.now();   // при общем старте задержки — от него
       layer.querySelectorAll('circle').forEach(c => {
-        const t = at.get(Math.round(+c.getAttribute('cx')) + ',' + Math.round(+c.getAttribute('cy')));
-        if (t === undefined) return;
-        c.animate([{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }],
-          { duration: 420, delay: Math.max(0, t - (now - t0)), easing: SPRING, fill: 'backwards' });
+        const k = Math.round(+c.getAttribute('cx')) + ',' + Math.round(+c.getAttribute('cy'));
+        const mv = moves.get(k), t = at.get(k);
+        if (mv)   // точка оставшейся линии едет со старого места вместе с карточкой и линией
+          anim(c, [{ transform: `translate(${mv[0]}px, ${mv[1]}px)` }, { transform: 'none' }],
+            { duration: 640, delay: Math.max(0, moveDelay - (now - t0)), easing: SETTLE, fill: 'backwards' });
+        else if (t !== undefined)   // точка новой линии «щёлкает», когда линия до неё дошла
+          anim(c, [{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }],
+            { duration: 420, delay: Math.max(0, t - (now - t0)), easing: SPRING, fill: 'backwards' });
       });
       pendingDots = null;
     }
@@ -206,7 +210,10 @@
   }
   const SPRING = springEase(.72), SETTLE = springEase(1);
   const REDUCED_M = matchMedia('(prefers-reduced-motion: reduce)');
-  let pendingDots = null;
+  let pendingDots = null, dotsReady = false;
+  // все анимации одной перестройки стартуют в один момент (Safari иначе запускает анимации SVG-точек позже карточек)
+  let T0 = null;
+  function anim(el, kf, opt) { const a = el.animate(kf, opt); if (T0 !== null) a.startTime = T0; return a; }
 
   function cardOf(n) { return n.querySelector(':scope > .card-v2-multi, :scope > .card-v3') || n; }
 
@@ -233,6 +240,7 @@
     if (REDUCED_M.matches) return;
 
     const inner = document.getElementById('canvas-inner'), svg = document.getElementById('tree-svg');
+    const tA = performance.now(); T0 = document.timeline.currentTime;   // отсчёт для точек — с момента, когда стартуют анимации карточек (после перестройки)
     const lineEl = new Map([...svg.querySelectorAll('path[data-key]')].map(l => [l.dataset.key, l]));
     const seen = new Set(), born = [];
     const PRESS = 90;   // сколько длится «нажатие» до того, как пойдут линии
@@ -248,9 +256,9 @@
         seen.add(k);
         const tx = o.x + dX - parseFloat(n.style.left), ty = o.y + dY - parseFloat(n.style.top);
         if (Math.abs(tx) > .5 || Math.abs(ty) > .5)
-          n.animate([{ transform: `translate(${tx}px, ${ty}px)` }, { transform: 'none' }], { duration: 640, delay: MOVE_DELAY, easing: SETTLE, fill: 'backwards' });
+          anim(n, [{ transform: `translate(${tx}px, ${ty}px)` }, { transform: 'none' }], { duration: 640, delay: MOVE_DELAY, easing: SETTLE, fill: 'backwards' });
       } else if (k && lineEl.get(k)) born.push({ n, k, l: lineEl.get(k) });
-      else if (k) n.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: PRESS, fill: 'backwards' });
+      else if (k) anim(n, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: PRESS, fill: 'backwards' });
     });
 
     // раскрытие: линии рисуются из родителя, карточки вылетают, когда линия до них дотянулась
@@ -259,7 +267,7 @@
       const g = JSON.parse(l.dataset.geom), L = l.getTotalLength();
       const draw = 240 + Math.sqrt(L) * 15;   // длинные ветки рисуются дольше, но не бесконечно
       l.style.strokeDasharray = `${L} ${L}`;
-      l.animate([{ strokeDashoffset: L }, { strokeDashoffset: 0 }],
+      anim(l, [{ strokeDashoffset: L }, { strokeDashoffset: 0 }],
         { duration: draw, delay: PRESS, easing: 'cubic-bezier(.45, 0, .25, 1)', fill: 'backwards' })
         .onfinish = () => { l.style.strokeDasharray = ''; };
       dotsAt.set(key(g.px, g.py), PRESS);
@@ -268,20 +276,27 @@
       const w = n.offsetWidth, x = parseFloat(n.style.left), y = parseFloat(n.style.top);
       const tx = g.px - (x + w / 2), ty = g.py - y - 6, d = PRESS + draw * .55;
       n.style.transformOrigin = '50% 0';
-      n.animate([{ transform: `translate(${tx}px, ${ty}px) scale(.3)` }, { transform: 'none' }],
+      anim(n, [{ transform: `translate(${tx}px, ${ty}px) scale(.3)` }, { transform: 'none' }],
         { duration: 760, delay: d, easing: SPRING, fill: 'backwards' });
-      n.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: d, easing: 'ease-out', fill: 'backwards' });
+      anim(n, [{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: d, easing: 'ease-out', fill: 'backwards' });
     });
-    if (born.length) pendingDots = { at: dotsAt, t0 };
 
-    // линии, которые остались, перетекают в новую форму
+    // линии, которые остались, перетекают в новую форму; точки на их концах едут вместе с ними
     const shift = g => ({ px: g.px + dX, py: g.py + dY, cx: g.cx + dX, cy: g.cy + dY, midY: g.midY + dY });
+    const dotMoves = new Map();
     svg.querySelectorAll('path[data-key]').forEach(l => {
       const old = lines.get(l.dataset.key);
       if (!old) return;
+      const g = JSON.parse(l.dataset.geom), o = shift(old);
+      [[g.px, g.py, o.px, o.py], [g.cx, g.cy, o.cx, o.cy]].forEach(([x, y, ox, oy]) => {
+        if (Math.abs(ox - x) > .5 || Math.abs(oy - y) > .5) dotMoves.set(key(x, y), [ox - x, oy - y]);
+      });
       const from = connectorD(shift(old)), to = l.getAttribute('d');
-      if (from !== to) l.animate([{ d: `path("${from}")` }, { d: `path("${to}")` }], { duration: 640, delay: MOVE_DELAY, easing: SETTLE, fill: 'backwards' });
+      if (from !== to) anim(l, [{ d: `path("${from}")` }, { d: `path("${to}")` }], { duration: 640, delay: MOVE_DELAY, easing: SETTLE, fill: 'backwards' });
     });
+
+    pendingDots = { at: dotsAt, moves: dotMoves, moveDelay: MOVE_DELAY, t0: tA };
+    dots(); dotsReady = true;   // точки — в том же кадре, что и анимации карточек (иначе отстают на кадр)
 
     // сворачивание: ушедшие карточки улетают в родителя (дальние первыми), линии втягиваются в него
     const gone = [...snap].filter(([k]) => !seen.has(k)).map(([k, o]) => ({ k, o, g: lines.get(k) && shift(lines.get(k)) }));
@@ -295,7 +310,7 @@
       const delay = i * 22, dur = 300;
       lastOut = Math.max(lastOut, delay + dur);
       const to = g ? `translate(${g.px - (x + ghost.offsetWidth / 2)}px, ${g.py - y - 6}px) scale(.3)` : 'scale(.9)';
-      ghost.animate([{ transform: 'none', opacity: 1 }, { opacity: 1, offset: .55 }, { transform: to, opacity: 0 }],
+      anim(ghost, [{ transform: 'none', opacity: 1 }, { opacity: 1, offset: .55 }, { transform: to, opacity: 0 }],
         { duration: dur, delay, easing: 'cubic-bezier(.55, 0, .75, .2)', fill: 'forwards' }).onfinish = () => ghost.remove();
       if (!g) return;
       const gl = document.createElementNS(SVGNS, 'path');
@@ -304,18 +319,19 @@
       svg.appendChild(gl);
       const L = gl.getTotalLength();
       gl.style.strokeDasharray = `${L} ${L}`;
-      gl.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: L }],   // втягивается от ребёнка к родителю
+      anim(gl, [{ strokeDashoffset: 0 }, { strokeDashoffset: L }],   // втягивается от ребёнка к родителю
         { duration: dur + 60, delay, easing: 'cubic-bezier(.5, 0, .7, .3)', fill: 'forwards' }).onfinish = () => gl.remove();
     });
 
     // родитель: «нажатие» при раскрытии, «сглатывание» в конце сворачивания
     if (after) {
       const c = cardOf(after);
-      if (born.length) c.animate([{ transform: 'scale(1)' }, { transform: 'scale(.965)', offset: .4 }, { transform: 'scale(1)' }],
+      if (born.length) anim(c, [{ transform: 'scale(1)' }, { transform: 'scale(.965)', offset: .4 }, { transform: 'scale(1)' }],
         { duration: 420, easing: 'cubic-bezier(.3, .7, .4, 1)' });
-      else if (gone.length) c.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.03)', offset: .35 }, { transform: 'scale(1)' }],
+      else if (gone.length) anim(c, [{ transform: 'scale(1)' }, { transform: 'scale(1.03)', offset: .35 }, { transform: 'scale(1)' }],
         { duration: 460, delay: Math.max(0, lastOut - 120), easing: 'cubic-bezier(.3, .7, .4, 1)' });
     }
+    T0 = null;
   }
   if (typeof v2Rebuild === 'function') v2Rebuild = frRebuild;   // eslint-disable-line no-global-assign
 
@@ -334,7 +350,7 @@
       node.addEventListener('pointerenter', () => highlight(node));
       node.addEventListener('pointerleave', () => highlight(null));
     });
-    dots();
+    if (dotsReady) dotsReady = false; else dots();   // после раскрытия/сворачивания точки уже поставлены
   }
 
   /* ---------- Подключение: оборачиваем отрисовку сайта ---------- */
